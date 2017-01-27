@@ -1,1 +1,1 @@
-GIT repository for the BEST ELEC292 design team
+Folder for Project 1 Files
