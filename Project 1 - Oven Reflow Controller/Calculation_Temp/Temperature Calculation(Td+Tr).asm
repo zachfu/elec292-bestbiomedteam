@@ -25,6 +25,8 @@ GREEN  equ P2.6
 YELLOW equ P2.5
 RED    equ P2.4
 
+org 0x0B
+	ljmp Timer0_ISR
 	
 $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
@@ -68,6 +70,27 @@ endmac
     pop acc
     ret
     
+Timer0_Init:
+	mov a, TMOD
+	anl a, #0xf0 ; Clear the bits for timer 0
+	orl a, #0x01 ; Configure timer 0 as 16-timer
+	mov TMOD, a
+	mov TH0, #high(TIMER0_RELOAD)
+	mov TL0, #low(TIMER0_RELOAD)
+	; Enable the timer and interrupts
+    setb ET0  ; Enable timer 0 interrupt
+    clr TR0  ; Disable timer 0 by default
+	ret
+	
+Timer0_ISR:
+	; Generates tone when TR0 = 1
+	clr TR0
+	mov TH0, #high(TIMER0_RELOAD)
+	mov TL0, #low(TIMER0_RELOAD)
+	setb TR0
+	cpl SOUND_OUT 
+	reti   
+	 
 INIT_SPI:
  	setb MY_MISO ; Make MISO an input pin
  	clr MY_SCLK ; For mode (0,0) SCLK is zero
@@ -133,10 +156,11 @@ Init:
     mov SP, #7FH
     mov PMOD, #0 
     setb EA				; Enable interrupts
+    lcall Timer0_Init
 	lcall INIT_SPI
 	lcall InitSerialPort
 	lcall LCD_4BIT
-Main_Loop:
+Fetch_Temp:
 	;fetch result from channel 0 as room temperature
 	clr CE_ADC
 	mov R0, #00000001B ; Start bit:1
@@ -212,16 +236,29 @@ Result_SPI_Routine:
 	mov y+0, x_lm335+0
 	lcall add32
 	lcall hex2bcd
+	Send_BCD(bcd+2)
+    Send_BCD(bcd+1)
+    Send_BCD(bcd)
 	
+Display_Temp_LCD:	
+	mov a, bcd+2
+	cjne a, #0, Display_Hundreds	; If temperature is not in the hundreds, don't display hundreds digit (don't show the 0)
+	sjmp Display_Clear_Hundreds
+Display_Hundreds:
 	Set_Cursor(1,1)
-	
-	
-
-Display_Temp_LCD:
-	Display_BCD(bcd+4)
-	Display_BCD(bcd+3)
 	Display_BCD(bcd+2)
+	Set_Cursor(1,1)
+	Display_char(#' ')
+	sjmp Display_Tens
+Display_Clear_Hundreds:
+	Set_Cursor(1,1)
+	Display_char(#' ')
+	Display_char(#' ')
+Display_Tens:
+	Set_Cursor(1,3)
 	Display_BCD(bcd+1)
-	Display_BCD(bcd)
-    ret
+	Display_char(#'.')
+	Display_BCD(bcd+0)	
+	ret	
+
 end

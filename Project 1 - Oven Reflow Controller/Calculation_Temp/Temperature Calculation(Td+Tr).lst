@@ -374,34 +374,62 @@
 04A0 120176     212            lcall add32
 04A3 1200B1     213            lcall hex2bcd
 04A6            214            
-04A6 C0E0       215            push acc
-04A8 7401       215            mov a, #1
-04AA 14         215            dec a
-04AB 120096     215            lcall ?Set_Cursor_1 ; Select column and row
-04AE D0E0       215            pop acc
-04B0            216            
-04B0            217            
-04B0            218   
-04B0            219   Display_Temp_LCD:
-04B0 C000       220            push ar0
-04B2 A840       220            mov r0, bcd+4
-04B4 12009B     220            lcall ?Display_BCD
-04B7 D000       220            pop ar0
-04B9 C000       221            push ar0
-04BB A83F       221            mov r0, bcd+3
-04BD 12009B     221            lcall ?Display_BCD
-04C0 D000       221            pop ar0
-04C2 C000       222            push ar0
-04C4 A83E       222            mov r0, bcd+2
-04C6 12009B     222            lcall ?Display_BCD
-04C9 D000       222            pop ar0
-04CB C000       223            push ar0
-04CD A83D       223            mov r0, bcd+1
-04CF 12009B     223            lcall ?Display_BCD
-04D2 D000       223            pop ar0
-04D4 C000       224            push ar0
-04D6 A83C       224            mov r0, bcd
-04D8 12009B     224            lcall ?Display_BCD
-04DB D000       224            pop ar0
-04DD 22         225       ret
-04DE            226   end
+04A6            215   Display_Temp_LCD:        
+04A6 E53E       216            mov a, bcd+2
+04A8 B40002     217            cjne a, #0, Display_Hundreds    ; If temperature is not in the hundreds, don't display hundreds digit (don't show the 0)
+04AB 8028       218            sjmp Display_Clear_Hundreds
+04AD            219   Display_Hundreds:
+04AD C0E0       220            push acc
+04AF 7401       220            mov a, #1
+04B1 14         220            dec a
+04B2 120096     220            lcall ?Set_Cursor_1 ; Select column and row
+04B5 D0E0       220            pop acc
+04B7 C000       221            push ar0
+04B9 A83E       221            mov r0, bcd+2
+04BB 12009B     221            lcall ?Display_BCD
+04BE D000       221            pop ar0
+04C0 C0E0       222            push acc
+04C2 7401       222            mov a, #1
+04C4 14         222            dec a
+04C5 120096     222            lcall ?Set_Cursor_1 ; Select column and row
+04C8 D0E0       222            pop acc
+04CA C0E0       223            push acc
+04CC 7420       223            mov a, #' '
+04CE 120053     223            lcall ?WriteData
+04D1 D0E0       223            pop acc
+04D3 801C       224            sjmp Display_Tens
+04D5            225   Display_Clear_Hundreds:
+04D5 C0E0       226            push acc
+04D7 7401       226            mov a, #1
+04D9 14         226            dec a
+04DA 120096     226            lcall ?Set_Cursor_1 ; Select column and row
+04DD D0E0       226            pop acc
+04DF C0E0       227            push acc
+04E1 7420       227            mov a, #' '
+04E3 120053     227            lcall ?WriteData
+04E6 D0E0       227            pop acc
+04E8 C0E0       228            push acc
+04EA 7420       228            mov a, #' '
+04EC 120053     228            lcall ?WriteData
+04EF D0E0       228            pop acc
+04F1            229   Display_Tens:
+04F1 C0E0       230            push acc
+04F3 7403       230            mov a, #3
+04F5 14         230            dec a
+04F6 120096     230            lcall ?Set_Cursor_1 ; Select column and row
+04F9 D0E0       230            pop acc
+04FB C000       231            push ar0
+04FD A83D       231            mov r0, bcd+1
+04FF 12009B     231            lcall ?Display_BCD
+0502 D000       231            pop ar0
+0504 C0E0       232            push acc
+0506 742E       232            mov a, #'.'
+0508 120053     232            lcall ?WriteData
+050B D0E0       232            pop acc
+050D C000       233            push ar0
+050F A83C       233            mov r0, bcd+0
+0511 12009B     233            lcall ?Display_BCD
+0514 D000       233            pop ar0         
+0516 22         234            ret     
+0517            235   
+0517            236   end
