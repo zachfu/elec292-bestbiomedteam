@@ -164,26 +164,45 @@ Result_SPI_Routine:
 	mov x+1, result+1
 	mov x+0, result+0
 	; Calculate temperature in Kelvin in binary with 4 digits of precision
-	Load_Y(50000)
+	Load_Y(5000000)	;reduce the digit displaying on LCD
 	lcall mul32
 	Load_Y(1023)
 	lcall div32
-	Load_Y(1000000)
-	lcall mul32
-	Load_Y(454057)	;gain*1000
+	Load_Y(454057169)	;gain*1000000
 	lcall div32
 	Load_Y(41)
 	lcall div32
+	Load_Y(1000000)
+	lcall mul32
 	Load_Y(100)
 	lcall mul32
 	lcall hex2bcd
 	;result of the calculation is 100*temperature difference
+	Send_BCD(bcd+2)
+	Send_BCD(bcd+1)
+	Display_char(#'.')
+    Send_BCD(bcd)
     
     sjmp Display_Temp_LCD
 
 Display_Temp_LCD:	
+	mov a, bcd+2
+	cjne a, #0, Display_Hundreds	; If temperature is not in the hundreds, don't display hundreds digit (don't show the 0)
+	sjmp Display_Clear_Hundreds
+Display_Hundreds:
+	Set_Cursor(1,1)
 	Display_BCD(bcd+2)
+	Set_Cursor(1,1)
+	Display_char(#' ')
+	sjmp Display_Tens
+Display_Clear_Hundreds:
+	Set_Cursor(1,1)
+	Display_char(#' ')
+	Display_char(#' ')
+Display_Tens:
+	Set_Cursor(1,3)
 	Display_BCD(bcd+1)
+	Display_char(#'.')
 	Display_BCD(bcd)
     ret
 end
