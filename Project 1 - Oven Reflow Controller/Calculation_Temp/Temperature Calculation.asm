@@ -168,20 +168,16 @@ Result_SPI_Routine:
 	lcall mul32
 	Load_Y(1023)
 	lcall div32
-	Load_Y(454057169)	;gain*1000000
-	lcall div32
-	Load_Y(41)
-	lcall div32
 	Load_Y(1000000)
 	lcall mul32
 	Load_Y(100)
 	lcall mul32
+	Load_Y(454057169)	;gain*1000000
+	lcall div32
+	Load_Y(41)
+	lcall div32
 	lcall hex2bcd
 	;result of the calculation is 100*temperature difference
-	Send_BCD(bcd+2)
-	Send_BCD(bcd+1)
-	Display_char(#'.')
-    Send_BCD(bcd)
     
     sjmp Display_Temp_LCD
 
