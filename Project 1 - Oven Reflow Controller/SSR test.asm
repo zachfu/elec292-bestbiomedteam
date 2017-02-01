@@ -2,6 +2,7 @@ $MODLP52
 org 0000H
    ljmp Init
 
+VLED EQU 207
 CLK  EQU 22118400
 BAUD equ 115200
 T1LOAD equ (0x100-(CLK/(16*BAUD)))
@@ -34,7 +35,8 @@ $LIST
 
 
 dseg at 0x30
-Timer0_Count1ms:	 ds 2 ;
+Vcc:				ds 4
+Timer0_Count1ms:	ds 2 
 Result: 	ds 2
 x:  	    ds 4
 y:   		ds 4
@@ -45,6 +47,33 @@ BSEG
 mf: dbit 1
 
 CSEG
+NEWLINE: db '\n'
+
+Read_ADC_Channel MAC
+	mov b, #%0
+	lcall _Read_ADC_Channel
+	ENDMAC
+_Read_ADC_Channel:
+	clr CE_ADC
+	mov R0, #00000001B ; Start bit:1
+	lcall DO_SPI_G
+	mov a, b
+	swap a
+	anl a, #0F0H
+	setb acc.7 ; Single mode (bit 7).
+	mov R0, a
+	lcall DO_SPI_G
+	mov a, R1 ; R1 contains bits 8 and 9
+	anl a, #00000011B ; We need only the two least significant bits
+	mov result+1, a ; Save result high.
+	mov R0, #55H ; It doesn't matter what we transmit...
+	lcall DO_SPI_G
+	mov result+0, R1 ; R1 contains bits 0 to 7. Save result low.
+	setb CE_ADC
+	
+	ret
+	
+
 Send_BCD mac
     push ar0
     mov r0, %0
@@ -137,45 +166,44 @@ Init:
 	lcall InitSerialPort
 	lcall LCD_4BIT
 Main_Loop:
+	Read_ADC_Channel(7)
+	lcall Calculate_Vref
 	;fetch result from channel 0 as room temperature
-	clr CE_ADC
-	mov R0, #00000001B ; Start bit:1
-	lcall DO_SPI_G
-	mov R0, #10000000B ; Single ended, read channel 0
-	lcall DO_SPI_G
-	mov a, R1 ; R1 contains bits 8 and 9
-	anl a, #00000011B ; We need only the two least significant bits
-	mov Result+1, a ; Save result high.
-	mov R0, #55H ; It doesn't matter what we transmit...
-	lcall DO_SPI_G	
-	mov Result, R1 ; R1 contains bits 0 to 7. Save result low.
-	setb CE_ADC
+	Read_ADC_Channel(0)
 	lcall LM335_Result_SPI_Routine
 	;fetch result from channel 1
-    clr CE_ADC
-	mov R0, #00000001B ; Start bit:1
-	lcall DO_SPI_G
-	mov R0, #10010000B ; Single ended, read channel 1
-	lcall DO_SPI_G
-	mov a, R1 ; R1 contains bits 8 and 9
-	anl a, #00000011B ; We need only the two least significant bits
-	mov Result+1, a ; Save result high.
-	mov R0, #55H ; It doesn't matter what we transmit...
-	lcall DO_SPI_G	
-	mov Result, R1 ; R1 contains bits 0 to 7. Save result low.
-	setb CE_ADC
-	lcall Result_SPI_Routine	; Calls routine that calculates temperatures, displays on LCD, and sends via serial
+    Read_ADC_Channel(1)
+    lcall Result_SPI_Routine
 	Wait_Milli_Seconds(#250)	; 0.1 second delay between samples 
 	Wait_Milli_Seconds(#250)
-	cpl P3.7
+	setb P3.7
 	sjmp Main_Loop	
+	
+Calculate_Vref:
+	mov y+3, #0
+	mov y+2, #0
+	mov y+1, result+1
+	mov y+0, result+0
+	load_X(VLED*1023)
+	lcall div32
+	load_Y(10000)
+	lcall mul32
+	mov Vcc+3, x+3
+	mov Vcc+2, x+2
+	mov Vcc+1, x+1
+	mov Vcc+0, x+0
+	
+	ret
 	
 LM335_Result_SPI_Routine:
 	mov x+3, #0
     mov x+2, #0
     mov x+1, Result+1
     mov x+0, Result
-    load_y (5000000)
+    mov y+3, Vcc+3
+    mov y+2, Vcc+2
+    mov y+1, Vcc+1
+    mov y+0, Vcc+0
     lcall mul32
     load_y (1023)
     lcall div32
@@ -195,7 +223,10 @@ Result_SPI_Routine:
 	mov x+1, result+1
 	mov x+0, result+0
 	; Calculate temperature in Kelvin in binary with 4 digits of precision
-	Load_Y(5000000)
+    mov y+3, Vcc+3
+    mov y+2, Vcc+2
+    mov y+1, Vcc+1
+    mov y+0, Vcc+0
 	lcall mul32
 	Load_Y(1023)
 	lcall div32
@@ -212,6 +243,10 @@ Result_SPI_Routine:
 	mov y+0, x_lm335+0
 	lcall add32
 	lcall hex2bcd
+	
+	Send_BCD(bcd+1)
+	mov a, #'\n'
+	lcall putchar
 	
 	Set_Cursor(1,1)
 	
