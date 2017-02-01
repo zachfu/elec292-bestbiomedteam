@@ -164,18 +164,18 @@ Result_SPI_Routine:
 	mov x+1, result+1
 	mov x+0, result+0
 	; Calculate temperature in Kelvin in binary with 4 digits of precision
-	Load_Y(5000000)	;reduce the digit displaying on LCD
+	Load_Y(50000)
 	lcall mul32
 	Load_Y(1023)
 	lcall div32
 	Load_Y(1000000)
 	lcall mul32
-	Load_Y(100)
-	lcall mul32
-	Load_Y(454057169)	;gain*1000000
+	Load_Y(454057)	;gain*1000
 	lcall div32
 	Load_Y(41)
 	lcall div32
+	Load_Y(100)
+	lcall mul32
 	lcall hex2bcd
 	;result of the calculation is 100*temperature difference
     
