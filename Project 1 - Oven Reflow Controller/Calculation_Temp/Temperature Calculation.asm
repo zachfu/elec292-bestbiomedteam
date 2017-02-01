@@ -186,23 +186,8 @@ Result_SPI_Routine:
     sjmp Display_Temp_LCD
 
 Display_Temp_LCD:	
-	mov a, bcd+2
-	cjne a, #0, Display_Hundreds	; If temperature is not in the hundreds, don't display hundreds digit (don't show the 0)
-	sjmp Display_Clear_Hundreds
-Display_Hundreds:
-	Set_Cursor(1,1)
 	Display_BCD(bcd+2)
-	Set_Cursor(1,1)
-	Display_char(#' ')
-	sjmp Display_Tens
-Display_Clear_Hundreds:
-	Set_Cursor(1,1)
-	Display_char(#' ')
-	Display_char(#' ')
-Display_Tens:
-	Set_Cursor(1,3)
 	Display_BCD(bcd+1)
-	Display_char(#'.')
 	Display_BCD(bcd)
     ret
 end
