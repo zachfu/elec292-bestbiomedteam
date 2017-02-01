@@ -168,8 +168,8 @@
 0034             39   x:           ds 4
 0038             40   y:               ds 4
 003C             41   bcd:             ds 5
-0041             42   bcd_rt:          ds 5
-0046             43   
+0041             42   x_lm335:         ds 4
+0045             43   
 0000             44   BSEG
 0000             45   mf: dbit 1
 0001             46   
@@ -279,7 +279,7 @@
 03AD 12033E     150            lcall DO_SPI_G  
 03B0 8932       151            mov Result, R1 ; R1 contains bits 0 to 7. Save result low.
 03B2 D2A0       152            setb CE_ADC
-03B4 1203DF     153            lcall LM335_Result_SPI_Routine
+03B4 1203E8     153            lcall LM335_Result_SPI_Routine
 03B7            154            ;fetch result from channel 1
 03B7 C2A0       155       clr CE_ADC
 03B9 7801       156            mov R0, #00000001B ; Start bit:1
@@ -293,156 +293,115 @@
 03CA 12033E     164            lcall DO_SPI_G  
 03CD 8932       165            mov Result, R1 ; R1 contains bits 0 to 7. Save result low.
 03CF D2A0       166            setb CE_ADC
-03D1 120425     167            lcall Result_SPI_Routine        ; Calls routine that calculates temperatures, displays on LCD, and sends via serial
+03D1 12043D     167            lcall Result_SPI_Routine        ; Calls routine that calculates temperatures, displays on LCD, and sends via serial
 03D4 C002       168            push AR2
-03D6 7A64       168            mov R2, #100
+03D6 7AFA       168            mov R2, #250
 03D8 12000E     168            lcall ?Wait_Milli_Seconds
 03DB D002       168            pop AR2         ; 0.1 second delay between samples 
-03DD 80BB       169            sjmp Main_Loop  
-03DF            170            
-03DF            171   LM335_Result_SPI_Routine:
-03DF 753700     172            mov x+3, #0
-03E2 753600     173       mov x+2, #0
-03E5 853335     174       mov x+1, Result+1
-03E8 853234     175       mov x+0, Result
-03EB 753850     176            mov y+0, #low (50000 % 0x10000) 
-03EE 7539C3     176            mov y+1, #high(50000 % 0x10000) 
-03F1 753A00     176            mov y+2, #low (50000 / 0x10000) 
-03F4 753B00     176            mov y+3, #high(50000 / 0x10000) 
-03F7 12022B     177       lcall mul32
-03FA 7538FF     178            mov y+0, #low (1023 % 0x10000) 
-03FD 753903     178            mov y+1, #high(1023 % 0x10000) 
-0400 753A00     178            mov y+2, #low (1023 / 0x10000) 
-0403 753B00     178            mov y+3, #high(1023 / 0x10000) 
-0406 1202B8     179       lcall div32
-0409 7538A4     180            mov y+0, #low (27300 % 0x10000) 
-040C 75396A     180            mov y+1, #high(27300 % 0x10000) 
-040F 753A00     180            mov y+2, #low (27300 / 0x10000) 
-0412 753B00     180            mov y+3, #high(27300 / 0x10000) 
-0415 120197     181       lcall sub32
-0418 853F44     182       mov bcd_rt+3, bcd+3
-041B 853E43     183            mov bcd_rt+2, bcd+2
-041E 853D42     184            mov bcd_rt+1, bcd+1
-0421 853C41     185            mov bcd_rt+0, bcd+0
-0424 22         186            ret
-0425            187   
-0425            188   Result_SPI_Routine:
-0425 753700     189            mov x+3, #0
-0428 753600     190            mov x+2, #0
-042B 853335     191            mov x+1, Result+1
-042E 853234     192            mov x+0, Result+0
-0431            193            ; Calculate temperature in Kelvin in binary with 4 digits of precision
-0431 753840     194            mov y+0, #low (5000000 % 0x10000) 
-0434 75394B     194            mov y+1, #high(5000000 % 0x10000) 
-0437 753A4C     194            mov y+2, #low (5000000 / 0x10000) 
-043A 753B00     194            mov y+3, #high(5000000 / 0x10000)       ;reduce the digit displaying on LCD
-043D 12022B     195            lcall mul32
-0440 7538FF     196            mov y+0, #low (1023 % 0x10000) 
-0443 753903     196            mov y+1, #high(1023 % 0x10000) 
-0446 753A00     196            mov y+2, #low (1023 / 0x10000) 
-0449 753B00     196            mov y+3, #high(1023 / 0x10000) 
-044C 1202B8     197            lcall div32
-044F 7538D1     198            mov y+0, #low (454057169 % 0x10000) 
-0452 75395C     198            mov y+1, #high(454057169 % 0x10000) 
-0455 753A10     198            mov y+2, #low (454057169 / 0x10000) 
-0458 753B1B     198            mov y+3, #high(454057169 / 0x10000)     ;gain*1000000
-045B 1202B8     199            lcall div32
-045E 753829     200            mov y+0, #low (41 % 0x10000) 
-0461 753900     200            mov y+1, #high(41 % 0x10000) 
-0464 753A00     200            mov y+2, #low (41 / 0x10000) 
-0467 753B00     200            mov y+3, #high(41 / 0x10000) 
-046A 1202B8     201            lcall div32
-046D 753840     202            mov y+0, #low (1000000 % 0x10000) 
-0470 753942     202            mov y+1, #high(1000000 % 0x10000) 
-0473 753A0F     202            mov y+2, #low (1000000 / 0x10000) 
-0476 753B00     202            mov y+3, #high(1000000 / 0x10000) 
-0479 12022B     203            lcall mul32
-047C 753864     204            mov y+0, #low (100 % 0x10000) 
-047F 753900     204            mov y+1, #high(100 % 0x10000) 
-0482 753A00     204            mov y+2, #low (100 / 0x10000) 
-0485 753B00     204            mov y+3, #high(100 / 0x10000) 
-0488 12022B     205            lcall mul32
-048B 753841     206            mov y+0, #low (bcd_rt % 0x10000) 
-048E 753900     206            mov y+1, #high(bcd_rt % 0x10000) 
-0491 753A00     206            mov y+2, #low (bcd_rt / 0x10000) 
-0494 753B00     206            mov y+3, #high(bcd_rt / 0x10000) 
-0497 120176     207            lcall add32
-049A 1200B1     208            lcall hex2bcd
-049D            209            ;result of the calculation is 100*temperature difference
-049D C000       210       push ar0
-049F A83E       210       mov r0, bcd+2
-04A1 120321     210       lcall ?Send_BCD
-04A4 D000       210       pop ar0
-04A6 C000       211       push ar0
-04A8 A83D       211       mov r0, bcd+1
-04AA 120321     211       lcall ?Send_BCD
-04AD D000       211       pop ar0
-04AF C0E0       212            push acc
-04B1 742E       212            mov a, #'.'
-04B3 120053     212            lcall ?WriteData
-04B6 D0E0       212            pop acc
-04B8 C000       213       push ar0
-04BA A83C       213       mov r0, bcd
-04BC 120321     213       lcall ?Send_BCD
-04BF D000       213       pop ar0
-04C1            214       
-04C1 8000       215       sjmp Display_Temp_LCD
-04C3            216   
-04C3            217   Display_Temp_LCD:        
-04C3 E53E       218            mov a, bcd+2
-04C5 B40002     219            cjne a, #0, Display_Hundreds    ; If temperature is not in the hundreds, don't display hundreds digit (don't show the 0)
-04C8 8028       220            sjmp Display_Clear_Hundreds
-04CA            221   Display_Hundreds:
-04CA C0E0       222            push acc
-04CC 7401       222            mov a, #1
-04CE 14         222            dec a
-04CF 120096     222            lcall ?Set_Cursor_1 ; Select column and row
-04D2 D0E0       222            pop acc
-04D4 C000       223            push ar0
-04D6 A83E       223            mov r0, bcd+2
-04D8 12009B     223            lcall ?Display_BCD
-04DB D000       223            pop ar0
-04DD C0E0       224            push acc
-04DF 7401       224            mov a, #1
-04E1 14         224            dec a
-04E2 120096     224            lcall ?Set_Cursor_1 ; Select column and row
-04E5 D0E0       224            pop acc
-04E7 C0E0       225            push acc
-04E9 7420       225            mov a, #' '
-04EB 120053     225            lcall ?WriteData
-04EE D0E0       225            pop acc
-04F0 801C       226            sjmp Display_Tens
-04F2            227   Display_Clear_Hundreds:
-04F2 C0E0       228            push acc
-04F4 7401       228            mov a, #1
-04F6 14         228            dec a
-04F7 120096     228            lcall ?Set_Cursor_1 ; Select column and row
-04FA D0E0       228            pop acc
-04FC C0E0       229            push acc
-04FE 7420       229            mov a, #' '
-0500 120053     229            lcall ?WriteData
-0503 D0E0       229            pop acc
-0505 C0E0       230            push acc
-0507 7420       230            mov a, #' '
-0509 120053     230            lcall ?WriteData
-050C D0E0       230            pop acc
-050E            231   Display_Tens:
-050E C0E0       232            push acc
-0510 7403       232            mov a, #3
-0512 14         232            dec a
-0513 120096     232            lcall ?Set_Cursor_1 ; Select column and row
-0516 D0E0       232            pop acc
-0518 C000       233            push ar0
-051A A83D       233            mov r0, bcd+1
-051C 12009B     233            lcall ?Display_BCD
-051F D000       233            pop ar0
-0521 C0E0       234            push acc
-0523 742E       234            mov a, #'.'
-0525 120053     234            lcall ?WriteData
-0528 D0E0       234            pop acc
-052A C000       235            push ar0
-052C A83C       235            mov r0, bcd
-052E 12009B     235            lcall ?Display_BCD
-0531 D000       235            pop ar0
-0533 22         236       ret
-0534            237   en
+03DD C002       169            push AR2
+03DF 7AFA       169            mov R2, #250
+03E1 12000E     169            lcall ?Wait_Milli_Seconds
+03E4 D002       169            pop AR2
+03E6 80B2       170            sjmp Main_Loop  
+03E8            171            
+03E8            172   LM335_Result_SPI_Routine:
+03E8 753700     173            mov x+3, #0
+03EB 753600     174       mov x+2, #0
+03EE 853335     175       mov x+1, Result+1
+03F1 853234     176       mov x+0, Result
+03F4 753840     177            mov y+0, #low (5000000 % 0x10000) 
+03F7 75394B     177            mov y+1, #high(5000000 % 0x10000) 
+03FA 753A4C     177            mov y+2, #low (5000000 / 0x10000) 
+03FD 753B00     177            mov y+3, #high(5000000 / 0x10000) 
+0400 12022B     178       lcall mul32
+0403 7538FF     179            mov y+0, #low (1023 % 0x10000) 
+0406 753903     179            mov y+1, #high(1023 % 0x10000) 
+0409 753A00     179            mov y+2, #low (1023 / 0x10000) 
+040C 753B00     179            mov y+3, #high(1023 / 0x10000) 
+040F 1202B8     180       lcall div32
+0412 753810     181            mov y+0, #low (2730000 % 0x10000) 
+0415 7539A8     181            mov y+1, #high(2730000 % 0x10000) 
+0418 753A29     181            mov y+2, #low (2730000 / 0x10000) 
+041B 753B00     181            mov y+3, #high(2730000 / 0x10000) 
+041E 120197     182       lcall sub32
+0421 753864     183            mov y+0, #low (100 % 0x10000) 
+0424 753900     183            mov y+1, #high(100 % 0x10000) 
+0427 753A00     183            mov y+2, #low (100 / 0x10000) 
+042A 753B00     183            mov y+3, #high(100 / 0x10000) 
+042D 1202B8     184       lcall div32
+0430 853744     185       mov x_lm335+3, x+3
+0433 853643     186            mov x_lm335+2, x+2
+0436 853542     187            mov x_lm335+1, x+1
+0439 853441     188            mov x_lm335+0, x+0
+043C 22         189            ret
+043D            190   
+043D            191   Result_SPI_Routine:
+043D 753700     192            mov x+3, #0
+0440 753600     193            mov x+2, #0
+0443 853335     194            mov x+1, result+1
+0446 853234     195            mov x+0, result+0
+0449            196            ; Calculate temperature in Kelvin in binary with 4 digits of precision
+0449 753840     197            mov y+0, #low (5000000 % 0x10000) 
+044C 75394B     197            mov y+1, #high(5000000 % 0x10000) 
+044F 753A4C     197            mov y+2, #low (5000000 / 0x10000) 
+0452 753B00     197            mov y+3, #high(5000000 / 0x10000) 
+0455 12022B     198            lcall mul32
+0458 7538FF     199            mov y+0, #low (1023 % 0x10000) 
+045B 753903     199            mov y+1, #high(1023 % 0x10000) 
+045E 753A00     199            mov y+2, #low (1023 / 0x10000) 
+0461 753B00     199            mov y+3, #high(1023 / 0x10000) 
+0464 1202B8     200            lcall div32
+0467 753864     201            mov y+0, #low (100 % 0x10000) 
+046A 753900     201            mov y+1, #high(100 % 0x10000) 
+046D 753A00     201            mov y+2, #low (100 / 0x10000) 
+0470 753B00     201            mov y+3, #high(100 / 0x10000) 
+0473 12022B     202            lcall mul32     
+0476 7538C6     203            mov y+0, #low (454 % 0x10000) 
+0479 753901     203            mov y+1, #high(454 % 0x10000) 
+047C 753A00     203            mov y+2, #low (454 / 0x10000) 
+047F 753B00     203            mov y+3, #high(454 / 0x10000)   ;gain*1000
+0482 1202B8     204            lcall div32
+0485 753829     205            mov y+0, #low (41 % 0x10000) 
+0488 753900     205            mov y+1, #high(41 % 0x10000) 
+048B 753A00     205            mov y+2, #low (41 / 0x10000) 
+048E 753B00     205            mov y+3, #high(41 / 0x10000) 
+0491 1202B8     206            lcall div32
+0494            207            
+0494 85443B     208            mov y+3, x_lm335+3
+0497 85433A     209            mov y+2, x_lm335+2
+049A 854239     210            mov y+1, x_lm335+1
+049D 854138     211            mov y+0, x_lm335+0
+04A0 120176     212            lcall add32
+04A3 1200B1     213            lcall hex2bcd
+04A6            214            
+04A6 C0E0       215            push acc
+04A8 7401       215            mov a, #1
+04AA 14         215            dec a
+04AB 120096     215            lcall ?Set_Cursor_1 ; Select column and row
+04AE D0E0       215            pop acc
+04B0            216            
+04B0            217            
+04B0            218   
+04B0            219   Display_Temp_LCD:
+04B0 C000       220            push ar0
+04B2 A840       220            mov r0, bcd+4
+04B4 12009B     220            lcall ?Display_BCD
+04B7 D000       220            pop ar0
+04B9 C000       221            push ar0
+04BB A83F       221            mov r0, bcd+3
+04BD 12009B     221            lcall ?Display_BCD
+04C0 D000       221            pop ar0
+04C2 C000       222            push ar0
+04C4 A83E       222            mov r0, bcd+2
+04C6 12009B     222            lcall ?Display_BCD
+04C9 D000       222            pop ar0
+04CB C000       223            push ar0
+04CD A83D       223            mov r0, bcd+1
+04CF 12009B     223            lcall ?Display_BCD
+04D2 D000       223            pop ar0
+04D4 C000       224            push ar0
+04D6 A83C       224            mov r0, bcd
+04D8 12009B     224            lcall ?Display_BCD
+04DB D000       224            pop ar0
+04DD 22         225       ret
+04DE            226   end

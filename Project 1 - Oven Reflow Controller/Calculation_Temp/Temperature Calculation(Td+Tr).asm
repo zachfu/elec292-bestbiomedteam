@@ -39,7 +39,7 @@ Result: 	ds 2
 x:  	    ds 4
 y:   		ds 4
 bcd:		ds 5
-bcd_rt:		ds 5
+x_lm335:	ds 4
 
 BSEG
 mf: dbit 1
@@ -165,7 +165,8 @@ Main_Loop:
 	mov Result, R1 ; R1 contains bits 0 to 7. Save result low.
 	setb CE_ADC
 	lcall Result_SPI_Routine	; Calls routine that calculates temperatures, displays on LCD, and sends via serial
-	Wait_Milli_Seconds(#100)	; 0.1 second delay between samples 
+	Wait_Milli_Seconds(#250)	; 0.1 second delay between samples 
+	Wait_Milli_Seconds(#250)
 	sjmp Main_Loop	
 	
 LM335_Result_SPI_Routine:
@@ -180,56 +181,46 @@ LM335_Result_SPI_Routine:
     load_y (2730000)
     lcall sub32
     load_y (100)
-    lcall mul32
-    mov bcd_rt+3, bcd+3
-	mov bcd_rt+2, bcd+2
-	mov bcd_rt+1, bcd+1
-	mov bcd_rt+0, bcd+0
+    lcall div32
+    mov x_lm335+3, x+3
+	mov x_lm335+2, x+2
+	mov x_lm335+1, x+1
+	mov x_lm335+0, x+0
 	ret
 
 Result_SPI_Routine:
 	mov x+3, #0
 	mov x+2, #0
-	mov x+1, Result+1
-	mov x+0, Result+0
+	mov x+1, result+1
+	mov x+0, result+0
 	; Calculate temperature in Kelvin in binary with 4 digits of precision
-	Load_Y(5000000)	;5volts*10000 to allow better resolution
+	Load_Y(5000000)
 	lcall mul32
 	Load_Y(1023)
 	lcall div32
 	Load_Y(100)
-	lcall mul32
-	Load_Y(454)	;gain
+	lcall mul32	
+	Load_Y(454)	;gain*1000
 	lcall div32
-	Load_Y(1000000)
-	lcall mul32
 	Load_Y(41)
 	lcall div32
+	
+	mov y+3, x_lm335+3
+	mov y+2, x_lm335+2
+	mov y+1, x_lm335+1
+	mov y+0, x_lm335+0
+	lcall add32
 	lcall hex2bcd
-	;result of the calculation is 100*temperature difference
-	Send_BCD(bcd+2)
-	Send_BCD(bcd+1)
-    Send_BCD(bcd)
-    sjmp Display_Temp_LCD
+	
+	Set_Cursor(1,1)
+	
+	
 
-Display_Temp_LCD:	
-	mov a, bcd+2
-	cjne a, #0, Display_Hundreds	; If temperature is not in the hundreds, don't display hundreds digit (don't show the 0)
-	sjmp Display_Clear_Hundreds
-Display_Hundreds:
-	Set_Cursor(1,1)
+Display_Temp_LCD:
+	Display_BCD(bcd+4)
+	Display_BCD(bcd+3)
 	Display_BCD(bcd+2)
-	Set_Cursor(1,1)
-	Display_char(#' ')
-	sjmp Display_Tens
-Display_Clear_Hundreds:
-	Set_Cursor(1,1)
-	Display_char(#' ')
-	Display_char(#' ')
-Display_Tens:
-	Set_Cursor(1,3)
 	Display_BCD(bcd+1)
-	Display_char(#'.')
 	Display_BCD(bcd)
     ret
 end
