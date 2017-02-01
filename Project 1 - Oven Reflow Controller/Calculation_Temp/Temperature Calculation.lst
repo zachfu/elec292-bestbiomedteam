@@ -271,7 +271,7 @@
 039C 7801       142            mov R0, #00000001B ; Start bit:1
 039E 12033E     143            lcall DO_SPI_G
 03A1            144            
-03A1 7880       145            mov R0, #10000000B ; Single ended, read channel 0
+03A1 7890       145            mov R0, #10010000B ; Single ended, read channel 1
 03A3 12033E     146            lcall DO_SPI_G
 03A6            147            
 03A6 E9         148            mov a, R1 ; R1 contains bits 8 and 9

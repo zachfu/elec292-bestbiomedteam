@@ -39,6 +39,7 @@ Result: 	ds 2
 x:  	    ds 4
 y:   		ds 4
 bcd:		ds 5
+bcd_rt:		ds 5
 
 BSEG
 mf: dbit 1
@@ -136,33 +137,59 @@ Init:
 	lcall InitSerialPort
 	lcall LCD_4BIT
 Main_Loop:
-
-    clr CE_ADC
-    
+	;fetch result from channel 0 as room temperature
+	clr CE_ADC
 	mov R0, #00000001B ; Start bit:1
 	lcall DO_SPI_G
-	
-	mov R0, #10010000B ; Single ended, read channel 1
+	mov R0, #10000000B ; Single ended, read channel 0
 	lcall DO_SPI_G
-	
 	mov a, R1 ; R1 contains bits 8 and 9
 	anl a, #00000011B ; We need only the two least significant bits
 	mov Result+1, a ; Save result high.
-	
 	mov R0, #55H ; It doesn't matter what we transmit...
 	lcall DO_SPI_G	
-	
 	mov Result, R1 ; R1 contains bits 0 to 7. Save result low.
-	
 	setb CE_ADC
-	
+	lcall LM335_Result_SPI_Routine
+	;fetch result from channel 1
+    clr CE_ADC
+	mov R0, #00000001B ; Start bit:1
+	lcall DO_SPI_G
+	mov R0, #10010000B ; Single ended, read channel 1
+	lcall DO_SPI_G
+	mov a, R1 ; R1 contains bits 8 and 9
+	anl a, #00000011B ; We need only the two least significant bits
+	mov Result+1, a ; Save result high.
+	mov R0, #55H ; It doesn't matter what we transmit...
+	lcall DO_SPI_G	
+	mov Result, R1 ; R1 contains bits 0 to 7. Save result low.
+	setb CE_ADC
 	lcall Result_SPI_Routine	; Calls routine that calculates temperatures, displays on LCD, and sends via serial
 	Wait_Milli_Seconds(#100)	; 0.1 second delay between samples 
+	sjmp Main_Loop	
+	
+LM335_Result_SPI_Routine:
+	mov x+3, #0
+    mov x+2, #0
+    mov x+1, Result+1
+    mov x+0, Result
+    load_y (50000)
+    lcall mul32
+    load_y (1023)
+    lcall div32
+    load_y (27300)
+    lcall sub32
+    mov bcd_rt+3, bcd+3
+	mov bcd_rt+2, bcd+2
+	mov bcd_rt+1, bcd+1
+	mov bcd_rt+0, bcd+0
+	ret
+
 Result_SPI_Routine:
 	mov x+3, #0
 	mov x+2, #0
-	mov x+1, result+1
-	mov x+0, result+0
+	mov x+1, Result+1
+	mov x+0, Result+0
 	; Calculate temperature in Kelvin in binary with 4 digits of precision
 	Load_Y(5000000)	;reduce the digit displaying on LCD
 	lcall mul32
@@ -176,6 +203,8 @@ Result_SPI_Routine:
 	lcall mul32
 	Load_Y(100)
 	lcall mul32
+	Load_Y(bcd_rt)
+	lcall add32
 	lcall hex2bcd
 	;result of the calculation is 100*temperature difference
 	Send_BCD(bcd+2)
