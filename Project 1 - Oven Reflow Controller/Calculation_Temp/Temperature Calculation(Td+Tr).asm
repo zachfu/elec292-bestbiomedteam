@@ -237,8 +237,6 @@ Result_SPI_Routine:
 	lcall hex2bcd
 	Send_BCD(bcd+2)
     Send_BCD(bcd+1)
-    mov a, #'.'
-    lcall putchar
     Send_BCD(bcd)
 	
 Display_Temp_LCD:	
