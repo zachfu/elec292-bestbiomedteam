@@ -179,6 +179,8 @@ LM335_Result_SPI_Routine:
     lcall div32
     load_y (2730000)
     lcall sub32
+    load_y (100)
+    lcall mul32
     mov bcd_rt+3, bcd+3
 	mov bcd_rt+2, bcd+2
 	mov bcd_rt+1, bcd+1
