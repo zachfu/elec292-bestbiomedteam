@@ -40,6 +40,7 @@ Timer0_Count1ms:	ds 2
 Result: 	ds 2
 x:  	    ds 4
 y:   		ds 4
+samplesum:	ds 4
 bcd:		ds 5
 x_lm335:	ds 4
 
@@ -166,6 +167,23 @@ Init:
 	lcall InitSerialPort
 	lcall LCD_4BIT
 Main_Loop:
+	clr a
+	mov samplesum+3, a
+	mov samplesum+2, a
+	mov samplesum+1, a
+	mov samplesum+0, a
+	
+	lcall Take_Sample
+	lcall Take_Sample
+	lcall Take_Sample
+	lcall Take_Sample
+	lcall Calculate_Average
+	 
+	setb P3.7
+	sjmp Main_Loop	
+	
+	
+Take_Sample:
 	Read_ADC_Channel(7)
 	lcall Calculate_Vref
 	;fetch result from channel 0 as room temperature
@@ -174,11 +192,8 @@ Main_Loop:
 	;fetch result from channel 1
     Read_ADC_Channel(1)
     lcall Result_SPI_Routine
-	Wait_Milli_Seconds(#250)	; 0.1 second delay between samples 
-	Wait_Milli_Seconds(#250)
-	setb P3.7
-	sjmp Main_Loop	
-	
+	Wait_Milli_Seconds(#125)	; 0.1 second delay between samples
+	ret
 Calculate_Vref:
 	mov y+3, #0
 	mov y+2, #0
@@ -187,7 +202,7 @@ Calculate_Vref:
 	load_X(VLED*1023)
 	lcall div32
 	load_Y(10000)
-	lcall mul32
+	lcall mul32			; Gets Vcc*10^6
 	mov Vcc+3, x+3
 	mov Vcc+2, x+2
 	mov Vcc+1, x+1
@@ -198,18 +213,18 @@ Calculate_Vref:
 LM335_Result_SPI_Routine:
 	mov x+3, #0
     mov x+2, #0
-    mov x+1, Result+1
-    mov x+0, Result
+    mov x+1, result+1
+    mov x+0, result+0
     mov y+3, Vcc+3
     mov y+2, Vcc+2
     mov y+1, Vcc+1
     mov y+0, Vcc+0
-    lcall mul32
-    load_y (1023)
+    lcall mul32			; Vout*10^6 = ADC*(Vcc*10^6)/1023
+    load_y (1023)	
     lcall div32
-    load_y (2730000)
+    load_y (2730000)	; T*10^4 = (Vout*10^6-2.73*10^6)/100
     lcall sub32
-    load_y (100)
+    load_y (100)		
     lcall div32
     mov x_lm335+3, x+3
 	mov x_lm335+2, x+2
@@ -222,7 +237,6 @@ Result_SPI_Routine:
 	mov x+2, #0
 	mov x+1, result+1
 	mov x+0, result+0
-	; Calculate temperature in Kelvin in binary with 4 digits of precision
     mov y+3, Vcc+3
     mov y+2, Vcc+2
     mov y+1, Vcc+1
@@ -232,9 +246,9 @@ Result_SPI_Routine:
 	lcall div32
 	Load_Y(100)
 	lcall mul32	
-	Load_Y(454)	;gain*1000
+	Load_Y(454)	;Gain 
 	lcall div32
-	Load_Y(41)
+	Load_Y(41)	;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
 	lcall div32
 	
 	mov y+3, x_lm335+3
@@ -242,8 +256,32 @@ Result_SPI_Routine:
 	mov y+1, x_lm335+1
 	mov y+0, x_lm335+0
 	lcall add32
+	
+	mov y+3, samplesum+3
+	mov y+2, samplesum+2
+	mov y+1, samplesum+1
+	mov y+0, samplesum+0
+	
+	lcall add32
+	
+	mov samplesum+3, x+3
+	mov samplesum+2, x+2
+	mov samplesum+1, x+1
+	mov samplesum+0, x+0
+	
+	ret
+
+Calculate_Average:
+	mov x+3, samplesum+3
+	mov x+2, samplesum+2
+	mov x+1, samplesum+1
+	mov x+0, samplesum+1
+	
+	Load_Y(4)
+	lcall div32
 	lcall hex2bcd
 	
+	Send_BCD(bcd+2)
 	Send_BCD(bcd+1)
 	mov a, #'\n'
 	lcall putchar

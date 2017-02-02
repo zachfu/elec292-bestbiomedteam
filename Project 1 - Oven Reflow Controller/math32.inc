@@ -544,4 +544,25 @@ Load_y MAC
 	mov y+3, #high(%0 / 0x10000) 
 ENDMAC
 	
+Move_2B_to_4B MAC
+	mov %0+0, %1+0 
+	mov %0+1, %1+1
+	mov %0+2, #0 
+	mov %0+3, #0
+ENDMAC
+
+Move_4B_to_4B MAC
+	mov %0+0, %1+0 
+	mov %0+1, %1+1
+	mov %0+2, %1+2 
+	mov %0+3, %1+3
+ENDMAC
+
+Zero_4B MAC
+	mov %0+0, #0
+	mov %0+1, #0
+	mov %0+2, #0
+	mov %0+3, #0
+ENDMAC
+
 $LIST

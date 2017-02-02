@@ -169,281 +169,318 @@
 0036             40   Result:          ds 2
 0038             41   x:           ds 4
 003C             42   y:               ds 4
-0040             43   bcd:             ds 5
-0045             44   x_lm335:         ds 4
-0049             45   
-0000             46   BSEG
-0000             47   mf: dbit 1
-0001             48   
-0321             49   CSEG
-0321 0A          50   NEWLINE: db '\n'
-0322             51   
-                 52   Read_ADC_Channel MAC
-                 53   	mov b, #%0
-                 54   	lcall _Read_ADC_Channel
-                 55   	ENDMAC
-0322             56   _Read_ADC_Channel:
-0322 C2A0        57            clr CE_ADC
-0324 7801        58            mov R0, #00000001B ; Start bit:1
-0326 120360      59            lcall DO_SPI_G
-0329 E5F0        60            mov a, b
-032B C4          61            swap a
-032C 54F0        62            anl a, #0F0H
-032E D2E7        63            setb acc.7 ; Single mode (bit 7).
-0330 F8          64            mov R0, a
-0331 120360      65            lcall DO_SPI_G
-0334 E9          66            mov a, R1 ; R1 contains bits 8 and 9
-0335 5403        67            anl a, #00000011B ; We need only the two least significant bits
-0337 F537        68            mov result+1, a ; Save result high.
-0339 7855        69            mov R0, #55H ; It doesn't matter what we transmit...
-033B 120360      70            lcall DO_SPI_G
-033E 8936        71            mov result+0, R1 ; R1 contains bits 0 to 7. Save result low.
-0340 D2A0        72            setb CE_ADC
-0342             73            
-0342 22          74            ret
-0343             75            
-0343             76   
-                 77   Send_BCD mac
-                 78       push ar0
-                 79       mov r0, %0
-                 80       lcall ?Send_BCD
-                 81       pop ar0
-                 82   endmac
-0343             83   
-0343             84   ?Send_BCD:
-0343 C0E0        85       push acc
-0345             86       ; Write most significant digit
-0345 E8          87       mov a, r0
-0346 C4          88       swap a
-0347 540F        89       anl a, #0fh
-0349 4430        90       orl a, #30h
-034B 120398      91       lcall putchar
-034E             92       ; write least significant digit
-034E E8          93       mov a, r0
-034F 540F        94       anl a, #0fh
-0351 4430        95       orl a, #30h
-0353 120398      96       lcall putchar
-0356 D0E0        97       pop acc
-0358 22          98       ret
-0359             99       
-0359            100   INIT_SPI:
-0359 D2A2       101            setb MY_MISO ; Make MISO an input pin
-035B C2A3       102            clr MY_SCLK ; For mode (0,0) SCLK is zero
-035D D2A0       103            setb CE_ADC
-035F 22         104            ret
-0360            105   DO_SPI_G:
-0360 C0E0       106            push acc
-0362 7900       107            mov R1, #0 ; Received byte stored in R1
-0364 7A08       108            mov R2, #8 ; Loop counter (8-bits)
-0366            109   DO_SPI_G_LOOP:
-0366 E8         110            mov a, R0 ; Byte to write is in R0
-0367 33         111            rlc a ; Carry flag has bit to write
-0368 F8         112            mov R0, a
-0369 92A1       113            mov MY_MOSI, c
-036B D2A3       114            setb MY_SCLK ; Transmit
-036D A2A2       115            mov c, MY_MISO ; Read received bit
-036F E9         116            mov a, R1 ; Save received bit in R1
-0370 33         117            rlc a
-0371 F9         118            mov R1, a
-0372 C2A3       119            clr MY_SCLK
-0374 DAF0       120            djnz R2, DO_SPI_G_LOOP
-0376 D0E0       121            pop acc
-0378 22         122            ret
-0379            123    
-0379            124   ; Configure the serial port and baud rate using timer 1
-0379            125   InitSerialPort:
-0379            126       ; Since the reset button bounces, we need to wait a bit before
-0379            127       ; sending messages, or risk displaying gibberish!
-0379 79DE       128       mov R1, #222
-037B 78A6       129       mov R0, #166
-037D D8FE       130       djnz R0, $   ; 3 cycles->3*45.21123ns*166=22.51519us
-037F D9FA       131       djnz R1, $-4 ; 22.51519us*222=4.998ms
-0381            132       ; Now we can safely proceed with the configuration
-0381 C28E       133            clr     TR1
-0383 53890F     134            anl     TMOD, #0x0f
-0386 438920     135            orl     TMOD, #0x20
-0389 438780     136            orl     PCON,#0x80
-038C 758DF4     137            mov     TH1,#T1LOAD
-038F 758BF4     138            mov     TL1,#T1LOAD
-0392 D28E       139            setb TR1
-0394 759852     140            mov     SCON,#0x52
-0397 22         141       ret
-0398            142   
-0398            143   ; Send a character using the serial port
-0398            144   putchar:
-0398 3099FD     145       jnb TI, putchar
-039B C299       146       clr TI
-039D F599       147       mov SBUF, a
-039F 22         148       ret
-03A0            149   
-03A0            150   ; Send a constant-zero-terminated string using the serial port
-03A0            151   SendString:
-03A0 E4         152       clr A
-03A1 93         153       movc A, @A+DPTR
-03A2 6006       154       jz SendStringDone
-03A4 120398     155       lcall putchar
-03A7 A3         156       inc DPTR
-03A8 80F6       157       sjmp SendString
-03AA            158   SendStringDone:
-03AA 22         159       ret
-03AB            160   
-03AB            161   Init:
-03AB 75817F     162       mov SP, #7FH
-03AE 75C100     163       mov PMOD, #0 
-03B1 D2AF       164       setb EA                              ; Enable interrupts
-03B3 120359     165            lcall INIT_SPI
-03B6 120379     166            lcall InitSerialPort
-03B9 12005D     167            lcall LCD_4BIT
-03BC            168   Main_Loop:
-03BC 75F007     169            mov b, #7
-03BF 120322     169            lcall _Read_ADC_Channel
-03C2 1203ED     170            lcall Calculate_Vref
-03C5            171            ;fetch result from channel 0 as room temperature
-03C5 75F000     172            mov b, #0
-03C8 120322     172            lcall _Read_ADC_Channel
-03CB 120424     173            lcall LM335_Result_SPI_Routine
-03CE            174            ;fetch result from channel 1
-03CE 75F001     175            mov b, #1
-03D1 120322     175            lcall _Read_ADC_Channel
-03D4 120479     176       lcall Result_SPI_Routine
-03D7 C002       177            push AR2
-03D9 7AFA       177            mov R2, #250
-03DB 12000E     177            lcall ?Wait_Milli_Seconds
-03DE D002       177            pop AR2         ; 0.1 second delay between samples 
-03E0 C002       178            push AR2
-03E2 7AFA       178            mov R2, #250
-03E4 12000E     178            lcall ?Wait_Milli_Seconds
-03E7 D002       178            pop AR2
-03E9 D2B7       179            setb P3.7
-03EB 80CF       180            sjmp Main_Loop  
-03ED            181            
-03ED            182   Calculate_Vref:
-03ED 753F00     183            mov y+3, #0
-03F0 753E00     184            mov y+2, #0
-03F3 85373D     185            mov y+1, result+1
-03F6 85363C     186            mov y+0, result+0
-03F9 753831     187            mov x+0, #low (VLED*1023 % 0x10000) 
-03FC 75393B     187            mov x+1, #high(VLED*1023 % 0x10000) 
-03FF 753A03     187            mov x+2, #low (VLED*1023 / 0x10000) 
-0402 753B00     187            mov x+3, #high(VLED*1023 / 0x10000) 
-0405 1202B8     188            lcall div32
-0408 753C10     189            mov y+0, #low (10000 % 0x10000) 
-040B 753D27     189            mov y+1, #high(10000 % 0x10000) 
-040E 753E00     189            mov y+2, #low (10000 / 0x10000) 
-0411 753F00     189            mov y+3, #high(10000 / 0x10000) 
-0414 12022B     190            lcall mul32
-0417 853B33     191            mov Vcc+3, x+3
-041A 853A32     192            mov Vcc+2, x+2
-041D 853931     193            mov Vcc+1, x+1
-0420 853830     194            mov Vcc+0, x+0
-0423            195            
-0423 22         196            ret
-0424            197            
-0424            198   LM335_Result_SPI_Routine:
-0424 753B00     199            mov x+3, #0
-0427 753A00     200       mov x+2, #0
-042A 853739     201       mov x+1, Result+1
-042D 853638     202       mov x+0, Result
-0430 85333F     203       mov y+3, Vcc+3
-0433 85323E     204       mov y+2, Vcc+2
-0436 85313D     205       mov y+1, Vcc+1
-0439 85303C     206       mov y+0, Vcc+0
-043C 12022B     207       lcall mul32
-043F 753CFF     208            mov y+0, #low (1023 % 0x10000) 
-0442 753D03     208            mov y+1, #high(1023 % 0x10000) 
-0445 753E00     208            mov y+2, #low (1023 / 0x10000) 
-0448 753F00     208            mov y+3, #high(1023 / 0x10000) 
-044B 1202B8     209       lcall div32
-044E 753C10     210            mov y+0, #low (2730000 % 0x10000) 
-0451 753DA8     210            mov y+1, #high(2730000 % 0x10000) 
-0454 753E29     210            mov y+2, #low (2730000 / 0x10000) 
-0457 753F00     210            mov y+3, #high(2730000 / 0x10000) 
-045A 120197     211       lcall sub32
-045D 753C64     212            mov y+0, #low (100 % 0x10000) 
-0460 753D00     212            mov y+1, #high(100 % 0x10000) 
-0463 753E00     212            mov y+2, #low (100 / 0x10000) 
-0466 753F00     212            mov y+3, #high(100 / 0x10000) 
-0469 1202B8     213       lcall div32
-046C 853B48     214       mov x_lm335+3, x+3
-046F 853A47     215            mov x_lm335+2, x+2
-0472 853946     216            mov x_lm335+1, x+1
-0475 853845     217            mov x_lm335+0, x+0
-0478 22         218            ret
-0479            219   
-0479            220   Result_SPI_Routine:
-0479 753B00     221            mov x+3, #0
-047C 753A00     222            mov x+2, #0
-047F 853739     223            mov x+1, result+1
-0482 853638     224            mov x+0, result+0
-0485            225            ; Calculate temperature in Kelvin in binary with 4 digits of precision
-0485 85333F     226       mov y+3, Vcc+3
-0488 85323E     227       mov y+2, Vcc+2
-048B 85313D     228       mov y+1, Vcc+1
-048E 85303C     229       mov y+0, Vcc+0
-0491 12022B     230            lcall mul32
-0494 753CFF     231            mov y+0, #low (1023 % 0x10000) 
-0497 753D03     231            mov y+1, #high(1023 % 0x10000) 
-049A 753E00     231            mov y+2, #low (1023 / 0x10000) 
-049D 753F00     231            mov y+3, #high(1023 / 0x10000) 
-04A0 1202B8     232            lcall div32
-04A3 753C64     233            mov y+0, #low (100 % 0x10000) 
-04A6 753D00     233            mov y+1, #high(100 % 0x10000) 
-04A9 753E00     233            mov y+2, #low (100 / 0x10000) 
-04AC 753F00     233            mov y+3, #high(100 / 0x10000) 
-04AF 12022B     234            lcall mul32     
-04B2 753CC6     235            mov y+0, #low (454 % 0x10000) 
-04B5 753D01     235            mov y+1, #high(454 % 0x10000) 
-04B8 753E00     235            mov y+2, #low (454 / 0x10000) 
-04BB 753F00     235            mov y+3, #high(454 / 0x10000)   ;gain*1000
-04BE 1202B8     236            lcall div32
-04C1 753C29     237            mov y+0, #low (41 % 0x10000) 
-04C4 753D00     237            mov y+1, #high(41 % 0x10000) 
-04C7 753E00     237            mov y+2, #low (41 / 0x10000) 
-04CA 753F00     237            mov y+3, #high(41 / 0x10000) 
-04CD 1202B8     238            lcall div32
-04D0            239            
-04D0 85483F     240            mov y+3, x_lm335+3
-04D3 85473E     241            mov y+2, x_lm335+2
-04D6 85463D     242            mov y+1, x_lm335+1
-04D9 85453C     243            mov y+0, x_lm335+0
-04DC 120176     244            lcall add32
-04DF 1200B1     245            lcall hex2bcd
-04E2            246            
-04E2 C000       247       push ar0
-04E4 A841       247       mov r0, bcd+1
-04E6 120343     247       lcall ?Send_BCD
-04E9 D000       247       pop ar0
-04EB 740A       248            mov a, #'\n'
-04ED 120398     249            lcall putchar
-04F0            250            
-04F0 C0E0       251            push acc
-04F2 7401       251            mov a, #1
-04F4 14         251            dec a
-04F5 120096     251            lcall ?Set_Cursor_1 ; Select column and row
-04F8 D0E0       251            pop acc
-04FA            252            
-04FA            253            
-04FA            254   
-04FA            255   Display_Temp_LCD:
-04FA C000       256            push ar0
-04FC A844       256            mov r0, bcd+4
-04FE 12009B     256            lcall ?Display_BCD
-0501 D000       256            pop ar0
-0503 C000       257            push ar0
-0505 A843       257            mov r0, bcd+3
-0507 12009B     257            lcall ?Display_BCD
-050A D000       257            pop ar0
-050C C000       258            push ar0
-050E A842       258            mov r0, bcd+2
-0510 12009B     258            lcall ?Display_BCD
-0513 D000       258            pop ar0
-0515 C000       259            push ar0
-0517 A841       259            mov r0, bcd+1
-0519 12009B     259            lcall ?Display_BCD
-051C D000       259            pop ar0
-051E C000       260            push ar0
-0520 A840       260            mov r0, bcd
-0522 12009B     260            lcall ?Display_BCD
-0525 D000       260            pop ar0
-0527 22         261       ret
-0528            262   end
+0040             43   samplesum:       ds 4
+0044             44   bcd:             ds 5
+0049             45   x_lm335:         ds 4
+004D             46   
+0000             47   BSEG
+0000             48   mf: dbit 1
+0001             49   
+0321             50   CSEG
+0321 0A          51   NEWLINE: db '\n'
+0322             52   
+                 53   Read_ADC_Channel MAC
+                 54   	mov b, #%0
+                 55   	lcall _Read_ADC_Channel
+                 56   	ENDMAC
+0322             57   _Read_ADC_Channel:
+0322 C2A0        58            clr CE_ADC
+0324 7801        59            mov R0, #00000001B ; Start bit:1
+0326 120360      60            lcall DO_SPI_G
+0329 E5F0        61            mov a, b
+032B C4          62            swap a
+032C 54F0        63            anl a, #0F0H
+032E D2E7        64            setb acc.7 ; Single mode (bit 7).
+0330 F8          65            mov R0, a
+0331 120360      66            lcall DO_SPI_G
+0334 E9          67            mov a, R1 ; R1 contains bits 8 and 9
+0335 5403        68            anl a, #00000011B ; We need only the two least significant bits
+0337 F537        69            mov result+1, a ; Save result high.
+0339 7855        70            mov R0, #55H ; It doesn't matter what we transmit...
+033B 120360      71            lcall DO_SPI_G
+033E 8936        72            mov result+0, R1 ; R1 contains bits 0 to 7. Save result low.
+0340 D2A0        73            setb CE_ADC
+0342             74            
+0342 22          75            ret
+0343             76            
+0343             77   
+                 78   Send_BCD mac
+                 79       push ar0
+                 80       mov r0, %0
+                 81       lcall ?Send_BCD
+                 82       pop ar0
+                 83   endmac
+0343             84   
+0343             85   ?Send_BCD:
+0343 C0E0        86       push acc
+0345             87       ; Write most significant digit
+0345 E8          88       mov a, r0
+0346 C4          89       swap a
+0347 540F        90       anl a, #0fh
+0349 4430        91       orl a, #30h
+034B 120398      92       lcall putchar
+034E             93       ; write least significant digit
+034E E8          94       mov a, r0
+034F 540F        95       anl a, #0fh
+0351 4430        96       orl a, #30h
+0353 120398      97       lcall putchar
+0356 D0E0        98       pop acc
+0358 22          99       ret
+0359            100       
+0359            101   INIT_SPI:
+0359 D2A2       102            setb MY_MISO ; Make MISO an input pin
+035B C2A3       103            clr MY_SCLK ; For mode (0,0) SCLK is zero
+035D D2A0       104            setb CE_ADC
+035F 22         105            ret
+0360            106   DO_SPI_G:
+0360 C0E0       107            push acc
+0362 7900       108            mov R1, #0 ; Received byte stored in R1
+0364 7A08       109            mov R2, #8 ; Loop counter (8-bits)
+0366            110   DO_SPI_G_LOOP:
+0366 E8         111            mov a, R0 ; Byte to write is in R0
+0367 33         112            rlc a ; Carry flag has bit to write
+0368 F8         113            mov R0, a
+0369 92A1       114            mov MY_MOSI, c
+036B D2A3       115            setb MY_SCLK ; Transmit
+036D A2A2       116            mov c, MY_MISO ; Read received bit
+036F E9         117            mov a, R1 ; Save received bit in R1
+0370 33         118            rlc a
+0371 F9         119            mov R1, a
+0372 C2A3       120            clr MY_SCLK
+0374 DAF0       121            djnz R2, DO_SPI_G_LOOP
+0376 D0E0       122            pop acc
+0378 22         123            ret
+0379            124    
+0379            125   ; Configure the serial port and baud rate using timer 1
+0379            126   InitSerialPort:
+0379            127       ; Since the reset button bounces, we need to wait a bit before
+0379            128       ; sending messages, or risk displaying gibberish!
+0379 79DE       129       mov R1, #222
+037B 78A6       130       mov R0, #166
+037D D8FE       131       djnz R0, $   ; 3 cycles->3*45.21123ns*166=22.51519us
+037F D9FA       132       djnz R1, $-4 ; 22.51519us*222=4.998ms
+0381            133       ; Now we can safely proceed with the configuration
+0381 C28E       134            clr     TR1
+0383 53890F     135            anl     TMOD, #0x0f
+0386 438920     136            orl     TMOD, #0x20
+0389 438780     137            orl     PCON,#0x80
+038C 758DF4     138            mov     TH1,#T1LOAD
+038F 758BF4     139            mov     TL1,#T1LOAD
+0392 D28E       140            setb TR1
+0394 759852     141            mov     SCON,#0x52
+0397 22         142       ret
+0398            143   
+0398            144   ; Send a character using the serial port
+0398            145   putchar:
+0398 3099FD     146       jnb TI, putchar
+039B C299       147       clr TI
+039D F599       148       mov SBUF, a
+039F 22         149       ret
+03A0            150   
+03A0            151   ; Send a constant-zero-terminated string using the serial port
+03A0            152   SendString:
+03A0 E4         153       clr A
+03A1 93         154       movc A, @A+DPTR
+03A2 6006       155       jz SendStringDone
+03A4 120398     156       lcall putchar
+03A7 A3         157       inc DPTR
+03A8 80F6       158       sjmp SendString
+03AA            159   SendStringDone:
+03AA 22         160       ret
+03AB            161   
+03AB            162   Init:
+03AB 75817F     163       mov SP, #7FH
+03AE 75C100     164       mov PMOD, #0 
+03B1 D2AF       165       setb EA                              ; Enable interrupts
+03B3 120359     166            lcall INIT_SPI
+03B6 120379     167            lcall InitSerialPort
+03B9 12005D     168            lcall LCD_4BIT
+03BC            169   Main_Loop:
+03BC E4         170            clr a
+03BD F543       171            mov samplesum+3, a
+03BF F542       172            mov samplesum+2, a
+03C1 F541       173            mov samplesum+1, a
+03C3 F540       174            mov samplesum+0, a
+03C5            175            
+03C5 1203D8     176            lcall Take_Sample
+03C8 1203D8     177            lcall Take_Sample
+03CB 1203D8     178            lcall Take_Sample
+03CE 1203D8     179            lcall Take_Sample
+03D1 12050B     180            lcall Calculate_Average
+03D4            181             
+03D4 D2B7       182            setb P3.7
+03D6 80E4       183            sjmp Main_Loop  
+03D8            184            
+03D8            185            
+03D8            186   Take_Sample:
+03D8 75F007     187            mov b, #7
+03DB 120322     187            lcall _Read_ADC_Channel
+03DE 1203FD     188            lcall Calculate_Vref
+03E1            189            ;fetch result from channel 0 as room temperature
+03E1 75F000     190            mov b, #0
+03E4 120322     190            lcall _Read_ADC_Channel
+03E7 120434     191            lcall LM335_Result_SPI_Routine
+03EA            192            ;fetch result from channel 1
+03EA 75F001     193            mov b, #1
+03ED 120322     193            lcall _Read_ADC_Channel
+03F0 120489     194       lcall Result_SPI_Routine
+03F3 C002       195            push AR2
+03F5 7A7D       195            mov R2, #125
+03F7 12000E     195            lcall ?Wait_Milli_Seconds
+03FA D002       195            pop AR2         ; 0.1 second delay between samples
+03FC 22         196            ret
+03FD            197   Calculate_Vref:
+03FD 753F00     198            mov y+3, #0
+0400 753E00     199            mov y+2, #0
+0403 85373D     200            mov y+1, result+1
+0406 85363C     201            mov y+0, result+0
+0409 753831     202            mov x+0, #low (VLED*1023 % 0x10000) 
+040C 75393B     202            mov x+1, #high(VLED*1023 % 0x10000) 
+040F 753A03     202            mov x+2, #low (VLED*1023 / 0x10000) 
+0412 753B00     202            mov x+3, #high(VLED*1023 / 0x10000) 
+0415 1202B8     203            lcall div32
+0418 753C10     204            mov y+0, #low (10000 % 0x10000) 
+041B 753D27     204            mov y+1, #high(10000 % 0x10000) 
+041E 753E00     204            mov y+2, #low (10000 / 0x10000) 
+0421 753F00     204            mov y+3, #high(10000 / 0x10000) 
+0424 12022B     205            lcall mul32                     ; Gets Vcc*10^6
+0427 853B33     206            mov Vcc+3, x+3
+042A 853A32     207            mov Vcc+2, x+2
+042D 853931     208            mov Vcc+1, x+1
+0430 853830     209            mov Vcc+0, x+0
+0433            210            
+0433 22         211            ret
+0434            212            
+0434            213   LM335_Result_SPI_Routine:
+0434 753B00     214            mov x+3, #0
+0437 753A00     215       mov x+2, #0
+043A 853739     216       mov x+1, result+1
+043D 853638     217       mov x+0, result+0
+0440 85333F     218       mov y+3, Vcc+3
+0443 85323E     219       mov y+2, Vcc+2
+0446 85313D     220       mov y+1, Vcc+1
+0449 85303C     221       mov y+0, Vcc+0
+044C 12022B     222       lcall mul32                  ; Vout*10^6 = ADC*(Vcc*10^6)/1023
+044F 753CFF     223            mov y+0, #low (1023 % 0x10000) 
+0452 753D03     223            mov y+1, #high(1023 % 0x10000) 
+0455 753E00     223            mov y+2, #low (1023 / 0x10000) 
+0458 753F00     223            mov y+3, #high(1023 / 0x10000)          
+045B 1202B8     224       lcall div32
+045E 753C10     225            mov y+0, #low (2730000 % 0x10000) 
+0461 753DA8     225            mov y+1, #high(2730000 % 0x10000) 
+0464 753E29     225            mov y+2, #low (2730000 / 0x10000) 
+0467 753F00     225            mov y+3, #high(2730000 / 0x10000)       ; T*10^4 = (Vout*10^6-2.73*10^6)/100
+046A 120197     226       lcall sub32
+046D 753C64     227            mov y+0, #low (100 % 0x10000) 
+0470 753D00     227            mov y+1, #high(100 % 0x10000) 
+0473 753E00     227            mov y+2, #low (100 / 0x10000) 
+0476 753F00     227            mov y+3, #high(100 / 0x10000)           
+0479 1202B8     228       lcall div32
+047C 853B4C     229       mov x_lm335+3, x+3
+047F 853A4B     230            mov x_lm335+2, x+2
+0482 85394A     231            mov x_lm335+1, x+1
+0485 853849     232            mov x_lm335+0, x+0
+0488 22         233            ret
+0489            234   
+0489            235   Result_SPI_Routine:
+0489 753B00     236            mov x+3, #0
+048C 753A00     237            mov x+2, #0
+048F 853739     238            mov x+1, result+1
+0492 853638     239            mov x+0, result+0
+0495 85333F     240       mov y+3, Vcc+3
+0498 85323E     241       mov y+2, Vcc+2
+049B 85313D     242       mov y+1, Vcc+1
+049E 85303C     243       mov y+0, Vcc+0
+04A1 12022B     244            lcall mul32
+04A4 753CFF     245            mov y+0, #low (1023 % 0x10000) 
+04A7 753D03     245            mov y+1, #high(1023 % 0x10000) 
+04AA 753E00     245            mov y+2, #low (1023 / 0x10000) 
+04AD 753F00     245            mov y+3, #high(1023 / 0x10000) 
+04B0 1202B8     246            lcall div32
+04B3 753C64     247            mov y+0, #low (100 % 0x10000) 
+04B6 753D00     247            mov y+1, #high(100 % 0x10000) 
+04B9 753E00     247            mov y+2, #low (100 / 0x10000) 
+04BC 753F00     247            mov y+3, #high(100 / 0x10000) 
+04BF 12022B     248            lcall mul32     
+04C2 753CC6     249            mov y+0, #low (454 % 0x10000) 
+04C5 753D01     249            mov y+1, #high(454 % 0x10000) 
+04C8 753E00     249            mov y+2, #low (454 / 0x10000) 
+04CB 753F00     249            mov y+3, #high(454 / 0x10000)   ;Gain 
+04CE 1202B8     250            lcall div32
+04D1 753C29     251            mov y+0, #low (41 % 0x10000) 
+04D4 753D00     251            mov y+1, #high(41 % 0x10000) 
+04D7 753E00     251            mov y+2, #low (41 / 0x10000) 
+04DA 753F00     251            mov y+3, #high(41 / 0x10000)    ;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
+04DD 1202B8     252            lcall div32
+04E0            253            
+04E0 854C3F     254            mov y+3, x_lm335+3
+04E3 854B3E     255            mov y+2, x_lm335+2
+04E6 854A3D     256            mov y+1, x_lm335+1
+04E9 85493C     257            mov y+0, x_lm335+0
+04EC 120176     258            lcall add32
+04EF            259            
+04EF 85433F     260            mov y+3, samplesum+3
+04F2 85423E     261            mov y+2, samplesum+2
+04F5 85413D     262            mov y+1, samplesum+1
+04F8 85403C     263            mov y+0, samplesum+0
+04FB            264            
+04FB 120176     265            lcall add32
+04FE            266            
+04FE 853B43     267            mov samplesum+3, x+3
+0501 853A42     268            mov samplesum+2, x+2
+0504 853941     269            mov samplesum+1, x+1
+0507 853840     270            mov samplesum+0, x+0
+050A            271            
+050A 22         272            ret
+050B            273   
+050B            274   Calculate_Average:
+050B 85433B     275            mov x+3, samplesum+3
+050E 85423A     276            mov x+2, samplesum+2
+0511 854139     277            mov x+1, samplesum+1
+0514 854138     278            mov x+0, samplesum+1
+0517            279            
+0517 753C04     280            mov y+0, #low (4 % 0x10000) 
+051A 753D00     280            mov y+1, #high(4 % 0x10000) 
+051D 753E00     280            mov y+2, #low (4 / 0x10000) 
+0520 753F00     280            mov y+3, #high(4 / 0x10000) 
+0523 1202B8     281            lcall div32
+0526 1200B1     282            lcall hex2bcd
+0529            283            
+0529 C000       284       push ar0
+052B A845       284       mov r0, bcd+1
+052D 120343     284       lcall ?Send_BCD
+0530 D000       284       pop ar0
+0532 740A       285            mov a, #'\n'
+0534 120398     286            lcall putchar
+0537            287            
+0537 C0E0       288            push acc
+0539 7401       288            mov a, #1
+053B 14         288            dec a
+053C 120096     288            lcall ?Set_Cursor_1 ; Select column and row
+053F D0E0       288            pop acc
+0541            289            
+0541            290            
+0541            291   
+0541            292   Display_Temp_LCD:
+0541 C000       293            push ar0
+0543 A848       293            mov r0, bcd+4
+0545 12009B     293            lcall ?Display_BCD
+0548 D000       293            pop ar0
+054A C000       294            push ar0
+054C A847       294            mov r0, bcd+3
+054E 12009B     294            lcall ?Display_BCD
+0551 D000       294            pop ar0
+0553 C000       295            push ar0
+0555 A846       295            mov r0, bcd+2
+0557 12009B     295            lcall ?Display_BCD
+055A D000       295            pop ar0
+055C C000       296            push ar0
+055E A845       296            mov r0, bcd+1
+0560 12009B     296            lcall ?Display_BCD
+0563 D000       296            pop ar0
+0565 C000       297            push ar0
+0567 A844       297            mov r0, bcd
+0569 12009B     297            lcall ?Display_BCD
+056C D000       297            pop ar0
+056E 22         298       ret
+056F            299   end
