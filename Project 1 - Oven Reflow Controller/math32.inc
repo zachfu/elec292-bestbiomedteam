@@ -558,4 +558,11 @@ Move_4B_to_4B MAC
 	mov %0+3, %1+3
 ENDMAC
 
+Zero_4B MAC
+	mov %0+0, #0
+	mov %0+1, #0
+	mov %0+2, #0
+	mov %0+3, #0
+ENDMAC
+
 $LIST

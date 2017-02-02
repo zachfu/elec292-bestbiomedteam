@@ -29,6 +29,14 @@ RED    equ P2.4
 	
 $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
+
+;-------------------------------------------------
+;Purpose: -initializing & communicating with the MCP3008
+;Functions:
+;			- Move_4B_to_4B (Destination - Origin)
+;			- Move_2B_to_4B (Destination - Origin)
+;			- Zero_4B (4B Data): make the 4B value 0
+;-------------------------------------------------
 $include(math32.inc) ; A library of 32 bit functions and macros
 
 ;-------------------------------------------------
@@ -81,6 +89,20 @@ Init:
 	lcall InitSerialPort
 	lcall LCD_4BIT
 Main_Loop:
+	clr a
+	Zero_4B (samplesum)
+	
+	lcall Take_Sample
+	lcall Take_Sample
+	lcall Take_Sample
+	lcall Take_Sample
+	lcall Calculate_Average
+	 
+	setb P3.7
+	sjmp Main_Loop	
+	
+	
+Take_Sample:
 	Read_ADC_Channel(7)
 	lcall Calculate_Vref
 	;fetch result from channel 0 as room temperature
@@ -89,76 +111,67 @@ Main_Loop:
 	;fetch result from channel 1
     Read_ADC_Channel(1)
     lcall Result_SPI_Routine
-	Wait_Milli_Seconds(#250)	; 0.1 second delay between samples 
-	Wait_Milli_Seconds(#250)
-	setb P3.7
-	sjmp Main_Loop	
-	
+	Wait_Milli_Seconds(#125)	; 0.1 second delay between samples
+	ret
 Calculate_Vref:
-	mov y+3, #0
-	mov y+2, #0
-	mov y+1, result+1
-	mov y+0, result+0
+	Move_2B_to_4B (y, result)
 	load_X(VLED*1023)
 	lcall div32
 	load_Y(10000)
-	lcall mul32
-	mov Vcc+3, x+3
-	mov Vcc+2, x+2
-	mov Vcc+1, x+1
-	mov Vcc+0, x+0
+	lcall mul32			; Gets Vcc*10^6
+
+	Move_4B_to_4B (Vcc, x)
 	
 	ret
 	
 LM335_Result_SPI_Routine:
-	mov x+3, #0
-    mov x+2, #0
-    mov x+1, Result+1
-    mov x+0, Result
-    mov y+3, Vcc+3
-    mov y+2, Vcc+2
-    mov y+1, Vcc+1
-    mov y+0, Vcc+0
-    lcall mul32
-    load_y (1023)
+	Move_2B_to_4B (x, result)
+	Move_4B_to_4B (y, Vcc)
+
+    lcall mul32			; Vout*10^6 = ADC*(Vcc*10^6)/1023
+    load_y (1023)	
     lcall div32
-    load_y (2730000)
+    load_y (2730000)	; T*10^4 = (Vout*10^6-2.73*10^6)/100
     lcall sub32
-    load_y (100)
+    load_y (100)		
     lcall div32
-    mov x_lm335+3, x+3
-	mov x_lm335+2, x+2
-	mov x_lm335+1, x+1
-	mov x_lm335+0, x+0
+
+	Move_4B_to_4B (x_lm335, x)
+	
 	ret
 
 Result_SPI_Routine:
-	mov x+3, #0
-	mov x+2, #0
-	mov x+1, result+1
-	mov x+0, result+0
-	; Calculate temperature in Kelvin in binary with 4 digits of precision
-    mov y+3, Vcc+3
-    mov y+2, Vcc+2
-    mov y+1, Vcc+1
-    mov y+0, Vcc+0
+	Move_2B_to_4B (x, result)
+	Move_4B_to_4B (y, Vcc)
+	
 	lcall mul32
 	Load_Y(1023)
 	lcall div32
 	Load_Y(100)
 	lcall mul32	
-	Load_Y(454)	;gain*1000
+	Load_Y(454)	;Gain 
 	lcall div32
-	Load_Y(41)
+	Load_Y(41)	;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
 	lcall div32
 	
-	mov y+3, x_lm335+3
-	mov y+2, x_lm335+2
-	mov y+1, x_lm335+1
-	mov y+0, x_lm335+0
+
+	Move_4B_to_4B (y, x_lm335)
 	lcall add32
+	
+	Move_4B_to_4B (y, samplesum)
+	lcall add32
+	
+	Move_4B_to_4B (samplesum, x)
+	ret
+
+Calculate_Average:
+	Move_4B_to_4B (x, samplesum)
+	
+	Load_Y(4)
+	lcall div32
 	lcall hex2bcd
 	
+	Send_BCD(bcd+2)
 	Send_BCD(bcd+1)
 	mov a, #'\n'
 	lcall putchar
