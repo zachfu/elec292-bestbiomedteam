@@ -30,6 +30,29 @@ RED    equ P2.4
 $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $include(math32.inc) ; A library of 32 bit functions and macros
+
+;-------------------------------------------------
+;Purpose: -initializing & communicating with the MCP3008
+;Functions:
+;			- INIT_SPI 					  
+;			- DO_SPI_G:					Send a character using the serial port						  
+;			- Read_ADC_Channel MAC:		Returns 2 bytes in result
+;-------------------------------------------------
+$include(MCP3008.inc)	
+	
+;-------------------------------------------------
+;Purpose: -initializing serial port 
+;		  -sending data through serial port 			  
+;Functions:										  
+;			- InitSerialPort:	Configure the serial port and baud rate using timer 1			  
+;			- putchar:			Send a character using the serial port						  
+;			- SendString:		Send a constant-zero-terminated string using the serial port
+;			
+;			- Send_BCD mac		Send a BCD number through the serial port
+;			- Send_Voltage_BCD_to_PuTTY						  
+;-------------------------------------------------
+$include(SerialPort.inc)	
+
 $LIST
 
 
@@ -48,32 +71,6 @@ mf: dbit 1
 
 CSEG
 NEWLINE: db '\n'
-
-;-------------------------------------------------
-;Purpose: -initializing & communicating with the MCP3008
-;	 	  	
-;Functions:
-;			- INIT_SPI 					  
-;			- DO_SPI_G:					Send a character using the serial port						  
-;			- Read_ADC_Channel MAC:		Returns 2 bytes in result
-;-------------------------------------------------
-$NOLIST
-$include(MCP3008.inc)	
-	
-;-------------------------------------------------
-;Purpose: -initializing serial port 
-;		  -sending data through serial port
-;	 	  			  
-;Functions:										  
-;			- InitSerialPort:	Configure the serial port and baud rate using timer 1			  
-;			- putchar:			Send a character using the serial port						  
-;			- SendString:		Send a constant-zero-terminated string using the serial port
-;			
-;			- Send_BCD mac		Send a BCD number through the serial port
-;			- Send_Voltage_BCD_to_PuTTY						  
-;-------------------------------------------------
-$include(SerialPort.inc)	
-$LIST
    
  
 Init:
