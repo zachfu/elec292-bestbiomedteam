@@ -1,9 +1,15 @@
 $NOLIST
-;----------------------------------------------------
-;	Code for:
-;			- Initializing the serial port
-;			- Sending data through serial port
-;----------------------------------------------------
+;--------------------------------------------------------------------------------------------------
+;Purpose: -initializing serial port 
+;		  -sending data through serial port 			  
+;Functions:										  
+;			- InitSerialPort:	Configure the serial port and baud rate using timer 1			  
+;			- putchar:			Send a character using the serial port						  
+;			- SendString:		Send a constant-zero-terminated string using the serial port
+;			
+;			- Send_BCD mac		Send a BCD number through the serial port
+;			- Send_Voltage_BCD_to_PuTTY						  
+;--------------------------------------------------------------------------------------------------
 
 CSEG
 ;----------------------------------------------------

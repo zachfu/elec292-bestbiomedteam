@@ -1,8 +1,11 @@
 $NOLIST
-;----------------------------------------------------
-;	Code for Initializing, and communicating with MCP3008	 ADC
-;----------------------------------------------------
-
+;--------------------------------------------------------------------------------------------------
+;Purpose: -initializing & communicating with the MCP3008
+;Functions:
+;			- INIT_SPI 					  
+;			- DO_SPI_G:					Send a character using the serial port						  
+;			- Read_ADC_Channel MAC:		Returns 2 bytes in result
+;--------------------------------------------------------------------------------------------------
 
 CSEG
 ;----------------------------------------------------
