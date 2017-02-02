@@ -281,6 +281,7 @@ Calculate_Average:
 	lcall div32
 	lcall hex2bcd
 	
+	Send_BCD(bcd+2)
 	Send_BCD(bcd+1)
 	mov a, #'\n'
 	lcall putchar
