@@ -30,6 +30,29 @@ RED    equ P2.4
 $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
 $include(math32.inc) ; A library of 32 bit functions and macros
+
+;-------------------------------------------------
+;Purpose: -initializing & communicating with the MCP3008
+;Functions:
+;			- INIT_SPI 					  
+;			- DO_SPI_G:					Send a character using the serial port						  
+;			- Read_ADC_Channel MAC:		Returns 2 bytes in result
+;-------------------------------------------------
+$include(MCP3008.inc)	
+	
+;-------------------------------------------------
+;Purpose: -initializing serial port 
+;		  -sending data through serial port 			  
+;Functions:										  
+;			- InitSerialPort:	Configure the serial port and baud rate using timer 1			  
+;			- putchar:			Send a character using the serial port						  
+;			- SendString:		Send a constant-zero-terminated string using the serial port
+;			
+;			- Send_BCD mac		Send a BCD number through the serial port
+;			- Send_Voltage_BCD_to_PuTTY						  
+;-------------------------------------------------
+$include(SerialPort.inc)	
+
 $LIST
 
 
@@ -48,116 +71,8 @@ mf: dbit 1
 
 CSEG
 NEWLINE: db '\n'
-
-Read_ADC_Channel MAC
-	mov b, #%0
-	lcall _Read_ADC_Channel
-	ENDMAC
-_Read_ADC_Channel:
-	clr CE_ADC
-	mov R0, #00000001B ; Start bit:1
-	lcall DO_SPI_G
-	mov a, b
-	swap a
-	anl a, #0F0H
-	setb acc.7 ; Single mode (bit 7).
-	mov R0, a
-	lcall DO_SPI_G
-	mov a, R1 ; R1 contains bits 8 and 9
-	anl a, #00000011B ; We need only the two least significant bits
-	mov result+1, a ; Save result high.
-	mov R0, #55H ; It doesn't matter what we transmit...
-	lcall DO_SPI_G
-	mov result+0, R1 ; R1 contains bits 0 to 7. Save result low.
-	setb CE_ADC
-	
-	ret
-	
-
-Send_BCD mac
-    push ar0
-    mov r0, %0
-    lcall ?Send_BCD
-    pop ar0
-endmac
-
-?Send_BCD:
-    push acc
-    ; Write most significant digit
-    mov a, r0
-    swap a
-    anl a, #0fh
-    orl a, #30h
-    lcall putchar
-    ; write least significant digit
-    mov a, r0
-    anl a, #0fh
-    orl a, #30h
-    lcall putchar
-    pop acc
-    ret
-    
-INIT_SPI:
- 	setb MY_MISO ; Make MISO an input pin
- 	clr MY_SCLK ; For mode (0,0) SCLK is zero
- 	setb CE_ADC
- 	ret
-DO_SPI_G:
- 	push acc
- 	mov R1, #0 ; Received byte stored in R1
- 	mov R2, #8 ; Loop counter (8-bits)
-DO_SPI_G_LOOP:
- 	mov a, R0 ; Byte to write is in R0
- 	rlc a ; Carry flag has bit to write
- 	mov R0, a
- 	mov MY_MOSI, c
- 	setb MY_SCLK ; Transmit
- 	mov c, MY_MISO ; Read received bit
- 	mov a, R1 ; Save received bit in R1
- 	rlc a
- 	mov R1, a
- 	clr MY_SCLK
- 	djnz R2, DO_SPI_G_LOOP
- 	pop acc
- 	ret
+   
  
-; Configure the serial port and baud rate using timer 1
-InitSerialPort:
-    ; Since the reset button bounces, we need to wait a bit before
-    ; sending messages, or risk displaying gibberish!
-    mov R1, #222
-    mov R0, #166
-    djnz R0, $   ; 3 cycles->3*45.21123ns*166=22.51519us
-    djnz R1, $-4 ; 22.51519us*222=4.998ms
-    ; Now we can safely proceed with the configuration
-	clr	TR1
-	anl	TMOD, #0x0f
-	orl	TMOD, #0x20
-	orl	PCON,#0x80
-	mov	TH1,#T1LOAD
-	mov	TL1,#T1LOAD
-	setb TR1
-	mov	SCON,#0x52
-    ret
-
-; Send a character using the serial port
-putchar:
-    jnb TI, putchar
-    clr TI
-    mov SBUF, a
-    ret
-
-; Send a constant-zero-terminated string using the serial port
-SendString:
-    clr A
-    movc A, @A+DPTR
-    jz SendStringDone
-    lcall putchar
-    inc DPTR
-    sjmp SendString
-SendStringDone:
-    ret
-
 Init:
     mov SP, #7FH
     mov PMOD, #0 
