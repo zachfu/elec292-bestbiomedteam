@@ -1,0 +1,388 @@
+                 -1   $MODLP52
+0000              1   ;  MODLP52: Register definition for Atmel's AT89LP52
+0000              2   ;
+0000              3   ;   Copyright (C) 2011-2015  Jesus Calvino-Fraga, jesusc at ece.ubc.ca
+0000              4   ;
+0000              5   ;   This library is free software; you can redistribute it and/or
+0000              6   ;   modify it under the terms of the GNU Lesser General Public
+0000              7   ;   License as published by the Free Software Foundation; either
+0000              8   ;   version 2.1 of the License, or (at your option) any later version.
+0000              9   ;
+0000             10   ;   This library is distributed in the hope that it will be useful,
+0000             11   ;   but WITHOUT ANY WARRANTY; without even the implied warranty of
+0000             12   ;   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+0000             13   ;   Lesser General Public License for more details.
+0000             14   ;
+0000             15   ;   You should have received a copy of the GNU Lesser General Public
+0000             16   ;   License along with this library; if not, write to the Free Software
+0000             17   ;   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+0000             18   ;
+0000             19   ;--------------------------------------------------------
+0000             20   ; Special Function Registers
+0000             21   ;--------------------------------------------------------
+0000             22   P0             DATA 0x80
+0000             23   P1             DATA 0x90
+0000             24   P2             DATA 0xa0
+0000             25   P3             DATA 0xb0
+0000             26   P4             DATA 0xc0
+0000             27   PMOD           DATA 0xc1
+0000             28   PSW            DATA 0xd0
+0000             29   ACC            DATA 0xe0
+0000             30   B              DATA 0xf0
+0000             31   SP             DATA 0x81
+0000             32   DPL            DATA 0x82
+0000             33   DPH            DATA 0x83
+0000             34   DP0L           DATA 0x82
+0000             35   DP0H           DATA 0x83
+0000             36   DP1L           DATA 0x84
+0000             37   DP1H           DATA 0x85
+0000             38   AUXR           DATA 0x8e
+0000             39   AUXR1          DATA 0xa2
+0000             40   DPCF           DATA 0xa2
+0000             41   TCON           DATA 0x88
+0000             42   TMOD           DATA 0x89
+0000             43   T2CON          DATA 0xc8
+0000             44   T2MOD          DATA 0xc9
+0000             45   TL0            DATA 0x8a
+0000             46   TL1            DATA 0x8b
+0000             47   TL2            DATA 0xcc
+0000             48   TH0            DATA 0x8c
+0000             49   TH1            DATA 0x8d
+0000             50   TH2            DATA 0xcd
+0000             51   TCONB          DATA 0x91
+0000             52   RCAP2L         DATA 0xca
+0000             53   RCAP2H         DATA 0xcb
+0000             54   WDTRST         DATA 0xa6
+0000             55   WDTCON         DATA 0xa7
+0000             56   SCON           DATA 0x98
+0000             57   SBUF           DATA 0x99
+0000             58   SADEN          DATA 0xb9
+0000             59   SADDR          DATA 0xa9
+0000             60   IE             DATA 0xa8
+0000             61   IP             DATA 0xb8
+0000             62   IPH            DATA 0xb7
+0000             63   PCON           DATA 0x87
+0000             64   CLKREG         DATA 0x8f
+0000             65   MEMCON         DATA 0x96
+0000             66   ;--------------------------------------------------------
+0000             67   ; special function bits
+0000             68   ;--------------------------------------------------------
+0000             69   SCK            BIT 0x97
+0000             70   MISO           BIT 0x96
+0000             71   MOSI           BIT 0x95
+0000             72   T2EX           BIT 0x91
+0000             73   T2             BIT 0x90
+0000             74   RD             BIT 0xb7
+0000             75   WR             BIT 0xb6
+0000             76   T1             BIT 0xb5
+0000             77   T0             BIT 0xb4
+0000             78   INT1           BIT 0xb3
+0000             79   INT0           BIT 0xb2
+0000             80   TXD            BIT 0xb1
+0000             81   RXD            BIT 0xb0
+0000             82   XTAL2          BIT 0xc7
+0000             83   XTAL1          BIT 0xc6
+0000             84   PSEN           BIT 0xc5
+0000             85   ALE            BIT 0xc4
+0000             86   CY             BIT 0xd7
+0000             87   AC             BIT 0xd6
+0000             88   F0             BIT 0xd5
+0000             89   RS1            BIT 0xd4
+0000             90   RS0            BIT 0xd3
+0000             91   OV             BIT 0xd2
+0000             92   UD             BIT 0xd1
+0000             93   P              BIT 0xd0
+0000             94   TF1            BIT 0x8f
+0000             95   TR1            BIT 0x8e
+0000             96   TF0            BIT 0x8d
+0000             97   TR0            BIT 0x8c
+0000             98   IE1            BIT 0x8b
+0000             99   IT1            BIT 0x8a
+0000            100   IE0            BIT 0x89
+0000            101   IT0            BIT 0x88
+0000            102   TF2            BIT 0xcf
+0000            103   EXF2           BIT 0xce
+0000            104   RCLK           BIT 0xcd
+0000            105   TCLK           BIT 0xcc
+0000            106   EXEN2          BIT 0xcb
+0000            107   TR2            BIT 0xca
+0000            108   C_T2           BIT 0xc9
+0000            109   CP_RL2         BIT 0xc8
+0000            110   SM0            BIT 0x9f
+0000            111   FE             BIT 0x9f
+0000            112   SM1            BIT 0x9e
+0000            113   SM2            BIT 0x9d
+0000            114   REN            BIT 0x9c
+0000            115   TB8            BIT 0x9b
+0000            116   RB8            BIT 0x9a
+0000            117   TI             BIT 0x99
+0000            118   RI             BIT 0x98
+0000            119   EA             BIT 0xaf
+0000            120   ET2            BIT 0xad
+0000            121   ES             BIT 0xac
+0000            122   ET1            BIT 0xab
+0000            123   EX1            BIT 0xaa
+0000            124   ET0            BIT 0xa9
+0000            125   EX0            BIT 0xa8
+0000            126   PT2            BIT 0xbd
+0000            127   PS             BIT 0xbc
+0000            128   PT1            BIT 0xbb
+0000            129   PX1            BIT 0xba
+0000            130   PT0            BIT 0xb9
+0000            131   PX0            BIT 0xb8
+0000              2   org 0000H
+0000 0203BC       3      ljmp Init
+0003              4   
+0003              5   VLED EQU 207
+0003              6   CLK  EQU 22118400
+0003              7   BAUD equ 115200
+0003              8   T1LOAD equ (0x100-(CLK/(16*BAUD)))
+0003              9   TIMER0_RATE        EQU 1000
+0003             10   TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
+0003             11   
+0003             12   CE_ADC EQU P2.0
+0003             13   MY_MOSI EQU P2.1
+0003             14   MY_MISO EQU P2.2
+0003             15   MY_SCLK EQU P2.3
+0003             16   BOOT_BUTTON EQU P4.5
+0003             17   LCD_RS equ P1.2
+0003             18   LCD_RW equ P1.3
+0003             19   LCD_E  equ P1.4
+0003             20   LCD_D4 equ P3.2
+0003             21   LCD_D5 equ P3.3
+0003             22   LCD_D6 equ P3.4
+0003             23   LCD_D7 equ P3.5
+0003             24   SOUND_OUT equ P2.7
+0003             25   GREEN  equ P2.6
+0003             26   YELLOW equ P2.5
+0003             27   RED    equ P2.4
+0003             28   
+0003             29            
+                567   $LIST
+                 74   $LIST
+03BB            112   $LIST
+                 63   $LIST
+03BB             65   
+03BB             66   
+03BB             67   
+0030             68   dseg at 0x30
+0030             69   Vcc:                             ds 4
+0034             70   Timer0_Count1ms:         ds 2 
+0036             71   Result:          ds 2
+0038             72   x:           ds 4
+003C             73   y:               ds 4
+0040             74   samplesum:  ds 4
+0044             75   bcd:             ds 5
+0049             76   x_lm335:         ds 4
+004D             77   
+0000             78   BSEG
+0000             79   mf: dbit 1
+0001             80   
+03BB             81   CSEG
+03BB 0A          82   NEWLINE: db '\n'
+03BC             83      
+03BC             84    
+03BC             85   Init:
+03BC 75817F      86       mov SP, #7FH
+03BF 75C100      87       mov PMOD, #0 
+03C2 D2AF        88       setb EA                              ; Enable interrupts
+03C4 120321      89            lcall INIT_SPI
+03C7 120360      90            lcall InitSerialPort
+03CA 12005D      91            lcall LCD_4BIT
+03CD             92   Main_Loop:
+03CD E4          93            clr a
+03CE 754000      94            mov samplesum+0, #0
+03D1 754100      94            mov samplesum+1, #0
+03D4 754200      94            mov samplesum+2, #0
+03D7 754300      94            mov samplesum+3, #0
+03DA             95            
+03DA 1203ED      96            lcall Take_Sample
+03DD 1203ED      97            lcall Take_Sample
+03E0 1203ED      98            lcall Take_Sample
+03E3 1203ED      99            lcall Take_Sample
+03E6 120520     100            lcall Calculate_Average
+03E9            101             
+03E9 D2B7       102            setb P3.7
+03EB 80E0       103            sjmp Main_Loop  
+03ED            104            
+03ED            105            
+03ED            106   Take_Sample:
+03ED 75F007     107            mov b, #7
+03F0 12033F     107            lcall _Read_ADC_Channel
+03F3 120412     108            lcall Calculate_Vref
+03F6            109            ;fetch result from channel 0 as room temperature
+03F6 75F000     110            mov b, #0
+03F9 12033F     110            lcall _Read_ADC_Channel
+03FC 120449     111            lcall LM335_Result_SPI_Routine
+03FF            112            ;fetch result from channel 1
+03FF 75F001     113            mov b, #1
+0402 12033F     113            lcall _Read_ADC_Channel
+0405 12049E     114       lcall Result_SPI_Routine
+0408 C002       115            push AR2
+040A 7A7D       115            mov R2, #125
+040C 12000E     115            lcall ?Wait_Milli_Seconds
+040F D002       115            pop AR2         ; 0.1 second delay between samples
+0411 22         116            ret
+0412            117   Calculate_Vref:
+0412 85363C     118            mov y+0, result+0 
+0415 85373D     118            mov y+1, result+1
+0418 753E00     118            mov y+2, #0 
+041B 753F00     118            mov y+3, #0
+041E 753831     119            mov x+0, #low (VLED*1023 % 0x10000) 
+0421 75393B     119            mov x+1, #high(VLED*1023 % 0x10000) 
+0424 753A03     119            mov x+2, #low (VLED*1023 / 0x10000) 
+0427 753B00     119            mov x+3, #high(VLED*1023 / 0x10000) 
+042A 1202B8     120            lcall div32
+042D 753C10     121            mov y+0, #low (10000 % 0x10000) 
+0430 753D27     121            mov y+1, #high(10000 % 0x10000) 
+0433 753E00     121            mov y+2, #low (10000 / 0x10000) 
+0436 753F00     121            mov y+3, #high(10000 / 0x10000) 
+0439 12022B     122            lcall mul32                     ; Gets Vcc*10^6
+043C            123   
+043C 853830     124            mov Vcc+0, x+0 
+043F 853931     124            mov Vcc+1, x+1
+0442 853A32     124            mov Vcc+2, x+2 
+0445 853B33     124            mov Vcc+3, x+3
+0448            125            
+0448 22         126            ret
+0449            127            
+0449            128   LM335_Result_SPI_Routine:
+0449 853638     129            mov x+0, result+0 
+044C 853739     129            mov x+1, result+1
+044F 753A00     129            mov x+2, #0 
+0452 753B00     129            mov x+3, #0
+0455 85303C     130            mov y+0, Vcc+0 
+0458 85313D     130            mov y+1, Vcc+1
+045B 85323E     130            mov y+2, Vcc+2 
+045E 85333F     130            mov y+3, Vcc+3
+0461            131   
+0461 12022B     132       lcall mul32                  ; Vout*10^6 = ADC*(Vcc*10^6)/1023
+0464 753CFF     133            mov y+0, #low (1023 % 0x10000) 
+0467 753D03     133            mov y+1, #high(1023 % 0x10000) 
+046A 753E00     133            mov y+2, #low (1023 / 0x10000) 
+046D 753F00     133            mov y+3, #high(1023 / 0x10000)          
+0470 1202B8     134       lcall div32
+0473 753C10     135            mov y+0, #low (2730000 % 0x10000) 
+0476 753DA8     135            mov y+1, #high(2730000 % 0x10000) 
+0479 753E29     135            mov y+2, #low (2730000 / 0x10000) 
+047C 753F00     135            mov y+3, #high(2730000 / 0x10000)       ; T*10^4 = (Vout*10^6-2.73*10^6)/100
+047F 120197     136       lcall sub32
+0482 753C64     137            mov y+0, #low (100 % 0x10000) 
+0485 753D00     137            mov y+1, #high(100 % 0x10000) 
+0488 753E00     137            mov y+2, #low (100 / 0x10000) 
+048B 753F00     137            mov y+3, #high(100 / 0x10000)           
+048E 1202B8     138       lcall div32
+0491            139   
+0491 853849     140            mov x_lm335+0, x+0 
+0494 85394A     140            mov x_lm335+1, x+1
+0497 853A4B     140            mov x_lm335+2, x+2 
+049A 853B4C     140            mov x_lm335+3, x+3
+049D            141            
+049D 22         142            ret
+049E            143   
+049E            144   Result_SPI_Routine:
+049E 853638     145            mov x+0, result+0 
+04A1 853739     145            mov x+1, result+1
+04A4 753A00     145            mov x+2, #0 
+04A7 753B00     145            mov x+3, #0
+04AA 85303C     146            mov y+0, Vcc+0 
+04AD 85313D     146            mov y+1, Vcc+1
+04B0 85323E     146            mov y+2, Vcc+2 
+04B3 85333F     146            mov y+3, Vcc+3
+04B6            147            
+04B6 12022B     148            lcall mul32
+04B9 753CFF     149            mov y+0, #low (1023 % 0x10000) 
+04BC 753D03     149            mov y+1, #high(1023 % 0x10000) 
+04BF 753E00     149            mov y+2, #low (1023 / 0x10000) 
+04C2 753F00     149            mov y+3, #high(1023 / 0x10000) 
+04C5 1202B8     150            lcall div32
+04C8 753C64     151            mov y+0, #low (100 % 0x10000) 
+04CB 753D00     151            mov y+1, #high(100 % 0x10000) 
+04CE 753E00     151            mov y+2, #low (100 / 0x10000) 
+04D1 753F00     151            mov y+3, #high(100 / 0x10000) 
+04D4 12022B     152            lcall mul32     
+04D7 753CC6     153            mov y+0, #low (454 % 0x10000) 
+04DA 753D01     153            mov y+1, #high(454 % 0x10000) 
+04DD 753E00     153            mov y+2, #low (454 / 0x10000) 
+04E0 753F00     153            mov y+3, #high(454 / 0x10000)   ;Gain 
+04E3 1202B8     154            lcall div32
+04E6 753C29     155            mov y+0, #low (41 % 0x10000) 
+04E9 753D00     155            mov y+1, #high(41 % 0x10000) 
+04EC 753E00     155            mov y+2, #low (41 / 0x10000) 
+04EF 753F00     155            mov y+3, #high(41 / 0x10000)    ;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
+04F2 1202B8     156            lcall div32
+04F5            157            
+04F5            158   
+04F5 85493C     159            mov y+0, x_lm335+0 
+04F8 854A3D     159            mov y+1, x_lm335+1
+04FB 854B3E     159            mov y+2, x_lm335+2 
+04FE 854C3F     159            mov y+3, x_lm335+3
+0501 120176     160            lcall add32
+0504            161            
+0504 85403C     162            mov y+0, samplesum+0 
+0507 85413D     162            mov y+1, samplesum+1
+050A 85423E     162            mov y+2, samplesum+2 
+050D 85433F     162            mov y+3, samplesum+3
+0510 120176     163            lcall add32
+0513            164            
+0513 853840     165            mov samplesum+0, x+0 
+0516 853941     165            mov samplesum+1, x+1
+0519 853A42     165            mov samplesum+2, x+2 
+051C 853B43     165            mov samplesum+3, x+3
+051F 22         166            ret
+0520            167   
+0520            168   Calculate_Average:
+0520 854038     169            mov x+0, samplesum+0 
+0523 854139     169            mov x+1, samplesum+1
+0526 85423A     169            mov x+2, samplesum+2 
+0529 85433B     169            mov x+3, samplesum+3
+052C            170            
+052C 753C04     171            mov y+0, #low (4 % 0x10000) 
+052F 753D00     171            mov y+1, #high(4 % 0x10000) 
+0532 753E00     171            mov y+2, #low (4 / 0x10000) 
+0535 753F00     171            mov y+3, #high(4 / 0x10000) 
+0538 1202B8     172            lcall div32
+053B 1200B1     173            lcall hex2bcd
+053E            174            
+053E C000       175       push ar0
+0540 A846       175       mov r0, bcd+2
+0542 120392     175       lcall ?Send_BCD
+0545 D000       175       pop ar0
+0547 C000       176       push ar0
+0549 A845       176       mov r0, bcd+1
+054B 120392     176       lcall ?Send_BCD
+054E D000       176       pop ar0
+0550 740A       177            mov a, #'\n'
+0552 12037F     178            lcall putchar
+0555            179            
+0555 C0E0       180            push acc
+0557 7401       180            mov a, #1
+0559 14         180            dec a
+055A 120096     180            lcall ?Set_Cursor_1 ; Select column and row
+055D D0E0       180            pop acc
+055F            181            
+055F            182            
+055F            183   
+055F            184   Display_Temp_LCD:
+055F C000       185            push ar0
+0561 A848       185            mov r0, bcd+4
+0563 12009B     185            lcall ?Display_BCD
+0566 D000       185            pop ar0
+0568 C000       186            push ar0
+056A A847       186            mov r0, bcd+3
+056C 12009B     186            lcall ?Display_BCD
+056F D000       186            pop ar0
+0571 C000       187            push ar0
+0573 A846       187            mov r0, bcd+2
+0575 12009B     187            lcall ?Display_BCD
+0578 D000       187            pop ar0
+057A C000       188            push ar0
+057C A845       188            mov r0, bcd+1
+057E 12009B     188            lcall ?Display_BCD
+0581 D000       188            pop ar0
+0583 C000       189            push ar0
+0585 A844       189            mov r0, bcd
+0587 12009B     189            lcall ?Display_BCD
+058A D000       189            pop ar0
+058C 22         190       ret
+058D            191   en
