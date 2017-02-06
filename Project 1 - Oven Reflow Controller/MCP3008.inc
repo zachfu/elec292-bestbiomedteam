@@ -5,6 +5,7 @@ $NOLIST
 ;			- INIT_SPI 					  
 ;			- DO_SPI_G:					Send a character using the serial port						  
 ;			- Read_ADC_Channel MAC:		Returns 2 bytes in result
+;			- Average_ADC_Channel (MAC):Returns 4 bytes in x (average of 100 points)
 ;---------------------------------------------------
 CSEG
 ;----------------------------------------------------
@@ -70,6 +71,28 @@ _Read_ADC_Channel:
 	setb CE_ADC
 	
 ret
+
+
+;----------------------------------------------------
+; Takes the average of 100 samples from specified
+; ADC channel. Reading is stored in x
+;----------------------------------------------------
+Average_ADC_Channel MAC
+	mov b, #%0
+	lcall ?Average_ADC_Channel
+ENDMAC
+?Average_ADC_Channel:
+	Load_x(0)
+	mov R5, #100
+Sum_loop0:
+	lcall _Read_ADC_Channel
+	Move_2B_to_4B (y, result)
+	lcall add32
+	djnz R5, Sum_loop0
+	load_y(100)
+	lcall div32
+ret
+
 
 $LIST
 	
