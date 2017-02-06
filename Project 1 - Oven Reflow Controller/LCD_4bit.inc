@@ -1,3 +1,4 @@
+$NOLIST
 cseg
 
 ; When using a 22.1184MHz crystal in fast mode
@@ -201,4 +202,4 @@ Display_char mac
 	pop acc
 endmac
 
-	
+$LIST

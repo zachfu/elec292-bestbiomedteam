@@ -565,4 +565,10 @@ Zero_4B MAC
 	mov %0+3, #0
 ENDMAC
 
+Zero_2B MAC
+	mov %0+0, #0
+	mov %0+1, #0
+ENDMAC
+
+
 $LIST
