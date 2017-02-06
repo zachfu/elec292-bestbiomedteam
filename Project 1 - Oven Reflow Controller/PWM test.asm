@@ -65,35 +65,10 @@ NEWLINE: db '\n'
 	
 $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
-;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-;Purpose: -32bit math functions
-;NEW Functions:
-;			- Move_4B_to_4B (Destination - Origin)
-;			- Move_2B_to_4B (Destination - Origin)
-;			- Zero_4B (4B Data): make the 4B value 0
-;--------------------------------------------------------------------------------------------------
-$include(math32.inc) ; A library of 32 bit functions and macros
-;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-;Purpose: -initializing & communicating with the MCP3008
-;Functions:
-;			- INIT_SPI 					  
-;			- DO_SPI_G:					Send a character using the serial port						  
-;			- Read_ADC_Channel MAC:		Returns 2 bytes in result
-;--------------------------------------------------------------------------------------------------
-$include(MCP3008.inc)	
-;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-;Purpose: -initializing serial port 
-;		  -sending data through serial port 			  
-;Functions:										  
-;			- InitSerialPort:	Configure the serial port and baud rate using timer 1			  
-;			- putchar:			Send a character using the serial port						  
-;			- SendString:		Send a constant-zero-terminated string using the serial port
-;			
-;			- Send_BCD mac		Send a BCD number through the serial port
-;			- Send_Voltage_BCD_to_PuTTY						  
-;--------------------------------------------------------------------------------------------------
-$include(SerialPort.inc)	
-
+$include(math32.inc) ; A library of 32 bit functions and macros					Move_4B_to_4B (dest, origin) ----- Move_2B_to_4B ----- Zero_4B (orig)----- Zero_2B
+$include(MCP3008.inc)	;-initializing & communicating with the MCP3008			INIT_SPI ----- DO_SPI_G -----	Read_ADC_Channel (MAC): returns in "result"							  
+$include(SerialPort.inc)	;initializing & sending data through serial port	InitSerialPort ---- putchar ----- SendString ----- Send_BCD (MAC) ----- Send_Voltage_BCD_to_PuTTY	
+$include (Timer.inc) ;-initializing Timers										Timer0_Init	(OFF BY DEFAULT) ----- Timer2_Init (ON BY DEFAULT)
 $LIST
 
 
@@ -118,36 +93,6 @@ Sum_loop0:
 	lcall div32
 ret
 
-;---------------------------------;
-; Routine to initialize the ISR   ;
-; for timer 2                     ;
-;---------------------------------;
-Timer0_Init:
-	mov a, TMOD
-	anl a, #0xf0 ; Clear the bits for timer 0
-	orl a, #0x01 ; Configure timer 0 as 16-timer
-	mov TMOD, a
-	mov TH0, #high(TIMER0_RELOAD)
-	mov TL0, #low(TIMER0_RELOAD)
-	; Enable the timer and interrupts
-  	setb ET0  ; Enable timer 0 interrupt
-  	clr TR0  ; Disable timer 0 by default
-	ret
-	
-Timer2_Init:
-	mov T2CON, #0 ; Stop timer/counter.  Autoreload mode.
-	mov RCAP2H, #high(TIMER2_RELOAD)
-	mov RCAP2L, #low(TIMER2_RELOAD)
-	; Init One millisecond interrupt counter.  It is a 16-bit variable made with two 8-bit parts
-	clr a
-	mov Count1ms+0, a
-	mov Count1ms+1, a
-	mov Count_PWM, a
-	; Enable the timer and interrupts
-  	setb ET2  ; Enable timer 2 interrupt
-  	setb TR2  ; Enable timer 2
-	ret
-	
 ;---------------------------------;
 ; ISR for timer 2                 ;
 ;---------------------------------;

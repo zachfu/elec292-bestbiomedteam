@@ -7,7 +7,13 @@ $NOLIST
 ; 2011-2013 by Jesus Calvino-Fraga
 ;
 ;----------------------------------------------------
-
+;+++++++++++++++++++++++++++++++++++++++++++++++++++
+;NEW Functions:
+;			- Move_4B_to_4B (Destination - Origin)
+;			- Move_2B_to_4B (Destination - Origin)
+;			- Zero_4B (4B Data): make the 4B value 0
+;			- Zero_2B (2B Data)
+;---------------------------------------------------
 CSEG
 
 ;----------------------------------------------------

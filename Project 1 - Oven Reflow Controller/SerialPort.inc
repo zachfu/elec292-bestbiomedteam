@@ -1,5 +1,5 @@
 $NOLIST
-;--------------------------------------------------------------------------------------------------
+;+++++++++++++++++++++++++++++++++++++++++++++++++++
 ;Purpose: -initializing serial port 
 ;		  -sending data through serial port 			  
 ;Functions:										  
@@ -9,8 +9,7 @@ $NOLIST
 ;			
 ;			- Send_BCD mac		Send a BCD number through the serial port
 ;			- Send_Voltage_BCD_to_PuTTY						  
-;--------------------------------------------------------------------------------------------------
-
+;---------------------------------------------------
 CSEG
 ;----------------------------------------------------
 ; Configure the serial port and baud rate using timer 1
