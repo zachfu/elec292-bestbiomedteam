@@ -22,9 +22,6 @@ LCD_D5 equ P3.3
 LCD_D6 equ P3.4
 LCD_D7 equ P3.5
 SOUND_OUT equ P2.7
-GREEN  equ P2.6
-YELLOW equ P2.5
-RED    equ P2.4
 
 	
 $NOLIST
