@@ -32,7 +32,7 @@ POWER_BUTTON		equ P0.5
 
 ; Reset vector
 org 0x0000
-    ljmp init
+    ljmp MainProgram
 
 ; Timer/Counter 2 overflow interrupt vector
 org 0x002B
@@ -95,41 +95,12 @@ endmac
 	
 $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
-$include(math32.inc) ; A library of 32 bit functions and macros
+$include(math32.inc) ; A library of 32 bit functions and macros					Move_4B_to_4B (dest, origin) ----- Move_2B_to_4B ----- Zero_4B (orig)----- Zero_2B
+$include(MCP3008.inc)	;-initializing & communicating with the MCP3008			INIT_SPI ----- DO_SPI_G -----	Read_ADC_Channel (MAC): returns in "result"							  
+$include(SerialPort.inc)	;initializing & sending data through serial port	InitSerialPort ---- putchar ----- SendString ----- Send_BCD (MAC) ----- Send_Voltage_BCD_to_PuTTY	
+$include (Timer.inc) ;-initializing Timers										Timer0_Init	(OFF BY DEFAULT) ----- Timer2_Init (ON BY DEFAULT)
 $LIST
 
-
-
-
-;---------------------------------;
-; Routine to initialize the ISR   ;
-; for timer 2                     ;
-;---------------------------------;
-Timer0_Init:
-	mov a, TMOD
-	anl a, #0xf0 ; Clear the bits for timer 0
-	orl a, #0x01 ; Configure timer 0 as 16-timer
-	mov TMOD, a
-	mov TH0, #high(TIMER0_RELOAD)
-	mov TL0, #low(TIMER0_RELOAD)
-	; Enable the timer and interrupts
-  setb ET0  ; Enable timer 0 interrupt
-  clr TR0  ; Disable timer 0 by default
-	ret
-	
-Timer2_Init:
-	mov T2CON, #0 ; Stop timer/counter.  Autoreload mode.
-	mov RCAP2H, #high(TIMER2_RELOAD)
-	mov RCAP2L, #low(TIMER2_RELOAD)
-	; Init One millisecond interrupt counter.  It is a 16-bit variable made with two 8-bit parts
-	clr a
-	mov Count1ms+0, a
-	mov Count1ms+1, a
-	; Enable the timer and interrupts
-  setb ET2  ; Enable timer 2 interrupt
-  setb TR2  ; Enable timer 2
-	ret
-	
 ;---------------------------------;
 ; ISR for timer 2                 ;
 ;---------------------------------;
@@ -148,18 +119,16 @@ Timer2_ISR:
 	inc Count1ms+1
 	
 Inc_Done:
-	; Check if half second has passed
+	; Check if one second has passed
 	mov a, Count1ms+0
 	cjne a, #low(1000), Timer2_ISR_done ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
 	cjne a, #high(1000), Timer2_ISR_done
 	
-	; 500 milliseconds have passed.  Set a flag so the main program knows
-	;setb half_seconds_flag ; Let the main program know half second had passed
+	; 1000 milliseconds have passed.  Set a flag so the main program knows
+	;setb ome_seconds_flag ; Let the main program know one second had passed
 	; Reset to zero the milli-seconds counter, it is a 16-bit variable
-	clr a
-	mov Count1ms+0, a
-	mov Count1ms+1, a
+	Zero_2B (Count1ms)
 		
 	mov a, sec
 	inc a
@@ -168,73 +137,27 @@ Inc_Done:
 	cjne a,#60, Timer2_ISR_done
 	setb one_min_flag
 	
-	
-	Timer2_ISR_done:
+Timer2_ISR_done:
 	pop psw
 	pop acc
-	reti
+reti
 	
-	
-; Configure the serial port and baud rate using timer 1
-InitSerialPort:
-    ; Since the reset button bounces, we need to wait a bit before
-    ; sending messages, or risk displaying gibberish!
-    mov R1, #222
-    mov R0, #166
-    djnz R0, $   ; 3 cycles->3*45.21123ns*166=22.51519us
-    djnz R1, $-4 ; 22.51519us*222=4.998ms
-    ; Now we can safely proceed with the configuration
-	clr	TR1
-	anl	TMOD, #0x0f
-	orl	TMOD, #0x20
-	orl	PCON,#0x80
-	mov	TH1,#T1LOAD
-	mov	TL1,#T1LOAD
-	setb TR1
-	mov	SCON,#0x52
-  ret
-
-putchar:
-  jnb TI, putchar
-  clr TI
-  mov SBUF, a
-	ret
-
-; Send a constant-zero-terminated string using the serial port
-SendString:
-  clr A
-  movc A, @A+DPTR
-  jz SendStringDone
-  lcall putchar
-  inc DPTR
-  sjmp SendString
-SendStringDone:
-  ret
     
 LM335_Result_SPI_Routine:
-	mov x+3, #0
-  mov x+2, #0
-  mov x+1, Result+1
-  mov x+0, Result
-  load_y (5000000)
-  lcall mul32
-  load_y (1023)
-  lcall div32
-  load_y (2730000)
-  lcall sub32
-  load_y (100)
-  lcall div32
-  mov x_lm335+3, x+3
-	mov x_lm335+2, x+2
-	mov x_lm335+1, x+1
-	mov x_lm335+0, x+0
+	Move_2B_to_4B (x, Result)
+    load_y (5000000)
+    lcall mul32
+    load_y (1023)
+    lcall div32
+    load_y (2730000)
+    lcall sub32
+    load_y (100)
+    lcall div32
+	Move_4B_to_4B (x_lm335, x)
 	ret
 
 Result_SPI_Routine:
-	mov x+3, #0
-	mov x+2, #0
-	mov x+1, result+1
-	mov x+0, result+0
+	Move_2B_to_4B (x, Result)
 	; Calculate temperature in Kelvin in binary with 4 digits of precision
 	Load_Y(5000000)
 	lcall mul32
@@ -247,10 +170,7 @@ Result_SPI_Routine:
 	Load_Y(41)
 	lcall div32
 	
-	mov y+3, x_lm335+3
-	mov y+2, x_lm335+2
-	mov y+1, x_lm335+1
-	mov y+0, x_lm335+0
+	Move_4B_to_4B (y, x_lm335)
 	lcall add32
 	lcall hex2bcd
 	Send_BCD(bcd+2)
@@ -279,7 +199,7 @@ Display_Tens:
 	ret	
 
 	
-init:
+MainProgram:
 
 	; Initialization
     mov SP, #0x7F
@@ -288,15 +208,15 @@ init:
     lcall Timer2_Init
     setb EA   ; Enable Global interrupts
     lcall LCD_4BIT  ; For convenience a few handy macros are included in 'LCD_4bit.inc':
-    mov a, #0x00
-    mov soak_seconds, #0x00
-    mov soak_seconds+1, #0x00
-    mov soak_temp, #0x00
-    mov soak_temp+1, #0x00
-    mov reflow_seconds, #0x00
-    mov reflow_Seconds+1, #0x00
-    mov reflow_temp, #0x00
-    mov reflow_temp+1, #0x00
+    mov a, #0
+    mov soak_seconds, a
+    mov soak_seconds+1, a
+    mov soak_temp, a
+    mov soak_temp+1, a
+    mov reflow_seconds, a
+    mov reflow_Seconds+1, a
+    mov reflow_temp, a
+    mov reflow_temp+1, a
 
 
 ; Cycle between stages: Start->SoakTime->SoakTemp->ReflowTime->ReflowTemp	
