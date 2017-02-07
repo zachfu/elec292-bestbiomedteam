@@ -37,9 +37,11 @@ Timer2_Init:
 	clr a
 	mov Count1ms+0, a
 	mov Count1ms+1, a
+	mov Count_PWM, a
+	mov Count_Sample, a
 	; Enable the timer and interrupts
 	setb ET2  ; Enable timer 2 interrupt
-	setb TR2  ; Enable timer 2
+	clr TR2  ; Enable timer 2
 ret
 
 $LIST

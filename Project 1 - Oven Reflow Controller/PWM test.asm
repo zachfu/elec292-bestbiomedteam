@@ -8,11 +8,13 @@ TIMER0_RATE   EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speak
 TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
-PWM_PERCENT EQU 20
+PWM_PERCENT EQU 25
 PWM_RELOAD_HIGH EQU 255*PWM_PERCENT/100
 PWM_RELOAD_LOW EQU	(255 - PWM_RELOAD_HIGH)
 BAUD 		  equ 115200
 T1LOAD 		  equ (0x100-(CLK/(16*BAUD)))
+
+SAMPLE_INTERVAL EQU 250
 
 CE_ADC EQU P2.0
 MY_MOSI EQU P2.1
@@ -43,6 +45,7 @@ org 0x002B
 ; In the 8051 we can define direct access variables starting at location 0x30 up to location 0x7F
 dseg at 0x30
 Count1ms:	 ds 2 ; Incremented every 1ms when Timer 2 ISR is triggered
+Count_Sample:	ds 1
 Count_PWM:		ds 1
 Vcc:				ds 4
 Result: 	ds 2
@@ -56,6 +59,7 @@ BSEG
 mf: 	dbit 1
 pwm_on: dbit 1
 pwm_high: dbit 1
+sample_flag: dbit 1
 
 CSEG
 				;   123456789ABCDEF
@@ -84,22 +88,33 @@ Timer2_ISR:
 	push acc
 	push psw
 	
+	inc Count_Sample
 	; Increment the 16-bit one milli second counter
 	inc Count1ms+0    ; Increment the low 8-bits first
 	mov a, Count1ms+0 ; If the low 8-bits overflow, then increment high 8-bits
-	jnz Inc_PWM
+	jnz Inc_Done_1sec
 	inc Count1ms+1
 	
 Inc_Done_1sec:
 
 	mov a, Count1ms+0
-	cjne a, #low(1000), Inc_PWM ; Warning: this instruction changes the carry flag!
+	cjne a, #low(1000), Inc_Done_Sample ; Warning: this instruction changes the carry flag!
 	mov a, Count1ms+1
-	cjne a, #high(1000), Inc_PWM
+	cjne a, #high(1000), Inc_Done_Sample
 	
 	; 1 second has passed ;
 
 	Zero_2B (Count1ms)
+
+Inc_Done_Sample:
+	
+	mov a, Count_Sample
+	cjne a, #SAMPLE_INTERVAL, Inc_PWM
+	
+	setb sample_flag
+	
+	clr a
+	mov Count_Sample, a
 
 Inc_PWM:
 	
@@ -155,8 +170,8 @@ init:
 Main_Loop:
 	lcall Check_SSR_Toggle
 	lcall Check_PWM_Toggle
+	jnb sample_flag, Main_Loop
 	lcall Take_Sample
-	Wait_Milli_Seconds(#250)
 	sjmp Main_Loop	
 
 Check_SSR_Toggle:
@@ -193,6 +208,7 @@ PWM_Toggle_Return:
 	ret
 	
 Take_Sample:
+	clr sample_flag
 	Average_ADC_Channel(7)
 	lcall Calculate_Vref
 	;fetch result from channel 0 as room temperature
@@ -253,11 +269,9 @@ Send_Serial:
 	Send_BCD(bcd+1)
 	mov a, #'\n'
 	lcall putchar
-	
-	Set_Cursor(1,1)
-		
 
 Display_Temp_LCD:
+	Set_Cursor(1,1)
 	Display_BCD(bcd+4)
 	Display_BCD(bcd+3)
 	Display_BCD(bcd+2)

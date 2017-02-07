@@ -6,443 +6,401 @@
 0000              8   TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 0000              9   TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 0000             10   TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
-0000             11   PWM_RELOAD_HIGH EQU 20
-0000             12   PWM_RELOAD_LOW EQU       (100 - PWM_RELOAD_HIGH)
-0000             13   BAUD               equ 115200
-0000             14   T1LOAD             equ (0x100-(CLK/(16*BAUD)))
-0000             15   
-0000             16   CE_ADC EQU P2.0
-0000             17   MY_MOSI EQU P2.1
-0000             18   MY_MISO EQU P2.2
-0000             19   MY_SCLK EQU P2.3
-0000             20   LCD_RS equ P1.2
-0000             21   LCD_RW equ P1.3
-0000             22   LCD_E  equ P1.4
-0000             23   LCD_D4 equ P3.2
-0000             24   LCD_D5 equ P3.3
-0000             25   LCD_D6 equ P3.4
-0000             26   LCD_D7 equ P3.5
-0000             27   
-0000             28   SSR_OUT              equ P3.7    ; Pin connected to SSR
-0000             29   BOOT_BUTTON     equ P4.5
-0000             30   PWM_BUTTON      equ P0.3
-0000             31   
-0000             32   
-0000             33   ; Reset vector
-0000             34   org 0x0000
-0000 0204A9      35       ljmp init
-0003             36   
-0003             37   ; Timer/Counter 2 overflow interrupt vector
-002B             38   org 0x002B
-002B 020461      39            ljmp Timer2_ISR
-002E             40            
-002E             41            
-002E             42   ; In the 8051 we can define direct access variables starting at location 0x30 up to location 0x7F
-0030             43   dseg at 0x30
-0030             44   Count1ms:         ds 2 ; Incremented every 1ms when Timer 2 ISR is triggered
-0032             45   Count_PWM:               ds 1
-0033             46   Vcc:                             ds 4
-0037             47   Result:          ds 2
-0039             48   x:           ds 4
-003D             49   y:               ds 4
-0041             50   bcd:             ds 5
-0046             51   x_lm335:         ds 4
-004A             52   
-004A             53   
-0000             54   BSEG
-0000             55   mf:      dbit 1
-0001             56   pwm_on: dbit 1
-0002             57   pwm_high: dbit 1
-0003             58   
-002E             59   CSEG
-002E             60                                    ;   123456789ABCDEF
-002E 50574D20    61   PWM_ON_MESSAGE: db 'PWM IS ON      ', 0
+0000             11   PWM_PERCENT EQU 25
+0000             12   PWM_RELOAD_HIGH EQU 255*PWM_PERCENT/100
+0000             13   PWM_RELOAD_LOW EQU       (255 - PWM_RELOAD_HIGH)
+0000             14   BAUD               equ 115200
+0000             15   T1LOAD             equ (0x100-(CLK/(16*BAUD)))
+0000             16   
+0000             17   SAMPLE_INTERVAL EQU 250
+0000             18   
+0000             19   CE_ADC EQU P2.0
+0000             20   MY_MOSI EQU P2.1
+0000             21   MY_MISO EQU P2.2
+0000             22   MY_SCLK EQU P2.3
+0000             23   LCD_RS equ P1.2
+0000             24   LCD_RW equ P1.3
+0000             25   LCD_E  equ P1.4
+0000             26   LCD_D4 equ P3.2
+0000             27   LCD_D5 equ P3.3
+0000             28   LCD_D6 equ P3.4
+0000             29   LCD_D7 equ P3.5
+0000             30   
+0000             31   SSR_OUT              equ P3.7    ; Pin connected to SSR
+0000             32   BOOT_BUTTON     equ P4.5
+0000             33   PWM_BUTTON      equ P0.3
+0000             34   
+0000             35   
+0000             36   ; Reset vector
+0000             37   org 0x0000
+0000 0204B8      38       ljmp init
+0003             39   
+0003             40   ; Timer/Counter 2 overflow interrupt vector
+002B             41   org 0x002B
+002B 020463      42            ljmp Timer2_ISR
+002E             43            
+002E             44            
+002E             45   ; In the 8051 we can define direct access variables starting at location 0x30 up to location 0x7F
+0030             46   dseg at 0x30
+0030             47   Count1ms:         ds 2 ; Incremented every 1ms when Timer 2 ISR is triggered
+0032             48   Count_Sample:    ds 1
+0033             49   Count_PWM:               ds 1
+0034             50   Vcc:                             ds 4
+0038             51   Result:          ds 2
+003A             52   x:           ds 4
+003E             53   y:               ds 4
+0042             54   bcd:             ds 5
+0047             55   x_lm335:         ds 4
+004B             56   
+004B             57   
+0000             58   BSEG
+0000             59   mf:      dbit 1
+0001             60   pwm_on: dbit 1
+0002             61   pwm_high: dbit 1
+0003             62   sample_flag: dbit 1
+0004             63   
+002E             64   CSEG
+002E             65                                    ;   123456789ABCDEF
+002E 50574D20    66   PWM_ON_MESSAGE: db 'PWM IS ON      ', 0
      4953204F
      4E202020
      20202000
-003E 50574D20    62   PWM_OFF_MESSAGE:db 'PWM IS OFF     ', 0
+003E 50574D20    67   PWM_OFF_MESSAGE:db 'PWM IS OFF     ', 0
      4953204F
      46462020
      20202000
-004E 0A          63   NEWLINE: db '\n'
-004F             64   
-004F             65            
-                567   $LIST
-                 74   $LIST
-0407            112   $LIST
+004E 0A          68   NEWLINE: db '\n'
+004F             69   
+004F             70            
+                204   $LIST
+                586   $LIST
                  96   $LIST
-0407             98   
-0407             99   
-0407            100   ; Takes the average of 100 samples from specified
-0407            101   ; ADC channel. Reading is stored in x
-                102   Average_ADC_Channel MAC
-                103   	mov b, #%0
-                104   	lcall ?Average_ADC_Channel
-                105   ENDMAC
-0407            106   ?Average_ADC_Channel:
-0407 753900     107            mov x+0, #low (0 % 0x10000) 
-040A 753A00     107            mov x+1, #high(0 % 0x10000) 
-040D 753B00     107            mov x+2, #low (0 / 0x10000) 
-0410 753C00     107            mov x+3, #high(0 / 0x10000) 
-0413 7D64       108            mov R5, #100
-0415            109   Sum_loop0:
-0415 12038B     110            lcall _Read_ADC_Channel
-0418 754000     111            mov y+3, #0
-041B 753F00     112            mov y+2, #0
-041E 85383E     113            mov y+1, result+1
-0421 85373D     114            mov y+0, result+0
-0424 1201C2     115            lcall add32
-0427 DDEC       116            djnz R5, Sum_loop0
-0429 753D64     117            mov y+0, #low (100 % 0x10000) 
-042C 753E00     117            mov y+1, #high(100 % 0x10000) 
-042F 753F00     117            mov y+2, #low (100 / 0x10000) 
-0432 754000     117            mov y+3, #high(100 / 0x10000) 
-0435 120304     118            lcall div32
-0438 22         119   ret
-0439            120   
-0439            121   ;---------------------------------;
-0439            122   ; Routine to initialize the ISR   ;
-0439            123   ; for timer 2                     ;
-0439            124   ;---------------------------------;
-0439            125   Timer0_Init:
-0439 E589       126            mov a, TMOD
-043B 54F0       127            anl a, #0xf0 ; Clear the bits for timer 0
-043D 4401       128            orl a, #0x01 ; Configure timer 0 as 16-timer
-043F F589       129            mov TMOD, a
-0441 758CEA     130            mov TH0, #high(TIMER0_RELOAD)
-0444 758AE8     131            mov TL0, #low(TIMER0_RELOAD)
-0447            132            ; Enable the timer and interrupts
-0447 D2A9       133            setb ET0  ; Enable timer 0 interrupt
-0449 C28C       134            clr TR0  ; Disable timer 0 by default
-044B 22         135            ret
-044C            136            
-044C            137   Timer2_Init:
-044C 75C800     138            mov T2CON, #0 ; Stop timer/counter.  Autoreload mode.
-044F 75CBA9     139            mov RCAP2H, #high(TIMER2_RELOAD)
-0452 75CA9A     140            mov RCAP2L, #low(TIMER2_RELOAD)
-0455            141            ; Init One millisecond interrupt counter.  It is a 16-bit variable made with two 8-bit parts
-0455 E4         142            clr a
-0456 F530       143            mov Count1ms+0, a
-0458 F531       144            mov Count1ms+1, a
-045A F532       145            mov Count_PWM, a
-045C            146            ; Enable the timer and interrupts
-045C D2AD       147            setb ET2  ; Enable timer 2 interrupt
-045E D2CA       148            setb TR2  ; Enable timer 2
-0460 22         149            ret
-0461            150            
-0461            151   ;---------------------------------;
-0461            152   ; ISR for timer 2                 ;
-0461            153   ;---------------------------------;
-0461            154   Timer2_ISR:
-0461 C2CF       155            clr TF2  ; Timer 2 doesn't clear TF2 automatically. Do it in ISR
-0463            156            ; The two registers used in the ISR must be saved in the stack
-0463 C0E0       157            push acc
-0465 C0D0       158            push psw
-0467            159            
-0467            160            ; Increment the 16-bit one milli second counter
-0467 0530       161            inc Count1ms+0    ; Increment the low 8-bits first
-0469 E530       162            mov a, Count1ms+0 ; If the low 8-bits overflow, then increment high 8-bits
-046B 7011       163            jnz Inc_PWM
-046D 0531       164            inc Count1ms+1
-046F            165            
-046F            166   Inc_Done_1sec:
-046F            167   
-046F E530       168            mov a, Count1ms+0
-0471 B4E80A     169            cjne a, #low(1000), Inc_PWM ; Warning: this instruction changes the carry flag!
-0474 E531       170            mov a, Count1ms+1
-0476 B40305     171            cjne a, #high(1000), Inc_PWM
-0479            172            
-0479            173            ; 1 second has passed ;
-0479            174   
-0479 E4         175            clr a
-047A F530       176            mov Count1ms+0, a
-047C F531       177            mov Count1ms+1, a
-047E            178   
-047E            179   Inc_PWM:
-047E            180            
-047E 300123     181            jnb pwm_on, Timer2_ISR_done
-0481 0532       182            inc Count_PWM+0
-0483 300210     183            jnb pwm_high, Inc_Done_PWM_Low
-0486            184   
-0486 E532       185            mov a, Count_PWM+0
-0488 B41419     186            cjne a, #PWM_RELOAD_HIGH, Timer2_ISR_done
-048B            187            
-048B C202       188            clr pwm_high
-048D C2B7       189            clr SSR_OUT
-048F D2B6       190            setb P3.6
-0491            191            
-0491 E4         192            clr a
-0492 F532       193            mov Count_PWM, a
-0494            194            
-0494 800E       195            sjmp Timer2_ISR_done
-0496            196   
-0496            197   Inc_Done_PWM_Low:
-0496            198   
-0496 E532       199            mov a, Count_PWM
-0498 B45009     200            cjne a, #PWM_RELOAD_LOW, Timer2_ISR_done
-049B            201            
-049B D202       202            setb pwm_high
-049D D2B7       203            setb SSR_OUT
-049F C2B6       204            clr P3.6
-04A1            205            
-04A1 E4         206            clr a
-04A2 F532       207            mov Count_PWM, a
-04A4            208   
-04A4            209            
-04A4            210   Timer2_ISR_done:
-04A4 D0D0       211            pop psw
-04A6 D0E0       212            pop acc
-04A8 32         213            reti
-04A9            214   
-04A9            215   
-04A9            216   init:
-04A9            217            ; Initialization
-04A9 75817F     218       mov SP, #0x7F
-04AC 75C100     219       mov PMOD, #0 ; Configure all ports in bidirectional mode
-04AF 120439     220       lcall Timer0_Init
-04B2 12044C     221       lcall Timer2_Init
-04B5 D2AF       222       setb EA   ; Enable Global interrupts
-04B7 12036D     223            lcall INIT_SPI
-04BA 1203AC     224            lcall InitSerialPort
-04BD 1200A9     225       lcall LCD_4BIT  ; For convenience a few handy macros are included in 'LCD_4bit.inc':
-04C0 C201       226       clr pwm_on
-04C2 C202       227       clr pwm_high
-04C4 C2B7       228       clr SSR_OUT
-04C6            229       
-04C6            230   Main_Loop:
-04C6 1204DA     231            lcall Check_SSR_Toggle
-04C9 120513     232            lcall Check_PWM_Toggle
-04CC 12057B     233            lcall Take_Sample
-04CF C002       234            push AR2
-04D1 7AFA       234            mov R2, #250
-04D3 12005A     234            lcall ?Wait_Milli_Seconds
-04D6 D002       234            pop AR2
-04D8 80EC       235            sjmp Main_Loop  
-04DA            236   
-04DA            237   Check_SSR_Toggle:
-04DA 20C535     238            jb BOOT_BUTTON, SSR_Toggle_Return
-04DD C002       239            push AR2
-04DF 7A32       239            mov R2, #50
-04E1 12005A     239            lcall ?Wait_Milli_Seconds
-04E4 D002       239            pop AR2
-04E6 20C529     240            jb BOOT_BUTTON, SSR_Toggle_Return
-04E9 C201       241            clr pwm_on
-04EB B2B7       242            cpl SSR_OUT
-04ED C0E0       243            push acc
-04EF 7401       243            mov a, #1
-04F1 14         243            dec a
-04F2 1200E0     243            lcall ?Set_Cursor_2 ; Select column and row
-04F5 D0E0       243            pop acc
-04F7 C083       244            push dph
-04F9 C082       244            push dpl
-04FB C0E0       244            push acc
-04FD 90003E     244            mov dptr, #PWM_OFF_MESSAGE
-0500 1200D5     244            lcall ?Send_Constant_String
-0503 D0E0       244            pop acc
-0505 D082       244            pop dpl
-0507 D083       244            pop dph
-0509 C002       245            push AR2
-050B 7AC8       245            mov R2, #200
-050D 12005A     245            lcall ?Wait_Milli_Seconds
-0510 D002       245            pop AR2
-0512            246   SSR_Toggle_Return:
-0512 22         247            ret
-0513            248            
-0513            249   Check_PWM_Toggle:
-0513 208364     250            jb PWM_BUTTON, PWM_Toggle_Return
-0516 C002       251            push AR2
-0518 7A32       251            mov R2, #50
-051A 12005A     251            lcall ?Wait_Milli_Seconds
-051D D002       251            pop AR2
-051F 208358     252            jb PWM_BUTTON, PWM_Toggle_Return
-0522 3083FD     253            jnb PWM_BUTTON, $
-0525 200129     254            jb pwm_on, PWM_Off
-0528            255            ; Otherwise, turn PWM on ;
-0528 D201       256            setb pwm_on
-052A C0E0       257            push acc
-052C 7401       257            mov a, #1
-052E 14         257            dec a
-052F 1200E0     257            lcall ?Set_Cursor_2 ; Select column and row
-0532 D0E0       257            pop acc
-0534 C083       258            push dph
-0536 C082       258            push dpl
-0538 C0E0       258            push acc
-053A 90002E     258            mov dptr, #PWM_ON_MESSAGE
-053D 1200D5     258            lcall ?Send_Constant_String
-0540 D0E0       258            pop acc
-0542 D082       258            pop dpl
-0544 D083       258            pop dph
-0546 C002       259            push AR2
-0548 7AC8       259            mov R2, #200
-054A 12005A     259            lcall ?Wait_Milli_Seconds
-054D D002       259            pop AR2
-054F 8029       260            sjmp PWM_Toggle_Return
-0551            261   PWM_Off:
-0551 C201       262            clr pwm_on
-0553 C2B7       263            clr SSR_OUT
-0555 C0E0       264            push acc
-0557 7401       264            mov a, #1
-0559 14         264            dec a
-055A 1200E0     264            lcall ?Set_Cursor_2 ; Select column and row
-055D D0E0       264            pop acc
-055F C083       265            push dph
-0561 C082       265            push dpl
-0563 C0E0       265            push acc
-0565 90003E     265            mov dptr, #PWM_OFF_MESSAGE
-0568 1200D5     265            lcall ?Send_Constant_String
-056B D0E0       265            pop acc
-056D D082       265            pop dpl
-056F D083       265            pop dph
-0571 C002       266            push AR2
-0573 7AC8       266            mov R2, #200
-0575 12005A     266            lcall ?Wait_Milli_Seconds
-0578 D002       266            pop AR2
-057A            267   PWM_Toggle_Return:
-057A 22         268            ret
-057B            269            
-057B            270   Take_Sample:
-057B 75F007     271            mov b, #7
-057E 120407     271            lcall ?Average_ADC_Channel
-0581 120597     272            lcall Calculate_Vref
-0584            273            ;fetch result from channel 0 as room temperature
-0584 75F000     274            mov b, #0
-0587 120407     274            lcall ?Average_ADC_Channel
-058A 1205CE     275            lcall LM335_Result_SPI_Routine
-058D            276            ;fetch result from channel 1
-058D 75F001     277            mov b, #1
-0590 120407     277            lcall ?Average_ADC_Channel
-0593 120617     278       lcall Result_SPI_Routine     ; 0.5 second delay between samples
-0596 22         279            ret
-0597            280   Calculate_Vref:
-0597 85373D     281            mov y+0, result+0 
-059A 85383E     281            mov y+1, result+1
-059D 753F00     281            mov y+2, #0 
-05A0 754000     281            mov y+3, #0
-05A3 753931     282            mov x+0, #low (VLED*1023 % 0x10000) 
-05A6 753A3B     282            mov x+1, #high(VLED*1023 % 0x10000) 
-05A9 753B03     282            mov x+2, #low (VLED*1023 / 0x10000) 
-05AC 753C00     282            mov x+3, #high(VLED*1023 / 0x10000) 
-05AF 120304     283            lcall div32
-05B2 753D10     284            mov y+0, #low (10000 % 0x10000) 
-05B5 753E27     284            mov y+1, #high(10000 % 0x10000) 
-05B8 753F00     284            mov y+2, #low (10000 / 0x10000) 
-05BB 754000     284            mov y+3, #high(10000 / 0x10000) 
-05BE 120277     285            lcall mul32                     ; Gets Vcc*10^6
-05C1            286   
-05C1 853933     287            mov Vcc+0, x+0 
-05C4 853A34     287            mov Vcc+1, x+1
-05C7 853B35     287            mov Vcc+2, x+2 
-05CA 853C36     287            mov Vcc+3, x+3
-05CD            288            
-05CD 22         289            ret
-05CE            290            
-05CE            291   LM335_Result_SPI_Routine:
-05CE 85333D     292            mov y+0, Vcc+0 
-05D1 85343E     292            mov y+1, Vcc+1
-05D4 85353F     292            mov y+2, Vcc+2 
-05D7 853640     292            mov y+3, Vcc+3
-05DA            293   
-05DA 120277     294       lcall mul32                  ; Vout*10^6 = ADC*(Vcc*10^6)/1023
-05DD 753DFF     295            mov y+0, #low (1023 % 0x10000) 
-05E0 753E03     295            mov y+1, #high(1023 % 0x10000) 
-05E3 753F00     295            mov y+2, #low (1023 / 0x10000) 
-05E6 754000     295            mov y+3, #high(1023 / 0x10000)          
-05E9 120304     296       lcall div32
-05EC 753D10     297            mov y+0, #low (2730000 % 0x10000) 
-05EF 753EA8     297            mov y+1, #high(2730000 % 0x10000) 
-05F2 753F29     297            mov y+2, #low (2730000 / 0x10000) 
-05F5 754000     297            mov y+3, #high(2730000 / 0x10000)       ; T*10^4 = (Vout*10^6-2.73*10^6)/100
-05F8 1201E3     298       lcall sub32
-05FB 753D64     299            mov y+0, #low (100 % 0x10000) 
-05FE 753E00     299            mov y+1, #high(100 % 0x10000) 
-0601 753F00     299            mov y+2, #low (100 / 0x10000) 
-0604 754000     299            mov y+3, #high(100 / 0x10000)           
-0607 120304     300       lcall div32
-060A            301   
-060A 853946     302            mov x_lm335+0, x+0 
-060D 853A47     302            mov x_lm335+1, x+1
-0610 853B48     302            mov x_lm335+2, x+2 
-0613 853C49     302            mov x_lm335+3, x+3
-0616            303            
-0616 22         304            ret
-0617            305   
-0617            306   Result_SPI_Routine:
-0617 85333D     307            mov y+0, Vcc+0 
-061A 85343E     307            mov y+1, Vcc+1
-061D 85353F     307            mov y+2, Vcc+2 
-0620 853640     307            mov y+3, Vcc+3
-0623            308            
-0623 120277     309            lcall mul32
-0626 753DFF     310            mov y+0, #low (1023 % 0x10000) 
-0629 753E03     310            mov y+1, #high(1023 % 0x10000) 
-062C 753F00     310            mov y+2, #low (1023 / 0x10000) 
-062F 754000     310            mov y+3, #high(1023 / 0x10000) 
-0632 120304     311            lcall div32
-0635 753D64     312            mov y+0, #low (100 % 0x10000) 
-0638 753E00     312            mov y+1, #high(100 % 0x10000) 
-063B 753F00     312            mov y+2, #low (100 / 0x10000) 
-063E 754000     312            mov y+3, #high(100 / 0x10000) 
-0641 120277     313            lcall mul32     
-0644 753DC6     314            mov y+0, #low (454 % 0x10000) 
-0647 753E01     314            mov y+1, #high(454 % 0x10000) 
-064A 753F00     314            mov y+2, #low (454 / 0x10000) 
-064D 754000     314            mov y+3, #high(454 / 0x10000)   ;Gain 
-0650 120304     315            lcall div32
-0653 753D29     316            mov y+0, #low (41 % 0x10000) 
-0656 753E00     316            mov y+1, #high(41 % 0x10000) 
-0659 753F00     316            mov y+2, #low (41 / 0x10000) 
-065C 754000     316            mov y+3, #high(41 / 0x10000)    ;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
-065F 120304     317            lcall div32
-0662            318            
-0662            319   
-0662 85463D     320            mov y+0, x_lm335+0 
-0665 85473E     320            mov y+1, x_lm335+1
-0668 85483F     320            mov y+2, x_lm335+2 
-066B 854940     320            mov y+3, x_lm335+3
-066E 1201C2     321            lcall add32
-0671            322   
-0671 1200FD     323            lcall hex2bcd
-0674            324   
-0674            325   Send_Serial:
-0674            326            
-0674 C000       327       push ar0
-0676 A843       327       mov r0, bcd+2
-0678 1203DE     327       lcall ?Send_BCD
-067B D000       327       pop ar0
-067D C000       328       push ar0
-067F A842       328       mov r0, bcd+1
-0681 1203DE     328       lcall ?Send_BCD
-0684 D000       328       pop ar0
-0686 740A       329            mov a, #'\n'
-0688 1203CB     330            lcall putchar
-068B            331            
-068B C0E0       332            push acc
-068D 7401       332            mov a, #1
-068F 14         332            dec a
-0690 1200E2     332            lcall ?Set_Cursor_1 ; Select column and row
-0693 D0E0       332            pop acc
-0695            333                    
-0695            334   
-0695            335   Display_Temp_LCD:
-0695 C000       336            push ar0
-0697 A845       336            mov r0, bcd+4
-0699 1200E7     336            lcall ?Display_BCD
-069C D000       336            pop ar0
-069E C000       337            push ar0
-06A0 A844       337            mov r0, bcd+3
-06A2 1200E7     337            lcall ?Display_BCD
-06A5 D000       337            pop ar0
-06A7 C000       338            push ar0
-06A9 A843       338            mov r0, bcd+2
-06AB 1200E7     338            lcall ?Display_BCD
-06AE D000       338            pop ar0
-06B0 C000       339            push ar0
-06B2 A842       339            mov r0, bcd+1
-06B4 1200E7     339            lcall ?Display_BCD
-06B7 D000       339            pop ar0
-06B9 C000       340            push ar0
-06BB A841       340            mov r0, bcd
-06BD 1200E7     340            lcall ?Display_BCD
-06C0 D000       340            pop ar0
-06C2 22         341       ret
-06C3            342   en
+0439            111   $LIST
+                 46   $LIST
+                 76   $LIST
+0463             78   
+0463             79   
+0463             80   
+0463             81   
+0463             82   ;---------------------------------;
+0463             83   ; ISR for timer 2                 ;
+0463             84   ;---------------------------------;
+0463             85   Timer2_ISR:
+0463 C2CF        86            clr TF2  ; Timer 2 doesn't clear TF2 automatically. Do it in ISR
+0465             87            ; The two registers used in the ISR must be saved in the stack
+0465 C0E0        88            push acc
+0467 C0D0        89            push psw
+0469             90            
+0469 0532        91            inc Count_Sample
+046B             92            ; Increment the 16-bit one milli second counter
+046B 0530        93            inc Count1ms+0    ; Increment the low 8-bits first
+046D E530        94            mov a, Count1ms+0 ; If the low 8-bits overflow, then increment high 8-bits
+046F 7002        95            jnz Inc_Done_1sec
+0471 0531        96            inc Count1ms+1
+0473             97            
+0473             98   Inc_Done_1sec:
+0473             99   
+0473 E530       100            mov a, Count1ms+0
+0475 B4E80B     101            cjne a, #low(1000), Inc_Done_Sample ; Warning: this instruction changes the carry flag!
+0478 E531       102            mov a, Count1ms+1
+047A B40306     103            cjne a, #high(1000), Inc_Done_Sample
+047D            104            
+047D            105            ; 1 second has passed ;
+047D            106   
+047D 753000     107            mov Count1ms+0, #0
+0480 753100     107            mov Count1ms+1, #0
+0483            108   
+0483            109   Inc_Done_Sample:
+0483            110            
+0483 E532       111            mov a, Count_Sample
+0485 B4FA05     112            cjne a, #SAMPLE_INTERVAL, Inc_PWM
+0488            113            
+0488 D203       114            setb sample_flag
+048A            115            
+048A E4         116            clr a
+048B F532       117            mov Count_Sample, a
+048D            118   
+048D            119   Inc_PWM:
+048D            120            
+048D 300123     121            jnb pwm_on, Timer2_ISR_done
+0490 0533       122            inc Count_PWM
+0492 300210     123            jnb pwm_high, Inc_Done_PWM_Low
+0495            124   
+0495 E533       125            mov a, Count_PWM
+0497 B43F19     126            cjne a, #PWM_RELOAD_HIGH, Timer2_ISR_done
+049A            127            
+049A C202       128            clr pwm_high
+049C C2B7       129            clr SSR_OUT
+049E D2B6       130            setb P3.6
+04A0            131            
+04A0 E4         132            clr a
+04A1 F533       133            mov Count_PWM, a
+04A3            134            
+04A3 800E       135            sjmp Timer2_ISR_done
+04A5            136   
+04A5            137   Inc_Done_PWM_Low:
+04A5            138   
+04A5 E533       139            mov a, Count_PWM
+04A7 B4C009     140            cjne a, #PWM_RELOAD_LOW, Timer2_ISR_done
+04AA            141            
+04AA D202       142            setb pwm_high
+04AC D2B7       143            setb SSR_OUT
+04AE C2B6       144            clr P3.6
+04B0            145            
+04B0 E4         146            clr a
+04B1 F533       147            mov Count_PWM, a
+04B3            148   
+04B3            149            
+04B3            150   Timer2_ISR_done:
+04B3 D0D0       151            pop psw
+04B5 D0E0       152            pop acc
+04B7 32         153            reti
+04B8            154   
+04B8            155   
+04B8            156   init:
+04B8            157            ; Initialization
+04B8 75817F     158       mov SP, #0x7F
+04BB 75C100     159       mov PMOD, #0 ; Configure all ports in bidirectional mode
+04BE 120439     160       lcall Timer0_Init
+04C1 12044C     161       lcall Timer2_Init
+04C4 D2AF       162       setb EA   ; Enable Global interrupts
+04C6 12036D     163            lcall INIT_SPI
+04C9 1203DE     164            lcall InitSerialPort
+04CC 1200A9     165       lcall LCD_4BIT  ; For convenience a few handy macros are included in 'LCD_4bit.inc':
+04CF C201       166       clr pwm_on
+04D1 C202       167       clr pwm_high
+04D3 C2B7       168       clr SSR_OUT
+04D5            169       
+04D5            170   Main_Loop:
+04D5 1204E3     171            lcall Check_SSR_Toggle
+04D8 12051C     172            lcall Check_PWM_Toggle
+04DB 3003F7     173            jnb sample_flag, Main_Loop
+04DE 120584     174            lcall Take_Sample
+04E1 80F2       175            sjmp Main_Loop  
+04E3            176   
+04E3            177   Check_SSR_Toggle:
+04E3 20C535     178            jb BOOT_BUTTON, SSR_Toggle_Return
+04E6 C002       179            push AR2
+04E8 7A32       179            mov R2, #50
+04EA 12005A     179            lcall ?Wait_Milli_Seconds
+04ED D002       179            pop AR2
+04EF 20C529     180            jb BOOT_BUTTON, SSR_Toggle_Return
+04F2 C201       181            clr pwm_on
+04F4 B2B7       182            cpl SSR_OUT
+04F6 C0E0       183            push acc
+04F8 7401       183            mov a, #1
+04FA 14         183            dec a
+04FB 1200E0     183            lcall ?Set_Cursor_2 ; Select column and row
+04FE D0E0       183            pop acc
+0500 C083       184            push dph
+0502 C082       184            push dpl
+0504 C0E0       184            push acc
+0506 90003E     184            mov dptr, #PWM_OFF_MESSAGE
+0509 1200D5     184            lcall ?Send_Constant_String
+050C D0E0       184            pop acc
+050E D082       184            pop dpl
+0510 D083       184            pop dph
+0512 C002       185            push AR2
+0514 7AC8       185            mov R2, #200
+0516 12005A     185            lcall ?Wait_Milli_Seconds
+0519 D002       185            pop AR2
+051B            186   SSR_Toggle_Return:
+051B 22         187            ret
+051C            188            
+051C            189   Check_PWM_Toggle:
+051C 208364     190            jb PWM_BUTTON, PWM_Toggle_Return
+051F C002       191            push AR2
+0521 7A32       191            mov R2, #50
+0523 12005A     191            lcall ?Wait_Milli_Seconds
+0526 D002       191            pop AR2
+0528 208358     192            jb PWM_BUTTON, PWM_Toggle_Return
+052B 3083FD     193            jnb PWM_BUTTON, $
+052E 200129     194            jb pwm_on, PWM_Off
+0531            195            ; Otherwise, turn PWM on ;
+0531 D201       196            setb pwm_on
+0533 C0E0       197            push acc
+0535 7401       197            mov a, #1
+0537 14         197            dec a
+0538 1200E0     197            lcall ?Set_Cursor_2 ; Select column and row
+053B D0E0       197            pop acc
+053D C083       198            push dph
+053F C082       198            push dpl
+0541 C0E0       198            push acc
+0543 90002E     198            mov dptr, #PWM_ON_MESSAGE
+0546 1200D5     198            lcall ?Send_Constant_String
+0549 D0E0       198            pop acc
+054B D082       198            pop dpl
+054D D083       198            pop dph
+054F C002       199            push AR2
+0551 7AC8       199            mov R2, #200
+0553 12005A     199            lcall ?Wait_Milli_Seconds
+0556 D002       199            pop AR2
+0558 8029       200            sjmp PWM_Toggle_Return
+055A            201   PWM_Off:
+055A C201       202            clr pwm_on
+055C C2B7       203            clr SSR_OUT
+055E C0E0       204            push acc
+0560 7401       204            mov a, #1
+0562 14         204            dec a
+0563 1200E0     204            lcall ?Set_Cursor_2 ; Select column and row
+0566 D0E0       204            pop acc
+0568 C083       205            push dph
+056A C082       205            push dpl
+056C C0E0       205            push acc
+056E 90003E     205            mov dptr, #PWM_OFF_MESSAGE
+0571 1200D5     205            lcall ?Send_Constant_String
+0574 D0E0       205            pop acc
+0576 D082       205            pop dpl
+0578 D083       205            pop dph
+057A C002       206            push AR2
+057C 7AC8       206            mov R2, #200
+057E 12005A     206            lcall ?Wait_Milli_Seconds
+0581 D002       206            pop AR2
+0583            207   PWM_Toggle_Return:
+0583 22         208            ret
+0584            209            
+0584            210   Take_Sample:
+0584 C203       211            clr sample_flag
+0586 75F007     212            mov b, #7
+0589 1203AC     212            lcall ?Average_ADC_Channel
+058C 1205A2     213            lcall Calculate_Vref
+058F            214            ;fetch result from channel 0 as room temperature
+058F 75F000     215            mov b, #0
+0592 1203AC     215            lcall ?Average_ADC_Channel
+0595 1205D9     216            lcall LM335_Result_SPI_Routine
+0598            217            ;fetch result from channel 1
+0598 75F001     218            mov b, #1
+059B 1203AC     218            lcall ?Average_ADC_Channel
+059E 120622     219       lcall Result_SPI_Routine     ; 0.5 second delay between samples
+05A1 22         220            ret
+05A2            221   Calculate_Vref:
+05A2 85383E     222            mov y+0, result+0 
+05A5 85393F     222            mov y+1, result+1
+05A8 754000     222            mov y+2, #0 
+05AB 754100     222            mov y+3, #0
+05AE 753A31     223            mov x+0, #low (VLED*1023 % 0x10000) 
+05B1 753B3B     223            mov x+1, #high(VLED*1023 % 0x10000) 
+05B4 753C03     223            mov x+2, #low (VLED*1023 / 0x10000) 
+05B7 753D00     223            mov x+3, #high(VLED*1023 / 0x10000) 
+05BA 120304     224            lcall div32
+05BD 753E10     225            mov y+0, #low (10000 % 0x10000) 
+05C0 753F27     225            mov y+1, #high(10000 % 0x10000) 
+05C3 754000     225            mov y+2, #low (10000 / 0x10000) 
+05C6 754100     225            mov y+3, #high(10000 / 0x10000) 
+05C9 120277     226            lcall mul32                     ; Gets Vcc*10^6
+05CC            227   
+05CC 853A34     228            mov Vcc+0, x+0 
+05CF 853B35     228            mov Vcc+1, x+1
+05D2 853C36     228            mov Vcc+2, x+2 
+05D5 853D37     228            mov Vcc+3, x+3
+05D8            229            
+05D8 22         230            ret
+05D9            231            
+05D9            232   LM335_Result_SPI_Routine:
+05D9 85343E     233            mov y+0, Vcc+0 
+05DC 85353F     233            mov y+1, Vcc+1
+05DF 853640     233            mov y+2, Vcc+2 
+05E2 853741     233            mov y+3, Vcc+3
+05E5            234   
+05E5 120277     235       lcall mul32                  ; Vout*10^6 = ADC*(Vcc*10^6)/1023
+05E8 753EFF     236            mov y+0, #low (1023 % 0x10000) 
+05EB 753F03     236            mov y+1, #high(1023 % 0x10000) 
+05EE 754000     236            mov y+2, #low (1023 / 0x10000) 
+05F1 754100     236            mov y+3, #high(1023 / 0x10000)          
+05F4 120304     237       lcall div32
+05F7 753E10     238            mov y+0, #low (2730000 % 0x10000) 
+05FA 753FA8     238            mov y+1, #high(2730000 % 0x10000) 
+05FD 754029     238            mov y+2, #low (2730000 / 0x10000) 
+0600 754100     238            mov y+3, #high(2730000 / 0x10000)       ; T*10^4 = (Vout*10^6-2.73*10^6)/100
+0603 1201E3     239       lcall sub32
+0606 753E64     240            mov y+0, #low (100 % 0x10000) 
+0609 753F00     240            mov y+1, #high(100 % 0x10000) 
+060C 754000     240            mov y+2, #low (100 / 0x10000) 
+060F 754100     240            mov y+3, #high(100 / 0x10000)           
+0612 120304     241       lcall div32
+0615            242   
+0615 853A47     243            mov x_lm335+0, x+0 
+0618 853B48     243            mov x_lm335+1, x+1
+061B 853C49     243            mov x_lm335+2, x+2 
+061E 853D4A     243            mov x_lm335+3, x+3
+0621            244            
+0621 22         245            ret
+0622            246   
+0622            247   Result_SPI_Routine:
+0622 85343E     248            mov y+0, Vcc+0 
+0625 85353F     248            mov y+1, Vcc+1
+0628 853640     248            mov y+2, Vcc+2 
+062B 853741     248            mov y+3, Vcc+3
+062E            249            
+062E 120277     250            lcall mul32
+0631 753EFF     251            mov y+0, #low (1023 % 0x10000) 
+0634 753F03     251            mov y+1, #high(1023 % 0x10000) 
+0637 754000     251            mov y+2, #low (1023 / 0x10000) 
+063A 754100     251            mov y+3, #high(1023 / 0x10000) 
+063D 120304     252            lcall div32
+0640 753E64     253            mov y+0, #low (100 % 0x10000) 
+0643 753F00     253            mov y+1, #high(100 % 0x10000) 
+0646 754000     253            mov y+2, #low (100 / 0x10000) 
+0649 754100     253            mov y+3, #high(100 / 0x10000) 
+064C 120277     254            lcall mul32     
+064F 753EC6     255            mov y+0, #low (454 % 0x10000) 
+0652 753F01     255            mov y+1, #high(454 % 0x10000) 
+0655 754000     255            mov y+2, #low (454 / 0x10000) 
+0658 754100     255            mov y+3, #high(454 / 0x10000)   ;Gain 
+065B 120304     256            lcall div32
+065E 753E29     257            mov y+0, #low (41 % 0x10000) 
+0661 753F00     257            mov y+1, #high(41 % 0x10000) 
+0664 754000     257            mov y+2, #low (41 / 0x10000) 
+0667 754100     257            mov y+3, #high(41 / 0x10000)    ;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
+066A 120304     258            lcall div32
+066D            259            
+066D            260   
+066D 85473E     261            mov y+0, x_lm335+0 
+0670 85483F     261            mov y+1, x_lm335+1
+0673 854940     261            mov y+2, x_lm335+2 
+0676 854A41     261            mov y+3, x_lm335+3
+0679 1201C2     262            lcall add32
+067C            263   
+067C 1200FD     264            lcall hex2bcd
+067F            265   
+067F            266   Send_Serial:
+067F            267            
+067F C000       268       push ar0
+0681 A844       268       mov r0, bcd+2
+0683 120410     268       lcall ?Send_BCD
+0686 D000       268       pop ar0
+0688 C000       269       push ar0
+068A A843       269       mov r0, bcd+1
+068C 120410     269       lcall ?Send_BCD
+068F D000       269       pop ar0
+0691 740A       270            mov a, #'\n'
+0693 1203FD     271            lcall putchar
+0696            272   
+0696            273   Display_Temp_LCD:
+0696 C0E0       274            push acc
+0698 7401       274            mov a, #1
+069A 14         274            dec a
+069B 1200E2     274            lcall ?Set_Cursor_1 ; Select column and row
+069E D0E0       274            pop acc
+06A0 C000       275            push ar0
+06A2 A846       275            mov r0, bcd+4
+06A4 1200E7     275            lcall ?Display_BCD
+06A7 D000       275            pop ar0
+06A9 C000       276            push ar0
+06AB A845       276            mov r0, bcd+3
+06AD 1200E7     276            lcall ?Display_BCD
+06B0 D000       276            pop ar0
+06B2 C000       277            push ar0
+06B4 A844       277            mov r0, bcd+2
+06B6 1200E7     277            lcall ?Display_BCD
+06B9 D000       277            pop ar0
+06BB C000       278            push ar0
+06BD A843       278            mov r0, bcd+1
+06BF 1200E7     278            lcall ?Display_BCD
+06C2 D000       278            pop ar0
+06C4 C000       279            push ar0
+06C6 A842       279            mov r0, bcd
+06C8 1200E7     279            lcall ?Display_BCD
+06CB D000       279            pop ar0
+06CD 22         280       ret
+06CE            281   en
