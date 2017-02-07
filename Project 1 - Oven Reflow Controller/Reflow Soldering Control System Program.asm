@@ -78,7 +78,7 @@ POWER_BUTTON		equ P0.5
 
 $NOLIST
 $include(LCD_4bit.inc) ; A library of LCD related functions and utility macros
-$include(math32.inc) ; A library of 32 bit functions and macros					Move_4B_to_4B (dest, origin) ----- Move_2B_to_4B ----- Zero_4B (orig)----- Zero_2B
+$include(math32.inc) ; A library of 32 bit functions and macros					Move_4B_to_4B (dest, origin) ----- Move_2B_to_4B ----- Move_1B_to_4B ----- Zero_4B (orig)----- Zero_2B
 $include(MCP3008.inc)	;-initializing & communicating with the MCP3008			INIT_SPI ----- DO_SPI_G -----	Read_ADC_Channel (MAC): returns in "result" ----- Average_ADC_Channel (MAC)	: returns in "x"					  
 $include(SerialPort.inc)	;initializing & sending data through serial port	InitSerialPort ---- putchar ----- SendString ----- Send_BCD (MAC) ----- Send_Voltage_BCD_to_PuTTY	
 $include (Timer.inc) ;-initializing Timers										Timer0_Init	(OFF BY DEFAULT) ----- Timer2_Init (ON BY DEFAULT)
@@ -95,7 +95,7 @@ dseg at 0x30
 	reflow_seconds: 	ds 1
 	reflow_temp: 		ds 1
 	run_time_sec: 		ds 1
-	Timer0_Count1ms:	ds 2 ;	DO WE NEED IT ?????????? NOT USED SO FAR
+	Timer0_Count1ms:	ds 2 ;	DO WE NEED IT ?????????? NOT USED SO FAR		TODOOOOO
 	
 ;+++++++++ 32 bit Calculation variables +++++++++++	
 	x:  	    		ds 4
@@ -107,7 +107,8 @@ dseg at 0x30
 	samplesum:			ds 4
 ;--------------------------------------------
 	state:				ds 1
-	pwm:				ds 1
+;	pwm:				ds 1		TODOOOOO			needed?
+	current_temp:		ds 4
 
 	
 	
@@ -159,10 +160,9 @@ Inc_Done_1sec:
 	cjne a, #high(1000), Inc_PWM
 	
 	; 1 second has passed.  Set a flag so the main program knows
-	;setb ome_seconds_flag ; Let the main program know one second had passed
-	; Reset to zero the milli-seconds counter, it is a 16-bit variable
 	Zero_2B (Count1ms)
 		
+	; total time passed for each stage (it will be set to 0 when the stage starts)
 	inc run_time_sec
 
 	
@@ -199,8 +199,116 @@ Timer2_ISR_done:
 	pop acc
 reti
 
+;------------------------------------------------------------------;
+; Subroutine to take sample from Thermocouple, LM335, and LED for Vref
+;------------------------------------------------------------------;
+Take_Sample:
+	;reading the LED voltage for Vref
+	Average_ADC_Channel(7)	
+	lcall Calculate_Vref
+	;fetch result from channel 0 as room temperature
+	Average_ADC_Channel(0)
+	lcall LM335_Result_SPI_Routine
+	;fetch result from channel 1
+    Average_ADC_Channel(1)
+    lcall Result_SPI_Routine	; 0.5 second delay between samples
+	ret
+
+;calculating Vref from Vled	
+Calculate_Vref:
+	Move_2B_to_4B (y, result)
+	load_X(VLED*1023)
+	lcall div32
+	load_Y(10000)
+	lcall mul32			; Gets Vcc*10^6
+
+	Move_4B_to_4B (Vcc, x)
+	
+	ret
+	
+;calculating cold junction temperature
+LM335_Result_SPI_Routine:
+	Move_4B_to_4B (y, Vcc)
+
+    lcall mul32			; Vout*10^6 = ADC*(Vcc*10^6)/1023
+    load_y (1023)	
+    lcall div32
+    load_y (2730000)	; T*10^4 = (Vout*10^6-2.73*10^6)/100
+    lcall sub32
+    load_y (100)		
+    lcall div32
+
+	Move_4B_to_4B (x_lm335, x)
+	
+	ret
+
+;calculating the oven temperature and sending it to computer and LCD
+Result_SPI_Routine:
+	Move_4B_to_4B (y, Vcc)
+	
+	lcall mul32
+	Load_Y(1023)
+	lcall div32
+	Load_Y(100)
+	lcall mul32	
+	Load_Y(454)	;Gain 
+	lcall div32
+	Load_Y(41)	;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
+	lcall div32
+	
+	Move_4B_to_4B (y, x_lm335)
+	lcall add32
+
+	;updating the temperature of OVEN variable
+	Move_4B_to_4B (current_temp, x)
+	
+	lcall hex2bcd
+
+;sending Oven temperature to Computer
+Send_Serial:
+	
+	Send_BCD(bcd+2)
+	Send_BCD(bcd+1)
+	mov a, #'\n'
+	lcall putchar
+	
+	Set_Cursor(1,1)
+		
+Display_Temp_LCD:
+	Display_BCD(bcd+4)
+	Display_BCD(bcd+3)
+	Display_BCD(bcd+2)
+	Display_BCD(bcd+1)
+	Display_BCD(bcd)
+ret
 
 
+
+;------------------------------------------------------------------;
+; MACRO for incrementing or decrementing a variable
+;------------------------------------------------------------------;
+Inc_dec_variable MAC
+	;Mac (%0 : inc/dec button    %1 : variable ) 
+	jb %0, no_inc_dec_var%M
+	Wait_Milli_Seconds(#50)
+	jb %0, no_inc_dec_var%M
+	inc %1
+	
+no_inc_dec_var%M:
+
+ENDMAC
+
+
+
+;------------------------------------------------------------------;
+; Main program   (FSM)
+;	
+;	-state 0:  setting the Soak Time
+;	-state 1:  setting the Soak Temperature
+;	-state 2:  setting the Reflow Time
+;	-state 3:  setting the Reflow Temp
+;	-state 4:  setting the 
+;------------------------------------------------------------------;
 MainProgram:
 
 	; Initialization
@@ -222,94 +330,21 @@ MainProgram:
     mov soak_temp, a
     mov reflow_seconds, a
     mov reflow_temp, a
-
-	lcall Check_SSR_Toggle
-	lcall Check_PWM_Toggle
-	lcall Take_Sample
-	Wait_Milli_Seconds(#250)
-	sjmp Main_Loop	
-	
-Take_Sample:
-	Average_ADC_Channel(7)
-	lcall Calculate_Vref
-	;fetch result from channel 0 as room temperature
-	Average_ADC_Channel(0)
-	lcall LM335_Result_SPI_Routine
-	;fetch result from channel 1
-    Average_ADC_Channel(1)
-    lcall Result_SPI_Routine	; 0.5 second delay between samples
-	ret
-Calculate_Vref:
-	Move_2B_to_4B (y, result)
-	load_X(VLED*1023)
-	lcall div32
-	load_Y(10000)
-	lcall mul32			; Gets Vcc*10^6
-
-	Move_4B_to_4B (Vcc, x)
-	
-	ret
-	
-LM335_Result_SPI_Routine:
-	Move_4B_to_4B (y, Vcc)
-
-    lcall mul32			; Vout*10^6 = ADC*(Vcc*10^6)/1023
-    load_y (1023)	
-    lcall div32
-    load_y (2730000)	; T*10^4 = (Vout*10^6-2.73*10^6)/100
-    lcall sub32
-    load_y (100)		
-    lcall div32
-
-	Move_4B_to_4B (x_lm335, x)
-	
-	ret
-
-Result_SPI_Routine:
-	Move_4B_to_4B (y, Vcc)
-	
-	lcall mul32
-	Load_Y(1023)
-	lcall div32
-	Load_Y(100)
-	lcall mul32	
-	Load_Y(454)	;Gain 
-	lcall div32
-	Load_Y(41)	;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
-	lcall div32
-	
-
-	Move_4B_to_4B (y, x_lm335)
-	lcall add32
-
-	lcall hex2bcd
-
-Send_Serial:
-	
-	Send_BCD(bcd+2)
-	Send_BCD(bcd+1)
-	mov a, #'\n'
-	lcall putchar
-	
-	Set_Cursor(1,1)
-		
-
-Display_Temp_LCD:
-	Display_BCD(bcd+4)
-	Display_BCD(bcd+3)
-	Display_BCD(bcd+2)
-	Display_BCD(bcd+1)
-	Display_BCD(bcd)
-ret
 	
 forever:
 
+	; updating the temperature of Oven variable
+	lcall Take_Sample
+	Wait_Milli_Seconds(#250)		; maybe has to be put at the end TODOOOOO   or just removed
+	
 	mov a, state
 	
-; initialization state
+; initializing the Soak Time 
 state0:
 	cjne a, #0, state1
-	mov pwm, #0
+	clr pwm_on
+	
+	
 	;jb KEY.3, state0_done													;TODOOOOO
 	;jnb KEY.3, $ ; Wait for key release									;TODOOOOO
 	mov state, #1
@@ -326,46 +361,17 @@ SoakTime:
 	Set_Cursor(1,1)
 	Send_Constant_String(#SoakTime_Message)
 	Set_Cursor(2,1)
-  	Display_BCD(soak_seconds+1)
-	Display_BCD(soak_seconds)
+	
+	Move_1B_to_4B ( x, soak_seconds)
+	lcall hex2bcd
+  	Display_BCD(bcd+1)
+	Display_BCD(bcd)
   
-	
-	jb INC_BUTTON, no_inc_soak_sec
-	Wait_Milli_Seconds(#50)
-	jb INC_BUTTON, no_inc_soak_sec
-	Wait_Milli_Seconds(#200)
-	mov bcd+3, #0
-	mov bcd+2, #0
-  	mov bcd+1, soak_seconds+1
-	mov bcd+0, soak_seconds+0
-	lcall bcd2hex
-  	load_y(1)
-  	lcall add32
-    lcall hex2bcd
-  	mov soak_seconds+1, bcd+1
-	mov soak_seconds+0, bcd+0
-	
-no_inc_soak_sec:
-	jb DEC_BUTTON, no_dec_soak_sec
-	Wait_Milli_Seconds(#50)
-	jb DEC_BUTTON, no_dec_soak_sec
-	Wait_Milli_Seconds(#200)
- 	mov bcd+3, #0
-	mov bcd+2, #0
-  	mov bcd+1, soak_seconds+1
-	mov bcd+0, soak_seconds+0
-	lcall bcd2hex
-  	load_y (1)
-  	lcall sub32
-  	mov bcd, x
-  	mov bcd+1, x+1
-    lcall hex2bcd
-  	mov soak_seconds+1, bcd+1
-	mov soak_seconds+0, bcd+0
+	Inc_dec_variable (INC_BUTTON, soak_seconds)
+	Inc_dec_variable (DEC_BUTTON, soak_seconds)
 	
 	
-no_dec_soak_sec:
-  jb CYCLE_BUTTON, CB_not_pressed
+	jb CYCLE_BUTTON, CB_not_pressed
 	Wait_Milli_Seconds(#50)
 	jb CYCLE_BUTTON, CB_not_pressed
 	jnb CYCLE_BUTTON, $
@@ -378,41 +384,15 @@ SoakTemp:
 	Set_Cursor(1,1)
 	Send_Constant_String(#SoakTemp_Message)
 	Set_Cursor(2,1)
-  Display_BCD(soak_temp+1)
-	Display_BCD(soak_temp)
+	Move_1B_to_4B ( x, soak_temp)
+	lcall hex2bcd
+  	Display_BCD(bcd+1)
+	Display_BCD(bcd)
 	
-	jb INC_BUTTON, no_inc_soak_temp
-	Wait_Milli_Seconds(#50)
-	jb INC_BUTTON, no_inc_soak_temp
-	Wait_Milli_Seconds(#200)
- 	mov bcd+3, #0
-	mov bcd+2, #0
-  	mov bcd+1, soak_temp+1
-	mov bcd+0, soak_temp+0
-	lcall bcd2hex
- 	load_y (1)
-  	lcall add32
-    lcall hex2bcd
-  	mov soak_temp+1, bcd+1
-	mov soak_temp+0, bcd+0
+	Inc_dec_variable (INC_BUTTON, soak_temp)
+	Inc_dec_variable (DEC_BUTTON, soak_temp)
 	
-no_inc_soak_temp:
-	jb DEC_BUTTON, no_dec_soak_temp
-	Wait_Milli_Seconds(#50)
-	jb DEC_BUTTON, no_dec_soak_temp	
-	Wait_Milli_Seconds(#200)
- 	mov bcd+3, #0
-	mov bcd+2, #0
-  	mov bcd+1, soak_temp+1
-	mov bcd+0, soak_temp+0
-	lcall bcd2hex
-  	load_y (1)
-  	lcall sub32
-    lcall hex2bcd
-  	mov soak_temp+1, bcd+1
-	mov soak_temp+0, bcd+0
-
-no_dec_soak_temp:	
+	
   	jb CYCLE_BUTTON, CB_not_pressed1
 	Wait_Milli_Seconds(#50)
 	jb CYCLE_BUTTON, CB_not_pressed1
@@ -425,41 +405,15 @@ ReflowTime:
 	Set_Cursor(1,1)
 	Send_Constant_String(#ReflowTime_Message)
 	Set_Cursor(2,1)
-  	Display_BCD(reflow_seconds+1)
-	Display_BCD(reflow_seconds)
+	Move_1B_to_4B ( x, reflow_seconds)
+	lcall hex2bcd
+  	Display_BCD(bcd+1)
+	Display_BCD(bcd)
 	
-	jb INC_BUTTON, no_inc_reflow_time
-	Wait_Milli_Seconds(#50)
-	jb INC_BUTTON, no_inc_reflow_time
-	Wait_Milli_Seconds(#200)
- 	mov bcd+3, #0
-	mov bcd+2, #0
-  	mov bcd+1, reflow_seconds+1
-	mov bcd+0, reflow_seconds+0
-	lcall bcd2hex
-  	load_y (1)
-  	lcall add32
-    lcall hex2bcd
-  	mov reflow_seconds+1, bcd+1
-	mov reflow_seconds+0, bcd+0
+	Inc_dec_variable (INC_BUTTON, reflow_seconds)
+	Inc_dec_variable (DEC_BUTTON, reflow_seconds)
 	
-no_inc_reflow_time:
-	jb DEC_BUTTON, no_dec_reflow_time
-	Wait_Milli_Seconds(#50)
-	jb DEC_BUTTON, no_dec_reflow_time	
-	Wait_Milli_Seconds(#200)
- 	mov bcd+3, #0
-	mov bcd+2, #0
-  	mov bcd+1, reflow_seconds+1
-	mov bcd+0, reflow_seconds+0
-	lcall bcd2hex
-  	load_y (1)
-  	lcall sub32
-    lcall hex2bcd
-  	mov reflow_seconds+1, bcd+1
-	mov reflow_seconds+0, bcd+0
 	
-no_dec_reflow_time:
 	jb CYCLE_BUTTON, CB_not_pressed2
 	Wait_Milli_Seconds(#50)
 	jb CYCLE_BUTTON, CB_not_pressed2
@@ -473,41 +427,14 @@ ReflowTemp:
 	Set_Cursor(1,1)
 	Send_Constant_String(#ReflowTemp_Message)
 	Set_Cursor(2,1)
-  	Display_BCD(reflow_temp+1)
-	Display_BCD(reflow_temp)
+  	Move_1B_to_4B ( x, reflow_temp)
+	lcall hex2bcd
+  	Display_BCD(bcd+1)
+	Display_BCD(bcd)
 	
-	jb INC_BUTTON, no_inc_reflow_temp
-	Wait_Milli_Seconds(#50)
-	jb INC_BUTTON, no_inc_reflow_temp
-	Wait_Milli_Seconds(#200)
- 	mov bcd+3, #0
-	mov bcd+2, #0
-  	mov bcd+1, reflow_temp+1
-	mov bcd+0, reflow_temp+0
-	lcall bcd2hex
-  	load_y (1)
-  	lcall add32
-    lcall hex2bcd
-  	mov reflow_temp+1, bcd+1
-	mov reflow_temp+0, bcd+0
+	Inc_dec_variable (INC_BUTTON, reflow_temp)
+	Inc_dec_variable (DEC_BUTTON, reflow_temp)
 	
-no_inc_reflow_temp:
-	jb DEC_BUTTON, no_dec_reflow_temp
-	Wait_Milli_Seconds(#50)
-	jb DEC_BUTTON, no_dec_reflow_temp	
-	Wait_Milli_Seconds(#200)
- 	mov bcd+3, #0
-	mov bcd+2, #0
-  	mov bcd+1, reflow_temp+1
-	mov bcd+0, reflow_temp+0
-	lcall bcd2hex
-  	load_y (1)
-  	lcall sub32
-    lcall hex2bcd
-  	mov reflow_temp+1, bcd+1
-	mov reflow_temp+0, bcd+0
-	
-no_dec_reflow_temp:
 	jb CYCLE_BUTTON, CB_not_pressed3
 	Wait_Milli_Seconds(#50)
 	jb CYCLE_BUTTON, CB_not_pressed3
