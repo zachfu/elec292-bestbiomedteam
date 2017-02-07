@@ -314,6 +314,22 @@ Show_Header_and_Value Mac
 ENDMAC
 
 ;------------------------------------------------------------------;
+; MACRO for checking a button and changing state
+;------------------------------------------------------------------;
+Check_button_for_State_change Mac
+	; MAC (%0:    Constant string for the button name           %1: state to jump to if the button is pressed )
+	jb %0, no_button_pressed%M
+	Wait_Milli_Seconds(#50)
+	jb %0, no_button_pressed%M
+	jnb %0, $
+	
+	mov state, #%1
+no_button_pressed%M:
+
+ENDMAC
+
+
+;------------------------------------------------------------------;
 ; Main program   (FSM)
 ;	
 ;	-state 0:  setting the Soak Time
@@ -357,6 +373,7 @@ state0:
 	cjne a, #0, state1
 	clr pwm_on
 	
+
 	
 	;jb KEY.3, state0_done													;TODOOOOO
 	;jnb KEY.3, $ ; Wait for key release									;TODOOOOO
