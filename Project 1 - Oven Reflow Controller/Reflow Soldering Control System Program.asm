@@ -332,11 +332,22 @@ ENDMAC
 ;------------------------------------------------------------------;
 ; Main program   (FSM)
 ;	
-;	-state 0:  setting the Soak Time
-;	-state 1:  setting the Soak Temperature
-;	-state 2:  setting the Reflow Time
-;	-state 3:  setting the Reflow Temp
-;	-state 4:  setting the 
+;	-state 0:  initialization 		Soak Time  
+;	-state 1:  initialization		Soak Temperature
+;	-state 2:  initialization		Reflow Time
+;	-state 3:  initialization		Reflow Temp
+;
+;	-state 4:  Storing the variables in flash memory					TODOOOOO  not sure if needed
+;	-state 5:  prompting the user to make sure to start the process		TODOOOOO   
+;
+;	-state 10: Ramp to Soak
+;	-state 11: Soak
+;	-state 12: Ramp to reflow
+;	-state 13: Reflow
+;	-state 14: Cooling
+;	-state 15: Finished successfully
+;	-state 16: ERROR STATE
+;
 ;------------------------------------------------------------------;
 MainProgram:
 
@@ -373,78 +384,107 @@ state0:
 	cjne a, #0, state1
 	clr pwm_on
 	
-
-	
-	;jb KEY.3, state0_done													;TODOOOOO
-	;jnb KEY.3, $ ; Wait for key release									;TODOOOOO
-	mov state, #1
-state0_done:
-	ljmp forever									;TODOOOOO
-	
-state1:
-
-
-	ljmp forever
-
-; Cycle between stages: Start->SoakTime->SoakTemp->ReflowTime->ReflowTemp	
-SoakTime:	
 	Show_Header_and_Value (SoakTime_Message, soak_seconds)
 	Inc_dec_variable (INC_BUTTON, soak_seconds)
 	Inc_dec_variable (DEC_BUTTON, soak_seconds)
 	
+	Check_button_for_State_change (CYCLE_BUTTON, 1)
+	ljmp forever									
 	
-	jb CYCLE_BUTTON, CB_not_pressed
-	Wait_Milli_Seconds(#50)
-	jb CYCLE_BUTTON, CB_not_pressed
-	jnb CYCLE_BUTTON, $
-	ljmp SoakTemp
-CB_not_pressed:
-  ljmp SoakTime
-
+; initializing the Soak Temperature 
+state1:
+	cjne a, #1, state2
+	clr pwm_on
 	
-SoakTemp:
 	Show_Header_and_Value (SoakTemp_Message, soak_temp)
 	Inc_dec_variable (INC_BUTTON, soak_temp)
 	Inc_dec_variable (DEC_BUTTON, soak_temp)
 	
+	Check_button_for_State_change (CYCLE_BUTTON, 2)
+	ljmp forever									
+
+; initializing the Reflow Time 
+state2:
+	cjne a, #2, state3
+	clr pwm_on
 	
-  	jb CYCLE_BUTTON, CB_not_pressed1
-	Wait_Milli_Seconds(#50)
-	jb CYCLE_BUTTON, CB_not_pressed1
-	jnb CYCLE_BUTTON, $
-	ljmp ReflowTime
-CB_not_pressed1:
-  	ljmp SoakTemp
-	
-ReflowTime:
 	Show_Header_and_Value (ReflowTime_Message, reflow_seconds)	
 	Inc_dec_variable (INC_BUTTON, reflow_seconds)
 	Inc_dec_variable (DEC_BUTTON, reflow_seconds)
 	
+	Check_button_for_State_change (CYCLE_BUTTON, 3)
+	ljmp forever									
+
+; initializing the Reflow Temperature 
+state3:
+	cjne a, #3, state4
+	clr pwm_on
 	
-	jb CYCLE_BUTTON, CB_not_pressed2
-	Wait_Milli_Seconds(#50)
-	jb CYCLE_BUTTON, CB_not_pressed2
-	jnb CYCLE_BUTTON, $
-	ljmp ReflowTemp
-CB_not_pressed2:
-	ljmp ReflowTime
-
-
-ReflowTemp:
 	Show_Header_and_Value (ReflowTemp_Message, reflow_temp)		
 	Inc_dec_variable (INC_BUTTON, reflow_temp)
 	Inc_dec_variable (DEC_BUTTON, reflow_temp)
 	
-	jb CYCLE_BUTTON, CB_not_pressed3
-	Wait_Milli_Seconds(#50)
-	jb CYCLE_BUTTON, CB_not_pressed3
-	jnb CYCLE_BUTTON, $
-	ljmp Start
-CB_not_pressed3:
-	ljmp ReflowTemp
-
+	Check_button_for_State_change (CYCLE_BUTTON, 0)
+	Check_button_for_State_change (SAVE_BUTTON, 4)
+	ljmp forever									
 	
+; Saving the values in the Flash Memory
+state4:
+	cjne a, #4, state5
+	clr pwm_on
+	
+	Show_Header	; TODOOOOO     TO SHOW on LCD that saving in process   (the process is definitely fast, so make it delay to keep showing this to show the saving for the user :) )	
+	
+	;TODOOOOO		Saving the value in flash
+	
+	Show_Header	; TODOOOOO     TO SHOW on LCD that saving was successfull	
+	
+	;TODOOOOO			SHow on LCD the instructions for user. 1st line : click return to change numbers again.  2nd line: start the process 
+	;TODOOOOO  			so process can start only from this stage (transition to start stage is from here)
+	;TODOOOOO			NOT A GOOD IDEA!!!! PLZ have the check for start button in all initialization stages because state5 asks the user to make sure to start.
+	Check_button_for_State_change (CYCLE_BUTTON, 0)	; this for the return to change values	
+	Check_button_for_State_change (START_BUTTON, 5)	; for starting
+	ljmp forever	
+
+; Asking the user to start. YES/NO question
+state5:
+	cjne a, #5, state10
+	clr pwm_on
+	
+	Show_Header	; TODOOOOO     TO SHOW on LCD 1st line that if the user is sure to start!!!
+	
+	;TODOOOOO		show on LCD 2nd line the choices  (YES / NO) and buttons for each selections
+	
+	Show_Header	; TODOOOOO     TO SHOW on LCD that process will start     (have some delay like the loading one. to let the user see the process will start)
+	
+	Check_button_for_State_change (NO_BUTTON, 0)	; this for the return to change values	
+	Check_button_for_State_change (YES_BUTTON, 10)	; for starting
+	ljmp forever
+	
+; Ramp to Soak Stage
+state10:
+	cjne a, #10, state11
+	clr pwm_on			;100% pwm
+	setb SSR_OUT		; for 100% power
+	
+	Show_Header	; TODOOOOO     TO SHOW on LCD 1st line that if the user is sure to start!!!
+	
+	;TODOOOOO		show on LCD 2nd line the choices  (YES / NO) and buttons for each selections
+	
+	Show_Header	; TODOOOOO     TO SHOW on LCD that process will start     (have some delay like the loading one. to let the user see the process will start)
+	
+	Check_button_for_State_change (NO_BUTTON, 0)	; this for the return to change values	
+	Check_button_for_State_change (YES_BUTTON, 6)	; for starting
+	ljmp forever
+		
+		
+		
+		
+		
+		
+		
+		
+		;TODOOOOO     I didn't integrate this to the rest. PLZ DO IT :) TNX     I gues it's state 5 for prompting the user to start for sure or not.
 Start:
 	Set_Cursor(1,1)
   Send_Constant_String(#Start_Message)
