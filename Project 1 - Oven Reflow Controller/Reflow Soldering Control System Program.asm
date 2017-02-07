@@ -112,14 +112,14 @@ dseg at 0x30
 
 	
 	
-CSEG
-	NEWLINE: db '\n'
+
 
 BSEG
-	mf: dbit 1
-	one_min_flag: dbit 1
-	pwm_on: dbit 1
-	pwm_high: dbit 1
+	mf: 				dbit 1
+	one_min_flag: 		dbit 1
+	pwm_on: 			dbit 1
+	pwm_high: 			dbit 1
+	in_process:			dbit 1
 
 
 
@@ -133,8 +133,7 @@ CSEG
 	Mask_Message: 			db '                ',0
 	PWM_ON_MESSAGE: 		db 'PWM IS ON       ', 0
 	PWM_OFF_MESSAGE:		db 'PWM IS OFF      ', 0
-
-	
+	NEWLINE: db '\n'
 	
 ;---------------------------------;
 ; ISR for timer 2                 ;
@@ -273,13 +272,16 @@ Send_Serial:
 	lcall putchar
 	
 	Set_Cursor(1,1)
-		
+	
+	jz in_process, no_lcd_update
 Display_Temp_LCD:
 	Display_BCD(bcd+4)
 	Display_BCD(bcd+3)
 	Display_BCD(bcd+2)
 	Display_BCD(bcd+1)
 	Display_BCD(bcd)
+	
+no_lcd_update:
 ret
 
 
@@ -364,12 +366,14 @@ MainProgram:
 	clr pwm_on
     clr pwm_high
     clr SSR_OUT
+	clr in_process
 	
 	mov a, #0
     mov soak_seconds, a
     mov soak_temp, a
     mov reflow_seconds, a
     mov reflow_temp, a
+	
 	
 forever:
 
@@ -467,11 +471,8 @@ state10:
 	clr pwm_on			;100% pwm
 	setb SSR_OUT		; for 100% power
 	
-	Show_Header	; TODOOOOO     TO SHOW on LCD 1st line that if the user is sure to start!!!
-	
-	;TODOOOOO		show on LCD 2nd line the choices  (YES / NO) and buttons for each selections
-	
-	Show_Header	; TODOOOOO     TO SHOW on LCD that process will start     (have some delay like the loading one. to let the user see the process will start)
+	setb in_process		; so that in TAKE SAMPLE subroutine that happens every 250ms, LCD get's updated with the value of temperature.
+	;TODOOOOO     Need to show the values with labels and stuff. Take sample subroutine only prints the number
 	
 	Check_button_for_State_change (NO_BUTTON, 0)	; this for the return to change values	
 	Check_button_for_State_change (YES_BUTTON, 6)	; for starting
