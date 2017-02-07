@@ -9,7 +9,7 @@ TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
 TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
 TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
 PWM_PERCENT EQU 20
-PWM_RELOAD_HIGH EQU 255*20/100
+PWM_RELOAD_HIGH EQU 255*PWM_PERCENT/100
 PWM_RELOAD_LOW EQU	(255 - PWM_RELOAD_HIGH)
 BAUD 		  equ 115200
 T1LOAD 		  equ (0x100-(CLK/(16*BAUD)))
@@ -99,17 +99,15 @@ Inc_Done_1sec:
 	
 	; 1 second has passed ;
 
-	clr a
-	mov Count1ms+0, a
-	mov Count1ms+1, a
+	Zero_2B (Count1ms)
 
 Inc_PWM:
 	
 	jnb pwm_on, Timer2_ISR_done
-	inc Count_PWM+0
+	inc Count_PWM
 	jnb pwm_high, Inc_Done_PWM_Low
 
-	mov a, Count_PWM+0
+	mov a, Count_PWM
 	cjne a, #PWM_RELOAD_HIGH, Timer2_ISR_done
 	
 	clr pwm_high
