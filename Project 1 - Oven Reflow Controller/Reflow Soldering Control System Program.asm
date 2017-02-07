@@ -298,7 +298,20 @@ no_inc_dec_var%M:
 
 ENDMAC
 
-
+;------------------------------------------------------------------;
+; MACRO for Showing values with header on LCD
+;------------------------------------------------------------------;
+Show_Header_and_Value Mac
+	; MAC (%0:    Constant string for the first line on LCD           %1: value to be shown on second line )
+	Set_Cursor(1,1)
+	Send_Constant_String(#%0)
+	Set_Cursor(2,1)
+	
+	Move_1B_to_4B ( x, %1)
+	lcall hex2bcd
+  	Display_BCD(bcd+1)
+	Display_BCD(bcd)
+ENDMAC
 
 ;------------------------------------------------------------------;
 ; Main program   (FSM)
@@ -358,15 +371,7 @@ state1:
 
 ; Cycle between stages: Start->SoakTime->SoakTemp->ReflowTime->ReflowTemp	
 SoakTime:	
-	Set_Cursor(1,1)
-	Send_Constant_String(#SoakTime_Message)
-	Set_Cursor(2,1)
-	
-	Move_1B_to_4B ( x, soak_seconds)
-	lcall hex2bcd
-  	Display_BCD(bcd+1)
-	Display_BCD(bcd)
-  
+	Show_Header_and_Value (SoakTime_Message, soak_seconds)
 	Inc_dec_variable (INC_BUTTON, soak_seconds)
 	Inc_dec_variable (DEC_BUTTON, soak_seconds)
 	
@@ -381,14 +386,7 @@ CB_not_pressed:
 
 	
 SoakTemp:
-	Set_Cursor(1,1)
-	Send_Constant_String(#SoakTemp_Message)
-	Set_Cursor(2,1)
-	Move_1B_to_4B ( x, soak_temp)
-	lcall hex2bcd
-  	Display_BCD(bcd+1)
-	Display_BCD(bcd)
-	
+	Show_Header_and_Value (SoakTemp_Message, soak_temp)
 	Inc_dec_variable (INC_BUTTON, soak_temp)
 	Inc_dec_variable (DEC_BUTTON, soak_temp)
 	
@@ -402,14 +400,7 @@ CB_not_pressed1:
   	ljmp SoakTemp
 	
 ReflowTime:
-	Set_Cursor(1,1)
-	Send_Constant_String(#ReflowTime_Message)
-	Set_Cursor(2,1)
-	Move_1B_to_4B ( x, reflow_seconds)
-	lcall hex2bcd
-  	Display_BCD(bcd+1)
-	Display_BCD(bcd)
-	
+	Show_Header_and_Value (ReflowTime_Message, reflow_seconds)	
 	Inc_dec_variable (INC_BUTTON, reflow_seconds)
 	Inc_dec_variable (DEC_BUTTON, reflow_seconds)
 	
@@ -424,14 +415,7 @@ CB_not_pressed2:
 
 
 ReflowTemp:
-	Set_Cursor(1,1)
-	Send_Constant_String(#ReflowTemp_Message)
-	Set_Cursor(2,1)
-  	Move_1B_to_4B ( x, reflow_temp)
-	lcall hex2bcd
-  	Display_BCD(bcd+1)
-	Display_BCD(bcd)
-	
+	Show_Header_and_Value (ReflowTemp_Message, reflow_temp)		
 	Inc_dec_variable (INC_BUTTON, reflow_temp)
 	Inc_dec_variable (DEC_BUTTON, reflow_temp)
 	
