@@ -75,7 +75,6 @@ SOUND_OUT       equ P3.6	; Pin connected to speaker
 CYCLE_BUTTON        equ P0.0 	; Button to change cycles
 INC_BUTTON					equ P0.2
 DEC_BUTTON          equ P0.4
-STOP_BUTTON					equ P0.6			;Button for stopping the whole process
 ;--------------------------------------------
 
 $NOLIST
@@ -119,21 +118,22 @@ BSEG
 	one_min_flag: 		dbit 1	; Set to 1 after first 60 seconds of reflow cycle
 	pwm_on: 					dbit 1	; Set to 1 to turn PWM on
 	pwm_high: 				dbit 1	; Flag for when PWM output is currently high
-  saved_flag:				dbit 1  ; Flag for when data has been saved to flash successfully
+  settings_modified_flag:		dbit 1  ; Flag for when parameters have been changed
 	sample_flag:			dbit 1  ; Flag turned on every SAMPLE_INTERVAL to take a reading
 
-
 CSEG
-;           					1234567890123456    <- This helps determine the location of the Strings
+;           								1234567890123456    <- This helps determine the location of the Strings
+  StartMessage:		 			db ' Reflow Control ', 0
+  StartMessage2:   			db 'Start / Settings', 0
 	SoakTime_Message:  		db 'Soak Time       ', 0
 	SoakTemp_Message: 		db 'Soak Temperature', 0
 	ReflowTime_Message: 	db 'Reflow Time     ', 0
 	ReflowTemp_Message: 	db 'Reflow Temp     ', 0
 	Start_Message: 			db 'Start Process?  ', 0
-  	Y_N_Message:			db '  + Yes | - No  ', 0
+  Y_N_Message:			db '  + Yes | - No  ', 0
 	PWM_ON_MESSAGE: 		db 'PWM IS ON       ', 0
 	PWM_OFF_MESSAGE:		db 'PWM IS OFF      ', 0
-  	SaveToFlash_Msg:		db '   Data Saved   ', 0
+  SaveToFlash_Msg:		db '   Data Saved   ', 0
   	Stopped:				db 'Process Stopped ', 0
   	BlankMsg:				db '                ', 0
   	ChooseChangeValueMsg:	db '- Reselect Vals	', 0
@@ -150,6 +150,8 @@ CSEG
   	Temp:					db 'Temp:', 0		
   	Time:					db 'Time:', 0
 	NEWLINE: 				db '\n', 0  
+  Cels: db ' ',11011111b, 'C',0
+  Secs:			db ' s',0
 	
 ;---------------------------------;
 ; ISR for timer 2                 ;
@@ -438,16 +440,18 @@ ENDMAC
 ; MACRO for Showing values with header on LCD
 ;------------------------------------------------------------------;
 Show_Header_and_Value Mac
-	; MAC (%0:    Constant string for the first line on LCD           %1: value to be shown on second line )
+	; MAC (%0:    Constant string for the first line on LCD       %1: value to be shown on second line				%2: unit )
 	Set_Cursor(1,1)
 	Send_Constant_String(#%0)
 	Set_Cursor(2,1)
-	
 	Move_1B_to_4B ( x, %1)
 	lcall hex2bcd
-  Display_BCD(bcd+1)
-	Display_BCD(bcd)
+  Display_BCD_1_digit(bcd+1)
+	Display_BCD_1_digit(bcd)
+  Set_Cursor(2,5)
+  Send_Constant_String(#%2)
 ENDMAC
+
 
 ;------------------------------------------------------------------;
 ; MACRO for Showing messages with header on LCD
@@ -466,23 +470,25 @@ Show_Stage_Temp_Time Mac
 	; MAC (%0:    Constant string for the first line on LCD           %1: Temperature			%2: Time )
 	Set_Cursor(1,1)
 	Send_Constant_String(#%0)
-	Set_Cursor(2,1)
-	Send_Constant_String(#Temp)
-  Set_Cursor(2,9)
-	Send_Constant_String(#Time)
   
-  Set_Cursor(2,6)
+  Set_Cursor(2,1)	;show temperture
 	Move_1B_to_4B ( x, %1)
 	lcall hex2bcd
-  Display_BCD(bcd+1)
-	Display_BCD(bcd)
-  
-  Set_Cursor(2,14)
-						;TODOOOOOO					need to show time in minutes and seconds
+  Display_BCD_1_digit(bcd+1)
+	Display_BCD_1_digit(bcd)
+
+  Set_Cursor(2,12)	;display time in seconds TODO: put it in minute and seconds
 	Move_1B_to_4B ( x, %2)
 	lcall hex2bcd
   Display_BCD(bcd+1)
 	Display_BCD(bcd)
+  Set_Cursor(2,16)
+  Display_char(#'s')
+  
+	Set_Cursor(2,5)
+	Send_Constant_String(#Cels)
+  
+ 
 ENDMAC
 
 ;------------------------------------------------------------------;
@@ -496,6 +502,8 @@ Check_button_for_State_change Mac
 	jnb %0, $
 	
 	mov state, #%1
+  WriteCommand(#0x01)
+  Wait_Milli_Seconds(#2)
 no_button_pressed%M:
 
 ENDMAC
@@ -512,7 +520,8 @@ Compare_Values_for_State_Change MAC
   subb a, %1
   jnc values_not_equal%M
 	mov state, #%2
-	
+	 WriteCommand(#0x01)
+  Wait_Milli_Seconds(#2)
 values_not_equal%M:
 
 ENDMAC
@@ -534,19 +543,20 @@ check_state MAC
   	sjmp no_skip_state%M
 skipstate%M:
     ljmp state%1
+     WriteCommand(#0x01)
+ 	 Wait_Milli_Seconds(#2)
 no_skip_state%M:
 ENDMAC
 ;------------------------------------------------------------------;
 ; Main program   (FSM)
-;	
-;	-state 0:  initialization 	Soak Time  
-;	-state 1:  initialization		Soak Temperature
-;	-state 2:  initialization		Reflow Time
-;	-state 3:  initialization		Reflow Temp
+;	-state 0:  Start Screen
+;	-state 1:  initialization 	Soak Time  
+;	-state 2:  initialization		Soak Temperature
+;	-state 3:  initialization		Reflow Time
+;	-state 4:  initialization		Reflow Temp
 ;
-;	-state 4:  Storing the variables in flash memory				
-;	-state 5:  prompting the user to make sure to start the process		
-;
+;	-state 5:  Storing the variables in flash memory, and asking for user confirmation to begin process				
+; -state 6:  initialising Timer and resetting Global Timer
 ;	-state 10: Ramp to Soak
 ;	-state 11: Soak
 ;	-state 12: Ramp to reflow
@@ -563,14 +573,15 @@ MainProgram:
     mov PMOD, #0 ; Configure all ports in bidirectional mode
     lcall Timer0_Init
     lcall Timer2_Init
+    clr TR2
     setb EA   ; Enable Global interrupts
     lcall INIT_SPI
-		lcall InitSerialPort
+	lcall InitSerialPort
     lcall LCD_4BIT  ; For convenience a few handy macros are included in 'LCD_4bit.inc':
     
 		SSR_OFF()	; clears  pwm_on ------- pwm_high ------- SSR_OUT ------- in_process				
 
-		clr saved_flag
+		clr settings_modified_flag
     clr one_min_flag
     
 		clr a
@@ -578,6 +589,7 @@ MainProgram:
     mov soak_temp, a
     mov reflow_seconds, a
     mov reflow_temp, a
+    mov state, a
 	
   	lcall Load_Configuration ; Read values from data flash
 	
@@ -585,91 +597,95 @@ forever:
 	mov a, state
   jnb sample_flag, state0
   lcall Take_Sample
-	
-; initializing the Soak Time 
+
+; Main start screen appears on boot and 
 state0:
 	check_state (0, 1)
-	clr saved_flag
   
-	Show_Header_and_Value (SoakTime_Message, soak_seconds)
+  Show_Header(StartMessage, StartMessage2)
+  
+  Check_button_for_State_change (CYCLE_BUTTON, 1)		; Transition to parameter select states
+  Check_button_for_State_change (INC_BUTTON, 5)			; Transition to save/start confirm state
+  ljmp forever
+; initializing the Soak Time 
+state1:
+	check_state (1, 2)
+	setb settings_modified_flag
+  
+	Show_Header_and_Value (SoakTime_Message, soak_seconds, Secs)
 	Inc_variable (INC_BUTTON, soak_seconds)
 	Dec_variable (DEC_BUTTON, soak_seconds)
 	
-	Check_button_for_State_change (CYCLE_BUTTON, 1)
+	Check_button_for_State_change (CYCLE_BUTTON, 2)
 	ljmp forever									
 	
 ; initializing the Soak Temperature 
-state1:
-	check_state (1,2)
-	Show_Header_and_Value (SoakTemp_Message, soak_temp)
-	Inc_variable  (INC_BUTTON, soak_temp)
-	Dec_variable (DEC_BUTTON, soak_temp)
-	
-	Check_button_for_State_change (CYCLE_BUTTON, 2)
-	ljmp forever									
-
-; initializing the Reflow Time 
 state2:
 	check_state (2,3)
-	
-	Show_Header_and_Value (ReflowTime_Message, reflow_seconds)	
-	Inc_variable  (INC_BUTTON, reflow_seconds)
-	Dec_variable (DEC_BUTTON, reflow_seconds)
+	Show_Header_and_Value (SoakTemp_Message, soak_temp, Cels)
+	Inc_variable  (INC_BUTTON, soak_temp)
+	Dec_variable (DEC_BUTTON, soak_temp)
 	
 	Check_button_for_State_change (CYCLE_BUTTON, 3)
 	ljmp forever									
 
-; initializing the Reflow Temperature 
+; initializing the Reflow Time 
 state3:
 	check_state (3,4)
 	
-	Show_Header_and_Value (ReflowTemp_Message, reflow_temp)		
+	Show_Header_and_Value (ReflowTime_Message, reflow_seconds, Secs)	
+	Inc_variable  (INC_BUTTON, reflow_seconds)
+	Dec_variable (DEC_BUTTON, reflow_seconds)
+	
+	Check_button_for_State_change (CYCLE_BUTTON, 4)
+	ljmp forever									
+
+; initializing the Reflow Temperature 
+state4:
+	check_state (4,5)
+	
+	Show_Header_and_Value (ReflowTemp_Message, reflow_temp, Cels)		
 	Inc_variable  (INC_BUTTON, reflow_temp)
 	Dec_variable (DEC_BUTTON, reflow_temp)
 	
 	Check_button_for_State_change (CYCLE_BUTTON, 0)
-	Check_button_for_State_change (SAVE_BUTTON, 4)
 	ljmp forever									
 	
-; Saving the values in the Flash Memory
-state4:
-	check_state (4,5)
+; Saves value in Flash Memory and Presents Confirmation Screen to Start Process
+state5:
+	check_state (5,10)
 	
-  jb saved_flag, state4AndAHalf ; Save values once, once saved skip this
+  jnb settings_modified_flag, state5AndAHalf ; Save values once, once saved skip this
   
 	lcall Save_Configuration ; Call to save data to flash memory
-	setb saved_flag
+	clr settings_modified_flag
 	Show_Header (SaveToFlash_Msg, BlankMsg)
   Wait_Milli_Seconds(#250)
   Wait_Milli_Seconds(#250)
   Wait_Milli_Seconds(#250)
+  Wait_Milli_Seconds(#250)
   
-  Show_Header (ChooseStartMsg, ChooseChangeValueMsg)
-state4AndAHalf:	
+state5AndAHalf:	
 
+	Show_Header	(Start_Message, Y_N_Message)
 	Check_button_for_State_change (DEC_BUTTON, 0)	; Move to state 0 to reselect values
-	Check_button_for_State_change (INC_BUTTON, 5)	; Move to confirmation screen
-	
+	Check_button_for_State_change (INC_BUTTON, 6)	; Start Process
+	; Need beep here;
   ljmp forever	
 
-; Asking the user to start. YES/NO question
-state5:
-	check_state (5,10)
-	
-	Show_Header	(Start_Message, Y_N_Message)
-	
-	Check_button_for_State_change (DEC_BUTTON, 0)	; this for the return to change values	
-	Check_button_for_State_change (INC_BUTTON, 10)	; for starting																	; TImer has to be on in this transition TODOOOOOOOOO      
-	;--------------------------------------------------------------------;
-  ; A short beep if state == 10
-  ;	setb TR2
-  ;--------------------------------------------------------------------;
+state6:
+	check_state (6,10)
+  clr a
+  mov run_time_sec, a
+  mov state_time, a
+  setb TR2
+  mov state, #10
   ljmp forever
-	
-; Ramp to Soak Stage, Sally's part
+  
 state10:
 
 	check_state (10,11)
+  Check_button_for_State_change (CYCLE_BUTTON, 17)
 	clr pwm_on			;100% pwm
 	setb SSR_OUT		; for 100% power
   Show_Stage_Temp_Time (Ramp2Soak, current_temp, run_time_sec)	;display the current stage and current temperature
@@ -680,7 +696,7 @@ state10:
 check_thermocouple:
   jnc not_error   ;if not bigger than 50, c=1, jump to display error
   mov state, #16
-  sjmp state10_done
+  sjmp state10_Loop
   
 not_error:
   clr one_min_flag
@@ -688,7 +704,7 @@ not_one_min:
 	mov a, soak_temp 
   clr c 
   subb a, current_temp   ;compare current_temp and soak_temp
-  jnc state10_done
+  jnc state10_Loop
   
   mov state, #11
   
@@ -701,19 +717,20 @@ not_one_min:
   ;TODOOOOO     Need to show the values with labels and stuff. Take sample subroutine only prints the number
 	
 
-state10_done:
+state10_Loop:
 	ljmp forever
 		
 ; Soak Stage		
 state11:
 	check_state (11,12)
+  Check_button_for_State_change (CYCLE_BUTTON, 17)
 	setb pwm_on			;25% pwm
 	Show_Stage_Temp_Time (Soak, current_temp, run_time_sec)	;display the current stage and current temperature
 	mov a, state_time 
 	clr c
 	subb a, soak_seconds 
 ;	jnc time_not_equal
-	jnc	State11_done
+	jnc	State11_Loop
   
   mov state, #12 ;if time is equal set state to 12
   clr a
@@ -741,7 +758,7 @@ state11:
 ;temp_too_high:  
 ;  dec current_temp
 
-State11_done:
+State11_Loop:
   ljmp forever
   
 		
@@ -749,13 +766,14 @@ State11_done:
 ; Ramp to Reflow Stage, compare current_temp with reflow_temp		
 state12:
 	check_state (12,13)
+  Check_button_for_State_change (CYCLE_BUTTON, 17)
   clr pwm_on
   setb SSR_OUT	;100% power on
   Show_Stage_Temp_Time (Ramp2Reflow, current_temp, run_time_sec)	;display the current, temperature and running time
   mov a, reflow_temp
   clr c
   subb a, current_temp
-  jnc State12Done
+  jnc State12Loop
   
 	mov state, #13
   clr a
@@ -763,28 +781,30 @@ state12:
   ;--------------------------------------------------------------------;
   ; A short beep
   ;--------------------------------------------------------------------;
-State12Done:
+State12Loop:
   ljmp forever
 
 ; Reflow stage, compare reflow_seconds to current time, move to cooling stage when complete (Still need beep code)
 state13:
 	check_state (13,14)
+  Check_button_for_State_change (CYCLE_BUTTON, 17)
   setb pwm_on ; Set PWM to 25% power
   Show_Stage_Temp_Time (Reflow, current_temp, run_time_sec)	;display the current stage and current temperature
   mov a, reflow_seconds
   clr c
   subb a, state_time 
-  jnc state13Done ; Compare if time elapsed = reflow time
+  jnc state13Loop ; Compare if time elapsed = reflow time
   
   mov state, #14	; Reflow done, move to cooling
   clr a
   mov state_time, a ; Reset state time variable
-state13Done:
+state13Loop:
 	ljmp forever
 
 ; Cooling stage, power is set to 0, finish and sound multiple beeps when temperature is below 60
 state14:
 	check_state (14,15)
+  Check_button_for_State_change (CYCLE_BUTTON, 17)
   SSR_OFF()
   Show_Stage_Temp_Time (Cooling, current_temp, run_time_sec)
   mov a, current_temp
@@ -828,4 +848,5 @@ state17:
 
 end ;-;
 
+	
 	

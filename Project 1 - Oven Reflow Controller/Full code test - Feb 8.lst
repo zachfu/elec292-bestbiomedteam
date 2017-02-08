@@ -1,0 +1,2330 @@
+                  2   $LIST
+0000              4   ; Reset vector
+0000              5   org 0000H
+0000 020816       6      ljmp MainProgram
+0003              7   
+0003              8   ; External interrupt 0 vector (not used in this code)
+0003              9   org 0x0003
+0003 32          10            reti
+0004             11   
+0004             12   ; Timer/Counter 0 overflow interrupt vector
+000B             13   org 0x000B
+000B 32          14            reti
+000C             15   ;        ljmp Timer0_ISR
+000C             16            
+000C             17   ; External interrupt 1 vector (not used in this code)
+0013             18   org 0x0013
+0013 32          19            reti
+0014             20   
+0014             21   ; Timer/Counter 1 overflow interrupt vector (not used in this code)
+001B             22   org 0x001B
+001B 32          23            reti
+001C             24   
+001C             25   ; Serial port receive/transmit interrupt vector (not used in this code)
+0023             26   org 0x0023 
+0023 32          27            reti
+0024             28            
+0024             29   ; Timer/Counter 2 overflow interrupt vector
+002B             30   org 0x002B
+002B 0205ED      31            ljmp Timer2_ISR
+002E             32            
+002E             33   ;++++++++++++++++++ CONSTANTS ++++++++++++++++++++
+002E             34   VLED     EQU 207
+002E             35   ;++++++++++++++++++ TIMER & BAUDRATE  ++++++++++++
+002E             36   CLK              EQU 22118400                                                     ; Microcontroller system crystal frequency in Hz
+002E             37   TIMER0_RATE        EQU 4096                                                               ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
+002E             38   TIMER0_RELOAD      EQU ((65536-(CLK/TIMER0_RATE)))
+002E             39   TIMER2_RATE        EQU 1000                                                               ; 1000Hz, for a timer tick of 1ms
+002E             40   TIMER2_RELOAD    EQU ((65536-(CLK/TIMER2_RATE)))
+002E             41   BAUD                                     EQU 115200
+002E             42   T1LOAD                                   EQU (0x100-(CLK/(16*BAUD)))
+002E             43   
+002E             44   SAMPLE_INTERVAL EQU 250                                                                  ; Millisecond Interval when sampling (KEEP LESS THAN 256)
+002E             45   
+002E             46   PWM_PERCENT                      EQU 25
+002E             47   PWM_RELOAD_HIGH EQU (255*PWM_PERCENT/100)
+002E             48   PWM_RELOAD_LOW   EQU     (255 - PWM_RELOAD_HIGH)
+002E             49   ;------------------------------------------------
+002E             50   
+002E             51   ;++++++++++++++++++ SPI PINS ++++++++++++++++
+002E             52   CE_ADC  EQU P2.0
+002E             53   MY_MOSI EQU P2.1
+002E             54   MY_MISO EQU P2.2
+002E             55   MY_SCLK EQU P2.3
+002E             56   ;--------------------------------------------
+002E             57   
+002E             58   ;++++++++++++++++++ LCD PINS ++++++++++++++++
+002E             59   LCD_RS equ P1.2
+002E             60   LCD_RW equ P1.3
+002E             61   LCD_E  equ P1.4
+002E             62   LCD_D4 equ P3.2
+002E             63   LCD_D5 equ P3.3
+002E             64   LCD_D6 equ P3.4
+002E             65   LCD_D7 equ P3.5
+002E             66   ;--------------------------------------------
+002E             67   
+002E             68   
+002E             69   SSR_OUT              equ P3.7    ; Pin connected to SSR
+002E             70   BOOT_BUTTON     equ P4.5
+002E             71   PWM_BUTTON      equ P0.3
+002E             72   SOUND_OUT       equ P3.6         ; Pin connected to speaker
+002E             73   
+002E             74   ;++++++++++++++++++ CONTROL BUTTONS++++++++++
+002E             75   CYCLE_BUTTON        equ P0.0     ; Button to change cycles
+002E             76   INC_BUTTON                                       equ P0.2
+002E             77   DEC_BUTTON          equ P0.4
+002E             78   ;--------------------------------------------
+002E             79   
+                212   $LIST
+                586   $LIST
+                 96   $LIST
+0418            111   $LIST
+                 46   $LIST
+                 85   $LIST
+0442             87   
+0442             88            
+0442             89   ; In the 8051 we can define direct access variables starting at location 0x30 up to location 0x7F
+0030             90   DSEG at 0x30
+0030             91   
+0030             92            Count1ms:                                       ds 2 ; Incremented every 1ms when Timer 2 ISR is triggered
+0032             93            Count_Sample:                   ds 1 ; Sample is taken every 250ms
+0033             94            Count_PWM:                              ds 1 ; PWM cycle runs every 255ms
+0034             95            soak_seconds:                   ds 1
+0035             96            soak_temp:                              ds 1
+0036             97            reflow_seconds:                 ds 1
+0037             98            reflow_temp:                    ds 1
+0038             99            run_time_sec:                   ds 1
+0039            100            state_time:                             ds 1
+003A            101            
+003A            102   ;+++++++++ 32 bit Calculation variables +++++++++++      
+003A            103            x:                                      ds 4
+003E            104            y:                                                      ds 4
+0042            105            Result:                                         ds 2
+0044            106            bcd:                                                    ds 5
+0049            107            x_lm335:                                        ds 4
+004D            108            Vcc:                                                    ds 4
+0051            109            samplesum:                              ds 4
+0055            110   ;--------------------------------------------
+0055            111            state:                                          ds 1
+0056            112            current_temp:                   ds 4
+005A            113   
+005A            114            
+005A            115   
+0000            116   BSEG
+0000            117            mf:                                                     dbit 1
+0001            118            one_min_flag:           dbit 1  ; Set to 1 after first 60 seconds of reflow cycle
+0002            119            pwm_on:                                         dbit 1  ; Set to 1 to turn PWM on
+0003            120            pwm_high:                               dbit 1  ; Flag for when PWM output is currently high
+0004            121     settings_modified_flag:                dbit 1  ; Flag for when parameters have been changed
+0005            122            sample_flag:                    dbit 1  ; Flag turned on every SAMPLE_INTERVAL to take a reading
+0006            123   
+0442            124   CSEG
+0442            125   ;                                                                        1234567890123456    <- This helps determine the location of the Strings
+0442 20526566   126     StartMessage:                                  db ' Reflow Control ', 0
+     6C6F7720
+     436F6E74
+     726F6C20
+     00
+0453 53746172   127     StartMessage2:                         db 'Start / Settings', 0
+     74202F20
+     53657474
+     696E6773
+     00
+0464 536F616B   128            SoakTime_Message:               db 'Soak Time       ', 0
+     2054696D
+     65202020
+     20202020
+     00
+0475 536F616B   129            SoakTemp_Message:               db 'Soak Temperature', 0
+     2054656D
+     70657261
+     74757265
+     00
+0486 5265666C   130            ReflowTime_Message:     db 'Reflow Time     ', 0
+     6F772054
+     696D6520
+     20202020
+     00
+0497 5265666C   131            ReflowTemp_Message:     db 'Reflow Temp     ', 0
+     6F772054
+     656D7020
+     20202020
+     00
+04A8 53746172   132            Start_Message:                          db 'Start Process?  ', 0
+     74205072
+     6F636573
+     733F2020
+     00
+04B9 20202B20   133     Y_N_Message:                   db '  + Yes | - No  ', 0
+     59657320
+     7C202D20
+     4E6F2020
+     00
+04CA 50574D20   134            PWM_ON_MESSAGE:                 db 'PWM IS ON       ', 0
+     4953204F
+     4E202020
+     20202020
+     00
+04DB 50574D20   135            PWM_OFF_MESSAGE:                db 'PWM IS OFF      ', 0
+     4953204F
+     46462020
+     20202020
+     00
+04EC 20202044   136     SaveToFlash_Msg:               db '   Data Saved   ', 0
+     61746120
+     53617665
+     64202020
+     00
+04FD 50726F63   137            Stopped:                                db 'Process Stopped ', 0
+     65737320
+     53746F70
+     70656420
+     00
+050E 20202020   138            BlankMsg:                               db '                ', 0
+     20202020
+     20202020
+     20202020
+     00
+051F 2D205265   139            ChooseChangeValueMsg:   db '- Reselect Vals     ', 0
+     73656C65
+     63742056
+     616C7309
+     00
+0530 2B095374   140            ChooseStartMsg:                         db '+   Start Reflow', 0
+     61727420
+     5265666C
+     6F7700
+053F 52616D70   141            Ramp2Reflow:                    db 'Ramp to Reflow  ', 0
+     20746F20
+     5265666C
+     6F772020
+     00
+0550 52616D70   142            Ramp2Soak:                              db 'Ramp to Soak    ', 0
+     20746F20
+     536F616B
+     20202020
+     00
+0561 50726568   143            Soak:                                   db 'Preheat / Soak  ', 0
+     65617420
+     2F20536F
+     616B2020
+     00
+0572 5265666C   144            Reflow:                                         db 'Reflow          ', 0
+     6F772020
+     20202020
+     20202020
+     00
+0583 436F6F6C   145            Cooling:                                db 'Cooling         ', 0
+     696E6720
+     20202020
+     20202020
+     00
+0594 5265666C   146            CompleteMsg:                    db 'Reflow Complete!', 0
+     6F772043
+     6F6D706C
+     65746521
+     00
+05A5 43686563   147            Lessthan50ErrorMsg:     db 'Check T-Couple! ', 0
+     6B20542D
+     436F7570
+     6C652120
+     00
+05B6 50726F63   148            AbortMsg:                               db 'Process Aborted!', 0
+     65737320
+     41626F72
+     74656421
+     00
+05C7 2D20436F   149            ConfirmMsg:                     db '- Continue?     ', 0
+     6E74696E
+     75653F20
+     20202020
+     00
+05D8 54656D70   150            Temp:                                   db 'Temp:', 0           
+     3A00
+05DE 54696D65   151            Time:                                   db 'Time:', 0
+     3A00
+05E4 0A00       152            NEWLINE:                                db '\n', 0  
+05E6 20DF4300   153     Cels: db ' ',11011111b, 'C',0
+05EA 207300     154     Secs:                  db ' s',0
+05ED            155            
+05ED            156   ;---------------------------------;
+05ED            157   ; ISR for timer 2                 ;
+05ED            158   ;---------------------------------;
+05ED            159   Timer2_ISR:
+05ED C2CF       160            clr TF2  ; Timer 2 doesn't clear TF2 automatically. Do it in ISR
+05EF            161            
+05EF            162            ; The two registers used in the ISR must be saved in the stack
+05EF C0E0       163            push acc
+05F1 C0D0       164            push psw
+05F3            165            
+05F3            166       
+05F3 0532       167     inc Count_Sample
+05F5            168            ; Increment the 16-bit one mili second counter
+05F5 0530       169            inc Count1ms+0    ; Increment the low 8-bits first
+05F7 E530       170            mov a, Count1ms+0 ; If the low 8-bits overflow, then increment high 8-bits
+05F9 7002       171            jnz Inc_Done_1sec
+05FB 0531       172            inc Count1ms+1
+05FD            173   
+05FD            174            
+05FD            175   Inc_Done_1sec:
+05FD            176            ; Check if one second has passed
+05FD E530       177            mov a, Count1ms+0
+05FF B4E816     178            cjne a, #low(1000), Inc_Done_Sample ; Warning: this instruction changes the carry flag!
+0602 E531       179            mov a, Count1ms+1
+0604 B40311     180            cjne a, #high(1000), Inc_Done_Sample
+0607            181            
+0607            182            ; 1 second has passed.  Set a flag so the main program knows
+0607            183            
+0607 753000     184            mov Count1ms+0, #0
+060A 753100     184            mov Count1ms+1, #0
+060D            185     
+060D            186            ; total time passed for each stage (it will be set to 0 when the stage starts)
+060D 0538       187            inc run_time_sec
+060F            188     ; time for state, will reset after every state
+060F 0539       189     inc state_time
+0611            190     
+0611 E539       191     mov a, state_time
+0613 B43C02     192     cjne a,#60, Inc_Done_Sample
+0616 D201       193            setb one_min_flag
+0618            194   
+0618            195   Inc_Done_Sample:
+0618            196            
+0618 E532       197     mov a, Count_Sample
+061A B4FA05     198     cjne a, #SAMPLE_INTERVAL, Inc_Done_PWM
+061D            199     
+061D D205       200     setb sample_flag
+061F            201     
+061F E4         202     clr a
+0620 F532       203     mov Count_Sample, a
+0622            204   
+0622            205   Inc_Done_PWM:
+0622            206            
+0622 30021F     207            jnb pwm_on, Timer2_ISR_done
+0625 0533       208            inc Count_PWM
+0627 30030E     209            jnb pwm_high, Inc_Done_PWM_Low
+062A            210   
+062A E533       211            mov a, Count_PWM
+062C B43F15     212            cjne a, #PWM_RELOAD_HIGH, Timer2_ISR_done
+062F            213            
+062F C203       214            clr pwm_high
+0631 C2B7       215            clr SSR_OUT
+0633            216            
+0633 E4         217            clr a
+0634 F533       218            mov Count_PWM, a
+0636            219            
+0636 800C       220            sjmp Timer2_ISR_done
+0638            221            
+0638            222   Inc_Done_PWM_Low:
+0638            223   
+0638 E533       224            mov a, Count_PWM
+063A B4C007     225            cjne a, #PWM_RELOAD_LOW, Timer2_ISR_done
+063D            226            
+063D D203       227            setb pwm_high
+063F D2B7       228            setb SSR_OUT
+0641            229            
+0641 E4         230            clr a
+0642 F533       231            mov Count_PWM, a
+0644            232            
+0644            233   Timer2_ISR_done:
+0644 D0D0       234            pop psw
+0646 D0E0       235            pop acc
+0648 32         236   reti
+0649            237   
+0649            238   ;------------------------------------------------------------------;
+0649            239   ; Subroutine to take sample from Thermocouple, LM335, and LED for Vref
+0649            240   ;------------------------------------------------------------------;
+0649            241   Take_Sample:
+0649 C205       242            clr sample_flag
+064B            243            ;reading the LED voltage for Vref
+064B 75F007     244            mov b, #7
+064E 12038B     244            lcall ?Average_ADC_Channel      
+0651 120667     245            lcall Calculate_Vref
+0654            246            ;fetch result from channel 0 as room temperature
+0654 75F000     247            mov b, #0
+0657 12038B     247            lcall ?Average_ADC_Channel
+065A 12069E     248            lcall LM335_Result_SPI_Routine
+065D            249            ;fetch result from channel 1
+065D 75F001     250            mov b, #1
+0660 12038B     250            lcall ?Average_ADC_Channel
+0663 1206E7     251     lcall Result_SPI_Routine       ; 0.5 second delay between samples
+0666 22         252            ret
+0667            253   
+0667            254   ;calculating Vref from Vled      
+0667            255   Calculate_Vref:
+0667 85423E     256            mov y+0, result+0 
+066A 85433F     256            mov y+1, result+1
+066D 754000     256            mov y+2, #0 
+0670 754100     256            mov y+3, #0
+0673 753A31     257            mov x+0, #low (VLED*1023 % 0x10000) 
+0676 753B3B     257            mov x+1, #high(VLED*1023 % 0x10000) 
+0679 753C03     257            mov x+2, #low (VLED*1023 / 0x10000) 
+067C 753D00     257            mov x+3, #high(VLED*1023 / 0x10000) 
+067F 1202E3     258            lcall div32
+0682 753E10     259            mov y+0, #low (10000 % 0x10000) 
+0685 753F27     259            mov y+1, #high(10000 % 0x10000) 
+0688 754000     259            mov y+2, #low (10000 / 0x10000) 
+068B 754100     259            mov y+3, #high(10000 / 0x10000) 
+068E 120256     260            lcall mul32                     ; Gets Vcc*10^6
+0691            261   
+0691 853A4D     262            mov Vcc+0, x+0 
+0694 853B4E     262            mov Vcc+1, x+1
+0697 853C4F     262            mov Vcc+2, x+2 
+069A 853D50     262            mov Vcc+3, x+3
+069D            263            
+069D 22         264            ret
+069E            265            
+069E            266   ;calculating cold junction temperature
+069E            267   LM335_Result_SPI_Routine:
+069E 854D3E     268            mov y+0, Vcc+0 
+06A1 854E3F     268            mov y+1, Vcc+1
+06A4 854F40     268            mov y+2, Vcc+2 
+06A7 855041     268            mov y+3, Vcc+3
+06AA            269   
+06AA 120256     270       lcall mul32                  ; Vout*10^6 = ADC*(Vcc*10^6)/1023
+06AD 753EFF     271            mov y+0, #low (1023 % 0x10000) 
+06B0 753F03     271            mov y+1, #high(1023 % 0x10000) 
+06B3 754000     271            mov y+2, #low (1023 / 0x10000) 
+06B6 754100     271            mov y+3, #high(1023 / 0x10000)          
+06B9 1202E3     272       lcall div32
+06BC 753E10     273            mov y+0, #low (2730000 % 0x10000) 
+06BF 753FA8     273            mov y+1, #high(2730000 % 0x10000) 
+06C2 754029     273            mov y+2, #low (2730000 / 0x10000) 
+06C5 754100     273            mov y+3, #high(2730000 / 0x10000)       ; T*10^4 = (Vout*10^6-2.73*10^6)/100
+06C8 1201C2     274       lcall sub32
+06CB 753E64     275            mov y+0, #low (100 % 0x10000) 
+06CE 753F00     275            mov y+1, #high(100 % 0x10000) 
+06D1 754000     275            mov y+2, #low (100 / 0x10000) 
+06D4 754100     275            mov y+3, #high(100 / 0x10000)           
+06D7 1202E3     276       lcall div32
+06DA            277   
+06DA 853A49     278            mov x_lm335+0, x+0 
+06DD 853B4A     278            mov x_lm335+1, x+1
+06E0 853C4B     278            mov x_lm335+2, x+2 
+06E3 853D4C     278            mov x_lm335+3, x+3
+06E6            279            
+06E6 22         280            ret
+06E7            281   
+06E7            282   ;calculating the oven temperature and sending it to computer and LCD
+06E7            283   Result_SPI_Routine:
+06E7 854D3E     284            mov y+0, Vcc+0 
+06EA 854E3F     284            mov y+1, Vcc+1
+06ED 854F40     284            mov y+2, Vcc+2 
+06F0 855041     284            mov y+3, Vcc+3
+06F3            285            
+06F3 120256     286            lcall mul32
+06F6 753EFF     287            mov y+0, #low (1023 % 0x10000) 
+06F9 753F03     287            mov y+1, #high(1023 % 0x10000) 
+06FC 754000     287            mov y+2, #low (1023 / 0x10000) 
+06FF 754100     287            mov y+3, #high(1023 / 0x10000) 
+0702 1202E3     288            lcall div32
+0705 753E64     289            mov y+0, #low (100 % 0x10000) 
+0708 753F00     289            mov y+1, #high(100 % 0x10000) 
+070B 754000     289            mov y+2, #low (100 / 0x10000) 
+070E 754100     289            mov y+3, #high(100 / 0x10000) 
+0711 120256     290            lcall mul32     
+0714 753EC6     291            mov y+0, #low (454 % 0x10000) 
+0717 753F01     291            mov y+1, #high(454 % 0x10000) 
+071A 754000     291            mov y+2, #low (454 / 0x10000) 
+071D 754100     291            mov y+3, #high(454 / 0x10000)   ;Gain 
+0720 1202E3     292            lcall div32
+0723 753E29     293            mov y+0, #low (41 % 0x10000) 
+0726 753F00     293            mov y+1, #high(41 % 0x10000) 
+0729 754000     293            mov y+2, #low (41 / 0x10000) 
+072C 754100     293            mov y+3, #high(41 / 0x10000)    ;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
+072F 1202E3     294            lcall div32
+0732            295            
+0732 85493E     296            mov y+0, x_lm335+0 
+0735 854A3F     296            mov y+1, x_lm335+1
+0738 854B40     296            mov y+2, x_lm335+2 
+073B 854C41     296            mov y+3, x_lm335+3
+073E 1201A1     297            lcall add32
+0741            298     
+0741 753E64     299            mov y+0, #low (100 % 0x10000) 
+0744 753F00     299            mov y+1, #high(100 % 0x10000) 
+0747 754000     299            mov y+2, #low (100 / 0x10000) 
+074A 754100     299            mov y+3, #high(100 / 0x10000) 
+074D 1202E3     300     lcall div32
+0750            301   
+0750            302            ;updating the temperature of OVEN variable
+0750 853A56     303            mov current_temp+0, x+0 
+0753 853B57     303            mov current_temp+1, x+1
+0756 853C58     303            mov current_temp+2, x+2 
+0759 853D59     303            mov current_temp+3, x+3
+075C            304            
+075C 1200DC     305            lcall hex2bcd
+075F            306   
+075F            307   ;sending Oven temperature to Computer
+075F            308   Send_Serial:
+075F            309            
+075F C000       310       push ar0
+0761 A846       310       mov r0, bcd+2
+0763 1203EF     310       lcall ?Send_BCD
+0766 D000       310       pop ar0
+0768 C000       311       push ar0
+076A A845       311       mov r0, bcd+1
+076C 1203EF     311       lcall ?Send_BCD
+076F D000       311       pop ar0
+0771 740A       312            mov a, #'\n'
+0773 1203DC     313            lcall putchar
+0776            314            
+0776 C0E0       315            push acc
+0778 7401       315            mov a, #1
+077A 14         315            dec a
+077B 1200C1     315            lcall ?Set_Cursor_1 ; Select column and row
+077E D0E0       315            pop acc
+0780            316            
+0780            317   Display_Temp_LCD:                        ;TODOOO                 to be changed according to need
+0780 C000       318            push ar0
+0782 A848       318            mov r0, bcd+4
+0784 1200C6     318            lcall ?Display_BCD
+0787 D000       318            pop ar0
+0789 C000       319            push ar0
+078B A847       319            mov r0, bcd+3
+078D 1200C6     319            lcall ?Display_BCD
+0790 D000       319            pop ar0
+0792 C000       320            push ar0
+0794 A846       320            mov r0, bcd+2
+0796 1200C6     320            lcall ?Display_BCD
+0799 D000       320            pop ar0
+079B C000       321            push ar0
+079D A845       321            mov r0, bcd+1
+079F 1200C6     321            lcall ?Display_BCD
+07A2 D000       321            pop ar0
+07A4 C000       322            push ar0
+07A6 A844       322            mov r0, bcd
+07A8 1200C6     322            lcall ?Display_BCD
+07AB D000       322            pop ar0
+07AD            323            
+07AD 22         324   ret
+07AE            325   
+07AE            326   ;Saving variables to Flash Memory
+07AE            327   Save_Configuration:
+07AE            328            ; Erase FDATA page 1
+07AE C2AF       329            clr EA ; Disables interrupts to allow access to flash memory
+07B0 759658     330            mov MEMCON, #01011000B ; AERS=1, MWEN=1, DMEN=1, 
+07B3            331     ; ^ Erases page in flash memory, enables programming to nonvolatie mem location
+07B3            332     ; Enables nonvolatile data memory and maps it into FDATA space
+07B3 900000     333            mov DPTR, #0x0000 ; Set data pointer to start of flash memory
+07B6 74FF       334            mov a, #0xff                    ; Write 1111 1111 to flash mem
+07B8 F0         335            movx @DPTR, A
+07B9            336            ; Load page
+07B9 759638     337     mov MEMCON, #00111000B ; LDPG=1, MWEN=1, DMEN=1
+07BC            338     ; Enables loading of multiple bytes to temporary page buffer
+07BC            339     ; Enables programming of nonvolatile memory location
+07BC            340     ; Enables nonvolatile data memory and map it into FDATA space
+07BC            341     ; Save variables
+07BC E535       342     mov a, soak_temp       ; Move soak temperature to accumulator
+07BE F0         343     movx @DPTR, A                  ; Save data in buffer
+07BF A3         344     inc DPTR                                       ; Increment data pointer
+07C0 E534       345     mov a, soak_seconds ; Repeat for remaining variables
+07C2 F0         346     movx @DPTR, A
+07C3 A3         347     inc DPTR
+07C4 E537       348     mov a, reflow_temp
+07C6 F0         349     movx @DPTR,A
+07C7 A3         350     inc DPTR
+07C8 E536       351     mov a, reflow_seconds
+07CA F0         352     movx @DPTR, A
+07CB            353     ; Write Validation Keys to flash memory (Check upon write)
+07CB A3         354     inc DPTR
+07CC 7455       355     mov a, #0x55 ; First key value (0101 0101)
+07CE F0         356     movx @DPTR, A
+07CF A3         357     inc DPTR
+07D0 74AA       358     mov a, #0xAA ; Second key value (1010 1010)
+07D2 F0         359     movx @DPTR, A
+07D3            360     ; Copy Buffer to Flash
+07D3 759618     361     mov MEMCON, #00011000B ; Copy page to flash
+07D6 74FF       362     mov a, #0xff
+07D8 F0         363     movx @DPTR, A
+07D9 759600     364     mov MEMCON, #00000000B ; Disable access to data flash
+07DC D2AF       365     setb EA ; Re-enable interrupts
+07DE 22         366     ret
+07DF            367   
+07DF            368   ; Reading variables from flash memory
+07DF            369   Load_Configuration:
+07DF 759608     370            mov MEMCON, #00001000B ; Enable read access to data flash
+07E2            371     
+07E2 900004     372     mov dptr, #0x0004 ; Move dptr to first key value location
+07E5 E0         373     movx a, @dptr
+07E6 B4551B     374     cjne a, #0x55, Load_Defaults ; If keys do not match, write to flash failed, load default values
+07E9 A3         375     inc dptr ; Second key value location
+07EA E0         376     movx a, @dptr
+07EB B4AA16     377     cjne a, #0xAA, Load_Defaults ; Check if second keys match or not, if not then load defaults
+07EE            378     ; Keys match. Now load saved values from flash
+07EE 900000     379     mov dptr, #0x0000
+07F1 E0         380     movx a, @dptr
+07F2 F535       381     mov soak_temp, a       ; Load soak temperature
+07F4 A3         382     inc dptr
+07F5 E0         383     movx a, @dptr
+07F6 F534       384     mov soak_seconds, a ; Load soak time
+07F8 A3         385     inc dptr
+07F9 E0         386            movx a, @dptr
+07FA F537       387     mov reflow_temp, a ; Load reflow temperature
+07FC A3         388     inc dptr
+07FD E0         389     movx a, @dptr
+07FE F536       390     mov reflow_seconds, a ; Load reflow time
+0800 759600     391     mov MEMCON, #00000000B ; Disables access to data flashx
+0803 22         392     ret
+0804            393     
+0804            394   ; Default (optimal) values for soldering profile
+0804            395   Load_Defaults: ; Load defaults if keys are incorrect
+0804 753596     396            mov soak_temp, #150
+0807 75342D     397     mov soak_seconds, #45
+080A 7537E1     398     mov reflow_temp, #225
+080D 75361E     399     mov reflow_seconds, #30
+0810 759600     400     mov MEMCON, #00000000B ; Disables access to data flash
+0813 020847     401     ljmp forever 
+0816            402    
+0816            403   ;------------------------------------------------------------------;
+0816            404   ; ********************MACRO LIST***********************************;
+0816            405   ;------------------------------------------------------------------;
+0816            406   
+0816            407   ;------------------------------------------------------------------;
+0816            408   ; MACRO for incrementing a variable
+0816            409   ;------------------------------------------------------------------;
+                410   Inc_variable MAC
+                411   	;Mac (%0 : inc/dec button    %1 : variable ) 
+                412   	jb %0, no_inc_dec_var%M
+                413   	Wait_Milli_Seconds(#50)
+                414   	jb %0, no_inc_dec_var%M
+                415     Wait_Milli_Seconds(#200)
+                416   
+                417   	inc %1
+                418   	
+                419   no_inc_dec_var%M:
+                420   
+                421   ENDMAC
+0816            422   
+0816            423   ;------------------------------------------------------------------;
+0816            424   ; MACRO for decrementing a variable
+0816            425   ;------------------------------------------------------------------;
+                426   Dec_variable MAC
+                427   	;Mac (%0 : inc/dec button    %1 : variable ) 
+                428   	jb %0, no_inc_dec_var%M
+                429   	Wait_Milli_Seconds(#50)
+                430   	jb %0, no_inc_dec_var%M
+                431   	Wait_Milli_Seconds(#200)
+                432   
+                433   	dec %1
+                434   	
+                435   no_inc_dec_var%M:
+                436   
+                437   ENDMAC
+0816            438   
+0816            439   ;------------------------------------------------------------------;
+0816            440   ; MACRO for Showing values with header on LCD
+0816            441   ;------------------------------------------------------------------;
+                442   Show_Header_and_Value Mac
+                443   	; MAC (%0:    Constant string for the first line on LCD       %1: value to be shown on second line				%2: unit )
+                444   	Set_Cursor(1,1)
+                445   	Send_Constant_String(#%0)
+                446   	Set_Cursor(2,1)
+                447   	Move_1B_to_4B ( x, %1)
+                448   	lcall hex2bcd
+                449     Display_BCD_1_digit(bcd+1)
+                450   	Display_BCD_1_digit(bcd)
+                451     Set_Cursor(2,5)
+                452     Send_Constant_String(#%2)
+                453   ENDMAC
+0816            454   
+0816            455   
+0816            456   ;------------------------------------------------------------------;
+0816            457   ; MACRO for Showing messages with header on LCD
+0816            458   ;------------------------------------------------------------------;
+                459   Show_Header Mac
+                460   	Set_Cursor(1,1)
+                461     Send_Constant_String(#%0)
+                462     Set_Cursor(2,1)
+                463     Send_Constant_String(#%1)
+                464   ENDMAC
+0816            465   
+0816            466   ;------------------------------------------------------------------;
+0816            467   ; MACRO for Showing 2 values with header on LCD
+0816            468   ;------------------------------------------------------------------;
+                469   Show_Stage_Temp_Time Mac
+                470   	; MAC (%0:    Constant string for the first line on LCD           %1: Temperature			%2: Time )
+                471   	Set_Cursor(1,1)
+                472   	Send_Constant_String(#%0)
+                473     
+                474     Set_Cursor(2,1)	;show temperture
+                475   	Move_1B_to_4B ( x, %1)
+                476   	lcall hex2bcd
+                477     Display_BCD_1_digit(bcd+1)
+                478   	Display_BCD_1_digit(bcd)
+                479   
+                480     Set_Cursor(2,12)	;display time in seconds TODO: put it in minute and seconds
+                481   	Move_1B_to_4B ( x, %2)
+                482   	lcall hex2bcd
+                483     Display_BCD(bcd+1)
+                484   	Display_BCD(bcd)
+                485     Set_Cursor(2,16)
+                486     Display_char(#'s')
+                487     
+                488   	Set_Cursor(2,5)
+                489   	Send_Constant_String(#Cels)
+                490     
+                491    
+                492   ENDMAC
+0816            493   
+0816            494   ;------------------------------------------------------------------;
+0816            495   ; MACRO for checking a button and changing state
+0816            496   ;------------------------------------------------------------------;
+                497   Check_button_for_State_change Mac
+                498   	; MAC (%0:    Constant string for the button name           %1: state to jump to if the button is pressed )
+                499   	jb %0, no_button_pressed%M
+                500   	Wait_Milli_Seconds(#50)
+                501   	jb %0, no_button_pressed%M
+                502   	jnb %0, $
+                503   	
+                504   	mov state, #%1
+                505     WriteCommand(#0x01)
+                506     Wait_Milli_Seconds(#2)
+                507   no_button_pressed%M:
+                508   
+                509   ENDMAC
+0816            510   
+0816            511   ;------------------------------------------------------------------;
+0816            512   ; MACRO for comparing 2 values and changing state
+0816            513   ;------------------------------------------------------------------;
+                514   Compare_Values_for_State_Change MAC
+                515   	;	%0: variable to check
+                516   	;	%1: value set at using the buttons
+                517   	;	%2: next state
+                518   	mov a, %0
+                519     clr c
+                520     subb a, %1
+                521     jnc values_not_equal%M
+                522   	mov state, #%2
+                523   	 WriteCommand(#0x01)
+                524     Wait_Milli_Seconds(#2)
+                525   values_not_equal%M:
+                526   
+                527   ENDMAC
+0816            528   ;------------------------------------------------------------------;
+0816            529   ; MACRO for turning the SSR off
+0816            530   ;------------------------------------------------------------------;
+                531   SSR_OFF MAC
+                532       clr pwm_on
+                533       clr pwm_high
+                534       clr SSR_OUT
+                535   ENDMAC
+0816            536   
+0816            537   ;------------------------------------------------------------------;
+0816            538   ; MACRO for going to next state
+0816            539   ;------------------------------------------------------------------;
+                540   check_state MAC
+                541   		; %0 state number    %1 next state
+                542       cjne a, #%0, skipstate%M
+                543     	sjmp no_skip_state%M
+                544   skipstate%M:
+                545       ljmp state%1
+                546        WriteCommand(#0x01)
+                547    	 Wait_Milli_Seconds(#2)
+                548   no_skip_state%M:
+                549   ENDMAC
+0816            550   ;------------------------------------------------------------------;
+0816            551   ; Main program   (FSM)
+0816            552   ;        -state 0:  Start Screen
+0816            553   ;        -state 1:  initialization       Soak Time  
+0816            554   ;        -state 2:  initialization               Soak Temperature
+0816            555   ;        -state 3:  initialization               Reflow Time
+0816            556   ;        -state 4:  initialization               Reflow Temp
+0816            557   ;
+0816            558   ;        -state 5:  Storing the variables in flash memory, and asking for user confirmation to begin process                             
+0816            559   ; -state 6:  initialising Timer and resetting Global Timer
+0816            560   ;        -state 10: Ramp to Soak
+0816            561   ;        -state 11: Soak
+0816            562   ;        -state 12: Ramp to reflow
+0816            563   ;        -state 13: Reflow (Done for now, possible additions check if temperature goes too high, if so then begin cooling immediately etc.)
+0816            564   ;        -state 14: Cooling
+0816            565   ;        -state 15: Finished successfully
+0816            566   ;        -state 16: ERROR State
+0816            567   ; -state 17: Force Quit State
+0816            568   ;------------------------------------------------------------------;
+0816            569   MainProgram:
+0816            570   
+0816            571            ; Initialization
+0816 75817F     572       mov SP, #0x7F
+0819 75C100     573       mov PMOD, #0 ; Configure all ports in bidirectional mode
+081C 120418     574       lcall Timer0_Init
+081F 12042B     575       lcall Timer2_Init
+0822 C2CA       576       clr TR2
+0824 D2AF       577       setb EA   ; Enable Global interrupts
+0826 12034C     578       lcall INIT_SPI
+0829 1203BD     579            lcall InitSerialPort
+082C 120088     580       lcall LCD_4BIT  ; For convenience a few handy macros are included in 'LCD_4bit.inc':
+082F            581       
+082F C202       582       clr pwm_on
+0831 C203       582       clr pwm_high
+0833 C2B7       582       clr SSR_OUT  ; clears  pwm_on ------- pwm_high ------- SSR_OUT ------- in_process                            
+0835            583   
+0835 C204       584                    clr settings_modified_flag
+0837 C201       585       clr one_min_flag
+0839            586       
+0839 E4         587                    clr a
+083A F534       588       mov soak_seconds, a
+083C F535       589       mov soak_temp, a
+083E F536       590       mov reflow_seconds, a
+0840 F537       591       mov reflow_temp, a
+0842 F555       592       mov state, a
+0844            593            
+0844 1207DF     594            lcall Load_Configuration ; Read values from data flash
+0847            595            
+0847            596   forever:         
+0847 E555       597            mov a, state
+0849 300503     598     jnb sample_flag, state0
+084C 120649     599     lcall Take_Sample
+084F            600   
+084F            601   ; Main start screen appears on boot and 
+084F            602   state0:
+084F            603                    ; 0 state number    1 next state
+084F B40002     603       cjne a, #0, skipstate43
+0852 8011       603            sjmp no_skip_state43
+0854            603   skipstate43:
+0854 0208E6     603       ljmp state1
+0857 7401       603            mov a, #0x01
+0859 120083     603            lcall ?WriteCommand
+085C C002       603            push AR2
+085E 7A02       603            mov R2, #2
+0860 120039     603            lcall ?Wait_Milli_Seconds
+0863 D002       603            pop AR2
+0865            603   no_skip_state43:
+0865            604     
+0865 C0E0       605            push acc
+0867 7401       605            mov a, #1
+0869 14         605            dec a
+086A 1200C1     605            lcall ?Set_Cursor_1 ; Select column and row
+086D D0E0       605            pop acc
+086F C083       605            push dph
+0871 C082       605            push dpl
+0873 C0E0       605            push acc
+0875 900442     605            mov dptr, #StartMessage
+0878 1200B4     605            lcall ?Send_Constant_String
+087B D0E0       605            pop acc
+087D D082       605            pop dpl
+087F D083       605            pop dph
+0881 C0E0       605            push acc
+0883 7401       605            mov a, #1
+0885 14         605            dec a
+0886 1200BF     605            lcall ?Set_Cursor_2 ; Select column and row
+0889 D0E0       605            pop acc
+088B C083       605            push dph
+088D C082       605            push dpl
+088F C0E0       605            push acc
+0891 900453     605            mov dptr, #StartMessage2
+0894 1200B4     605            lcall ?Send_Constant_String
+0897 D0E0       605            pop acc
+0899 D082       605            pop dpl
+089B D083       605            pop dph
+089D            605   
+089D            606     
+089D            607            ; MAC (CYCLE_BUTTON:    Constant string for the button name           1: state to jump to if the button is pressed )
+089D 208020     607            jb CYCLE_BUTTON, no_button_pressed51
+08A0 C002       607            push AR2
+08A2 7A32       607            mov R2, #50
+08A4 120039     607            lcall ?Wait_Milli_Seconds
+08A7 D002       607            pop AR2
+08A9 208014     607            jb CYCLE_BUTTON, no_button_pressed51
+08AC 3080FD     607            jnb CYCLE_BUTTON, $
+08AF            607            
+08AF 755501     607            mov state, #1
+08B2 7401       607            mov a, #0x01
+08B4 120083     607            lcall ?WriteCommand
+08B7 C002       607            push AR2
+08B9 7A02       607            mov R2, #2
+08BB 120039     607            lcall ?Wait_Milli_Seconds
+08BE D002       607            pop AR2
+08C0            607   no_button_pressed51:
+08C0            607                    ; Transition to parameter select states
+08C0            608            ; MAC (INC_BUTTON:    Constant string for the button name           5: state to jump to if the button is pressed )
+08C0 208220     608            jb INC_BUTTON, no_button_pressed55
+08C3 C002       608            push AR2
+08C5 7A32       608            mov R2, #50
+08C7 120039     608            lcall ?Wait_Milli_Seconds
+08CA D002       608            pop AR2
+08CC 208214     608            jb INC_BUTTON, no_button_pressed55
+08CF 3082FD     608            jnb INC_BUTTON, $
+08D2            608            
+08D2 755505     608            mov state, #5
+08D5 7401       608            mov a, #0x01
+08D7 120083     608            lcall ?WriteCommand
+08DA C002       608            push AR2
+08DC 7A02       608            mov R2, #2
+08DE 120039     608            lcall ?Wait_Milli_Seconds
+08E1 D002       608            pop AR2
+08E3            608   no_button_pressed55:
+08E3            608                            ; Transition to save/start confirm state
+08E3 020847     609     ljmp forever
+08E6            610   ; initializing the Soak Time 
+08E6            611   state1:
+08E6            612                    ; 1 state number    2 next state
+08E6 B40102     612       cjne a, #1, skipstate59
+08E9 8011       612            sjmp no_skip_state59
+08EB            612   skipstate59:
+08EB 0209BF     612       ljmp state2
+08EE 7401       612            mov a, #0x01
+08F0 120083     612            lcall ?WriteCommand
+08F3 C002       612            push AR2
+08F5 7A02       612            mov R2, #2
+08F7 120039     612            lcall ?Wait_Milli_Seconds
+08FA D002       612            pop AR2
+08FC            612   no_skip_state59:
+08FC D204       613            setb settings_modified_flag
+08FE            614     
+08FE            615            ; MAC (SoakTime_Message:    Constant string for the first line on LCD       soak_seconds: value to be shown on second line                              Secs: unit )
+08FE C0E0       615            push acc
+0900 7401       615            mov a, #1
+0902 14         615            dec a
+0903 1200C1     615            lcall ?Set_Cursor_1 ; Select column and row
+0906 D0E0       615            pop acc
+0908 C083       615            push dph
+090A C082       615            push dpl
+090C C0E0       615            push acc
+090E 900464     615            mov dptr, #SoakTime_Message
+0911 1200B4     615            lcall ?Send_Constant_String
+0914 D0E0       615            pop acc
+0916 D082       615            pop dpl
+0918 D083       615            pop dph
+091A C0E0       615            push acc
+091C 7401       615            mov a, #1
+091E 14         615            dec a
+091F 1200BF     615            lcall ?Set_Cursor_2 ; Select column and row
+0922 D0E0       615            pop acc
+0924 85343A     615            mov x+0, soak_seconds+0 
+0927 753B00     615            mov x+1, #0
+092A 753C00     615            mov x+2, #0 
+092D 753D00     615            mov x+3, #0
+0930 1200DC     615            lcall hex2bcd
+0933 C000       615            push ar0
+0935 A845       615            mov r0, bcd+1
+0937 C0E0       615            push acc
+0939 1200D1     615            lcall ?Display_BCD_lsd
+093C D000       615            pop ar0
+093E C000       615            push ar0
+0940 A844       615            mov r0, bcd
+0942 C0E0       615            push acc
+0944 1200D1     615            lcall ?Display_BCD_lsd
+0947 D000       615            pop ar0
+0949 C0E0       615            push acc
+094B 7405       615            mov a, #5
+094D 14         615            dec a
+094E 1200BF     615            lcall ?Set_Cursor_2 ; Select column and row
+0951 D0E0       615            pop acc
+0953 C083       615            push dph
+0955 C082       615            push dpl
+0957 C0E0       615            push acc
+0959 9005EA     615            mov dptr, #Secs
+095C 1200B4     615            lcall ?Send_Constant_String
+095F D0E0       615            pop acc
+0961 D082       615            pop dpl
+0963 D083       615            pop dph
+0965            616            ;Mac (INC_BUTTON : inc/dec button    soak_seconds : variable ) 
+0965 208217     616            jb INC_BUTTON, no_inc_dec_var71
+0968 C002       616            push AR2
+096A 7A32       616            mov R2, #50
+096C 120039     616            lcall ?Wait_Milli_Seconds
+096F D002       616            pop AR2
+0971 20820B     616            jb INC_BUTTON, no_inc_dec_var71
+0974 C002       616            push AR2
+0976 7AC8       616            mov R2, #200
+0978 120039     616            lcall ?Wait_Milli_Seconds
+097B D002       616            pop AR2
+097D            616   
+097D 0534       616            inc soak_seconds
+097F            616            
+097F            616   no_inc_dec_var71:
+097F            616   
+097F            617            ;Mac (DEC_BUTTON : inc/dec button    soak_seconds : variable ) 
+097F 208417     617            jb DEC_BUTTON, no_inc_dec_var74
+0982 C002       617            push AR2
+0984 7A32       617            mov R2, #50
+0986 120039     617            lcall ?Wait_Milli_Seconds
+0989 D002       617            pop AR2
+098B 20840B     617            jb DEC_BUTTON, no_inc_dec_var74
+098E C002       617            push AR2
+0990 7AC8       617            mov R2, #200
+0992 120039     617            lcall ?Wait_Milli_Seconds
+0995 D002       617            pop AR2
+0997            617   
+0997 1534       617            dec soak_seconds
+0999            617            
+0999            617   no_inc_dec_var74:
+0999            617   
+0999            618            
+0999            619            ; MAC (CYCLE_BUTTON:    Constant string for the button name           2: state to jump to if the button is pressed )
+0999 208020     619            jb CYCLE_BUTTON, no_button_pressed77
+099C C002       619            push AR2
+099E 7A32       619            mov R2, #50
+09A0 120039     619            lcall ?Wait_Milli_Seconds
+09A3 D002       619            pop AR2
+09A5 208014     619            jb CYCLE_BUTTON, no_button_pressed77
+09A8 3080FD     619            jnb CYCLE_BUTTON, $
+09AB            619            
+09AB 755502     619            mov state, #2
+09AE 7401       619            mov a, #0x01
+09B0 120083     619            lcall ?WriteCommand
+09B3 C002       619            push AR2
+09B5 7A02       619            mov R2, #2
+09B7 120039     619            lcall ?Wait_Milli_Seconds
+09BA D002       619            pop AR2
+09BC            619   no_button_pressed77:
+09BC            619   
+09BC 020847     620            ljmp forever                                                                    
+09BF            621            
+09BF            622   ; initializing the Soak Temperature 
+09BF            623   state2:
+09BF            624                    ; 2 state number    3 next state
+09BF B40202     624       cjne a, #2, skipstate81
+09C2 8011       624            sjmp no_skip_state81
+09C4            624   skipstate81:
+09C4 020A96     624       ljmp state3
+09C7 7401       624            mov a, #0x01
+09C9 120083     624            lcall ?WriteCommand
+09CC C002       624            push AR2
+09CE 7A02       624            mov R2, #2
+09D0 120039     624            lcall ?Wait_Milli_Seconds
+09D3 D002       624            pop AR2
+09D5            624   no_skip_state81:
+09D5            625            ; MAC (SoakTemp_Message:    Constant string for the first line on LCD       soak_temp: value to be shown on second line                                 Cels: unit )
+09D5 C0E0       625            push acc
+09D7 7401       625            mov a, #1
+09D9 14         625            dec a
+09DA 1200C1     625            lcall ?Set_Cursor_1 ; Select column and row
+09DD D0E0       625            pop acc
+09DF C083       625            push dph
+09E1 C082       625            push dpl
+09E3 C0E0       625            push acc
+09E5 900475     625            mov dptr, #SoakTemp_Message
+09E8 1200B4     625            lcall ?Send_Constant_String
+09EB D0E0       625            pop acc
+09ED D082       625            pop dpl
+09EF D083       625            pop dph
+09F1 C0E0       625            push acc
+09F3 7401       625            mov a, #1
+09F5 14         625            dec a
+09F6 1200BF     625            lcall ?Set_Cursor_2 ; Select column and row
+09F9 D0E0       625            pop acc
+09FB 85353A     625            mov x+0, soak_temp+0 
+09FE 753B00     625            mov x+1, #0
+0A01 753C00     625            mov x+2, #0 
+0A04 753D00     625            mov x+3, #0
+0A07 1200DC     625            lcall hex2bcd
+0A0A C000       625            push ar0
+0A0C A845       625            mov r0, bcd+1
+0A0E C0E0       625            push acc
+0A10 1200D1     625            lcall ?Display_BCD_lsd
+0A13 D000       625            pop ar0
+0A15 C000       625            push ar0
+0A17 A844       625            mov r0, bcd
+0A19 C0E0       625            push acc
+0A1B 1200D1     625            lcall ?Display_BCD_lsd
+0A1E D000       625            pop ar0
+0A20 C0E0       625            push acc
+0A22 7405       625            mov a, #5
+0A24 14         625            dec a
+0A25 1200BF     625            lcall ?Set_Cursor_2 ; Select column and row
+0A28 D0E0       625            pop acc
+0A2A C083       625            push dph
+0A2C C082       625            push dpl
+0A2E C0E0       625            push acc
+0A30 9005E6     625            mov dptr, #Cels
+0A33 1200B4     625            lcall ?Send_Constant_String
+0A36 D0E0       625            pop acc
+0A38 D082       625            pop dpl
+0A3A D083       625            pop dph
+0A3C            626            ;Mac (INC_BUTTON : inc/dec button    soak_temp : variable ) 
+0A3C 208217     626            jb INC_BUTTON, no_inc_dec_var93
+0A3F C002       626            push AR2
+0A41 7A32       626            mov R2, #50
+0A43 120039     626            lcall ?Wait_Milli_Seconds
+0A46 D002       626            pop AR2
+0A48 20820B     626            jb INC_BUTTON, no_inc_dec_var93
+0A4B C002       626            push AR2
+0A4D 7AC8       626            mov R2, #200
+0A4F 120039     626            lcall ?Wait_Milli_Seconds
+0A52 D002       626            pop AR2
+0A54            626   
+0A54 0535       626            inc soak_temp
+0A56            626            
+0A56            626   no_inc_dec_var93:
+0A56            626   
+0A56            627            ;Mac (DEC_BUTTON : inc/dec button    soak_temp : variable ) 
+0A56 208417     627            jb DEC_BUTTON, no_inc_dec_var96
+0A59 C002       627            push AR2
+0A5B 7A32       627            mov R2, #50
+0A5D 120039     627            lcall ?Wait_Milli_Seconds
+0A60 D002       627            pop AR2
+0A62 20840B     627            jb DEC_BUTTON, no_inc_dec_var96
+0A65 C002       627            push AR2
+0A67 7AC8       627            mov R2, #200
+0A69 120039     627            lcall ?Wait_Milli_Seconds
+0A6C D002       627            pop AR2
+0A6E            627   
+0A6E 1535       627            dec soak_temp
+0A70            627            
+0A70            627   no_inc_dec_var96:
+0A70            627   
+0A70            628            
+0A70            629            ; MAC (CYCLE_BUTTON:    Constant string for the button name           3: state to jump to if the button is pressed )
+0A70 208020     629            jb CYCLE_BUTTON, no_button_pressed99
+0A73 C002       629            push AR2
+0A75 7A32       629            mov R2, #50
+0A77 120039     629            lcall ?Wait_Milli_Seconds
+0A7A D002       629            pop AR2
+0A7C 208014     629            jb CYCLE_BUTTON, no_button_pressed99
+0A7F 3080FD     629            jnb CYCLE_BUTTON, $
+0A82            629            
+0A82 755503     629            mov state, #3
+0A85 7401       629            mov a, #0x01
+0A87 120083     629            lcall ?WriteCommand
+0A8A C002       629            push AR2
+0A8C 7A02       629            mov R2, #2
+0A8E 120039     629            lcall ?Wait_Milli_Seconds
+0A91 D002       629            pop AR2
+0A93            629   no_button_pressed99:
+0A93            629   
+0A93 020847     630            ljmp forever                                                                    
+0A96            631   
+0A96            632   ; initializing the Reflow Time 
+0A96            633   state3:
+0A96            634                    ; 3 state number    4 next state
+0A96 B40302     634       cjne a, #3, skipstate103
+0A99 8011       634            sjmp no_skip_state103
+0A9B            634   skipstate103:
+0A9B 020B6D     634       ljmp state4
+0A9E 7401       634            mov a, #0x01
+0AA0 120083     634            lcall ?WriteCommand
+0AA3 C002       634            push AR2
+0AA5 7A02       634            mov R2, #2
+0AA7 120039     634            lcall ?Wait_Milli_Seconds
+0AAA D002       634            pop AR2
+0AAC            634   no_skip_state103:
+0AAC            635            
+0AAC            636            ; MAC (ReflowTime_Message:    Constant string for the first line on LCD       reflow_seconds: value to be shown on second line                          Secs: unit )
+0AAC C0E0       636            push acc
+0AAE 7401       636            mov a, #1
+0AB0 14         636            dec a
+0AB1 1200C1     636            lcall ?Set_Cursor_1 ; Select column and row
+0AB4 D0E0       636            pop acc
+0AB6 C083       636            push dph
+0AB8 C082       636            push dpl
+0ABA C0E0       636            push acc
+0ABC 900486     636            mov dptr, #ReflowTime_Message
+0ABF 1200B4     636            lcall ?Send_Constant_String
+0AC2 D0E0       636            pop acc
+0AC4 D082       636            pop dpl
+0AC6 D083       636            pop dph
+0AC8 C0E0       636            push acc
+0ACA 7401       636            mov a, #1
+0ACC 14         636            dec a
+0ACD 1200BF     636            lcall ?Set_Cursor_2 ; Select column and row
+0AD0 D0E0       636            pop acc
+0AD2 85363A     636            mov x+0, reflow_seconds+0 
+0AD5 753B00     636            mov x+1, #0
+0AD8 753C00     636            mov x+2, #0 
+0ADB 753D00     636            mov x+3, #0
+0ADE 1200DC     636            lcall hex2bcd
+0AE1 C000       636            push ar0
+0AE3 A845       636            mov r0, bcd+1
+0AE5 C0E0       636            push acc
+0AE7 1200D1     636            lcall ?Display_BCD_lsd
+0AEA D000       636            pop ar0
+0AEC C000       636            push ar0
+0AEE A844       636            mov r0, bcd
+0AF0 C0E0       636            push acc
+0AF2 1200D1     636            lcall ?Display_BCD_lsd
+0AF5 D000       636            pop ar0
+0AF7 C0E0       636            push acc
+0AF9 7405       636            mov a, #5
+0AFB 14         636            dec a
+0AFC 1200BF     636            lcall ?Set_Cursor_2 ; Select column and row
+0AFF D0E0       636            pop acc
+0B01 C083       636            push dph
+0B03 C082       636            push dpl
+0B05 C0E0       636            push acc
+0B07 9005EA     636            mov dptr, #Secs
+0B0A 1200B4     636            lcall ?Send_Constant_String
+0B0D D0E0       636            pop acc
+0B0F D082       636            pop dpl
+0B11 D083       636            pop dph         
+0B13            637            ;Mac (INC_BUTTON : inc/dec button    reflow_seconds : variable ) 
+0B13 208217     637            jb INC_BUTTON, no_inc_dec_var115
+0B16 C002       637            push AR2
+0B18 7A32       637            mov R2, #50
+0B1A 120039     637            lcall ?Wait_Milli_Seconds
+0B1D D002       637            pop AR2
+0B1F 20820B     637            jb INC_BUTTON, no_inc_dec_var115
+0B22 C002       637            push AR2
+0B24 7AC8       637            mov R2, #200
+0B26 120039     637            lcall ?Wait_Milli_Seconds
+0B29 D002       637            pop AR2
+0B2B            637   
+0B2B 0536       637            inc reflow_seconds
+0B2D            637            
+0B2D            637   no_inc_dec_var115:
+0B2D            637   
+0B2D            638            ;Mac (DEC_BUTTON : inc/dec button    reflow_seconds : variable ) 
+0B2D 208417     638            jb DEC_BUTTON, no_inc_dec_var118
+0B30 C002       638            push AR2
+0B32 7A32       638            mov R2, #50
+0B34 120039     638            lcall ?Wait_Milli_Seconds
+0B37 D002       638            pop AR2
+0B39 20840B     638            jb DEC_BUTTON, no_inc_dec_var118
+0B3C C002       638            push AR2
+0B3E 7AC8       638            mov R2, #200
+0B40 120039     638            lcall ?Wait_Milli_Seconds
+0B43 D002       638            pop AR2
+0B45            638   
+0B45 1536       638            dec reflow_seconds
+0B47            638            
+0B47            638   no_inc_dec_var118:
+0B47            638   
+0B47            639            
+0B47            640            ; MAC (CYCLE_BUTTON:    Constant string for the button name           4: state to jump to if the button is pressed )
+0B47 208020     640            jb CYCLE_BUTTON, no_button_pressed121
+0B4A C002       640            push AR2
+0B4C 7A32       640            mov R2, #50
+0B4E 120039     640            lcall ?Wait_Milli_Seconds
+0B51 D002       640            pop AR2
+0B53 208014     640            jb CYCLE_BUTTON, no_button_pressed121
+0B56 3080FD     640            jnb CYCLE_BUTTON, $
+0B59            640            
+0B59 755504     640            mov state, #4
+0B5C 7401       640            mov a, #0x01
+0B5E 120083     640            lcall ?WriteCommand
+0B61 C002       640            push AR2
+0B63 7A02       640            mov R2, #2
+0B65 120039     640            lcall ?Wait_Milli_Seconds
+0B68 D002       640            pop AR2
+0B6A            640   no_button_pressed121:
+0B6A            640   
+0B6A 020847     641            ljmp forever                                                                    
+0B6D            642   
+0B6D            643   ; initializing the Reflow Temperature 
+0B6D            644   state4:
+0B6D            645                    ; 4 state number    5 next state
+0B6D B40402     645       cjne a, #4, skipstate125
+0B70 8011       645            sjmp no_skip_state125
+0B72            645   skipstate125:
+0B72 020C44     645       ljmp state5
+0B75 7401       645            mov a, #0x01
+0B77 120083     645            lcall ?WriteCommand
+0B7A C002       645            push AR2
+0B7C 7A02       645            mov R2, #2
+0B7E 120039     645            lcall ?Wait_Milli_Seconds
+0B81 D002       645            pop AR2
+0B83            645   no_skip_state125:
+0B83            646            
+0B83            647            ; MAC (ReflowTemp_Message:    Constant string for the first line on LCD       reflow_temp: value to be shown on second line                             Cels: unit )
+0B83 C0E0       647            push acc
+0B85 7401       647            mov a, #1
+0B87 14         647            dec a
+0B88 1200C1     647            lcall ?Set_Cursor_1 ; Select column and row
+0B8B D0E0       647            pop acc
+0B8D C083       647            push dph
+0B8F C082       647            push dpl
+0B91 C0E0       647            push acc
+0B93 900497     647            mov dptr, #ReflowTemp_Message
+0B96 1200B4     647            lcall ?Send_Constant_String
+0B99 D0E0       647            pop acc
+0B9B D082       647            pop dpl
+0B9D D083       647            pop dph
+0B9F C0E0       647            push acc
+0BA1 7401       647            mov a, #1
+0BA3 14         647            dec a
+0BA4 1200BF     647            lcall ?Set_Cursor_2 ; Select column and row
+0BA7 D0E0       647            pop acc
+0BA9 85373A     647            mov x+0, reflow_temp+0 
+0BAC 753B00     647            mov x+1, #0
+0BAF 753C00     647            mov x+2, #0 
+0BB2 753D00     647            mov x+3, #0
+0BB5 1200DC     647            lcall hex2bcd
+0BB8 C000       647            push ar0
+0BBA A845       647            mov r0, bcd+1
+0BBC C0E0       647            push acc
+0BBE 1200D1     647            lcall ?Display_BCD_lsd
+0BC1 D000       647            pop ar0
+0BC3 C000       647            push ar0
+0BC5 A844       647            mov r0, bcd
+0BC7 C0E0       647            push acc
+0BC9 1200D1     647            lcall ?Display_BCD_lsd
+0BCC D000       647            pop ar0
+0BCE C0E0       647            push acc
+0BD0 7405       647            mov a, #5
+0BD2 14         647            dec a
+0BD3 1200BF     647            lcall ?Set_Cursor_2 ; Select column and row
+0BD6 D0E0       647            pop acc
+0BD8 C083       647            push dph
+0BDA C082       647            push dpl
+0BDC C0E0       647            push acc
+0BDE 9005E6     647            mov dptr, #Cels
+0BE1 1200B4     647            lcall ?Send_Constant_String
+0BE4 D0E0       647            pop acc
+0BE6 D082       647            pop dpl
+0BE8 D083       647            pop dph                 
+0BEA            648            ;Mac (INC_BUTTON : inc/dec button    reflow_temp : variable ) 
+0BEA 208217     648            jb INC_BUTTON, no_inc_dec_var137
+0BED C002       648            push AR2
+0BEF 7A32       648            mov R2, #50
+0BF1 120039     648            lcall ?Wait_Milli_Seconds
+0BF4 D002       648            pop AR2
+0BF6 20820B     648            jb INC_BUTTON, no_inc_dec_var137
+0BF9 C002       648            push AR2
+0BFB 7AC8       648            mov R2, #200
+0BFD 120039     648            lcall ?Wait_Milli_Seconds
+0C00 D002       648            pop AR2
+0C02            648   
+0C02            648   
+0C02 0537       648            inc reflow_temp
+0C04            648            
+0C04            648   no_inc_dec_var137:
+0C04            648   
+0C04            649            ;Mac (DEC_BUTTON : inc/dec button    reflow_temp : variable ) 
+0C04 208417     649            jb DEC_BUTTON, no_inc_dec_var140
+0C07 C002       649            push AR2
+0C09 7A32       649            mov R2, #50
+0C0B 120039     649            lcall ?Wait_Milli_Seconds
+0C0E D002       649            pop AR2
+0C10 20840B     649            jb DEC_BUTTON, no_inc_dec_var140
+0C13 C002       649            push AR2
+0C15 7AC8       649            mov R2, #200
+0C17 120039     649            lcall ?Wait_Milli_Seconds
+0C1A D002       649            pop AR2
+0C1C            649   
+0C1C            649   
+0C1C 1537       649            dec reflow_temp
+0C1E            649            
+0C1E            649   no_inc_dec_var140:
+0C1E            649   
+0C1E            650            
+0C1E            651            ; MAC (CYCLE_BUTTON:    Constant string for the button name           0: state to jump to if the button is pressed )
+0C1E 208020     651            jb CYCLE_BUTTON, no_button_pressed143
+0C21 C002       651            push AR2
+0C23 7A32       651            mov R2, #50
+0C25 120039     651            lcall ?Wait_Milli_Seconds
+0C28 D002       651            pop AR2
+0C2A 208014     651            jb CYCLE_BUTTON, no_button_pressed143
+0C2D 3080FD     651            jnb CYCLE_BUTTON, $
+0C30            651            
+0C30 755500     651            mov state, #0
+0C33 7401       651            mov a, #0x01
+0C35 120083     651            lcall ?WriteCommand
+0C38 C002       651            push AR2
+0C3A 7A02       651            mov R2, #2
+0C3C 120039     651            lcall ?Wait_Milli_Seconds
+0C3F D002       651            pop AR2
+0C41            651   no_button_pressed143:
+0C41            651   
+0C41 020847     652            ljmp forever                                                                    
+0C44            653            
+0C44            654   ; Saves value in Flash Memory and Presents Confirmation Screen to Start Process
+0C44            655   state5:
+0C44            656                    ; 5 state number    10 next state
+0C44 B40502     656       cjne a, #5, skipstate147
+0C47 8011       656            sjmp no_skip_state147
+0C49            656   skipstate147:
+0C49 020D62     656       ljmp state10
+0C4C 7401       656            mov a, #0x01
+0C4E 120083     656            lcall ?WriteCommand
+0C51 C002       656            push AR2
+0C53 7A02       656            mov R2, #2
+0C55 120039     656            lcall ?Wait_Milli_Seconds
+0C58 D002       656            pop AR2
+0C5A            656   no_skip_state147:
+0C5A            657            
+0C5A 300461     658     jnb settings_modified_flag, state5AndAHalf ; Save values once, once saved skip this
+0C5D            659     
+0C5D 1207AE     660            lcall Save_Configuration ; Call to save data to flash memory
+0C60 C204       661            clr settings_modified_flag
+0C62 C0E0       662            push acc
+0C64 7401       662            mov a, #1
+0C66 14         662            dec a
+0C67 1200C1     662            lcall ?Set_Cursor_1 ; Select column and row
+0C6A D0E0       662            pop acc
+0C6C C083       662            push dph
+0C6E C082       662            push dpl
+0C70 C0E0       662            push acc
+0C72 9004EC     662            mov dptr, #SaveToFlash_Msg
+0C75 1200B4     662            lcall ?Send_Constant_String
+0C78 D0E0       662            pop acc
+0C7A D082       662            pop dpl
+0C7C D083       662            pop dph
+0C7E C0E0       662            push acc
+0C80 7401       662            mov a, #1
+0C82 14         662            dec a
+0C83 1200BF     662            lcall ?Set_Cursor_2 ; Select column and row
+0C86 D0E0       662            pop acc
+0C88 C083       662            push dph
+0C8A C082       662            push dpl
+0C8C C0E0       662            push acc
+0C8E 90050E     662            mov dptr, #BlankMsg
+0C91 1200B4     662            lcall ?Send_Constant_String
+0C94 D0E0       662            pop acc
+0C96 D082       662            pop dpl
+0C98 D083       662            pop dph
+0C9A C002       663            push AR2
+0C9C 7AFA       663            mov R2, #250
+0C9E 120039     663            lcall ?Wait_Milli_Seconds
+0CA1 D002       663            pop AR2
+0CA3 C002       664            push AR2
+0CA5 7AFA       664            mov R2, #250
+0CA7 120039     664            lcall ?Wait_Milli_Seconds
+0CAA D002       664            pop AR2
+0CAC C002       665            push AR2
+0CAE 7AFA       665            mov R2, #250
+0CB0 120039     665            lcall ?Wait_Milli_Seconds
+0CB3 D002       665            pop AR2
+0CB5 C002       666            push AR2
+0CB7 7AFA       666            mov R2, #250
+0CB9 120039     666            lcall ?Wait_Milli_Seconds
+0CBC D002       666            pop AR2
+0CBE            667     
+0CBE            668   state5AndAHalf:  
+0CBE            669   
+0CBE C0E0       670            push acc
+0CC0 7401       670            mov a, #1
+0CC2 14         670            dec a
+0CC3 1200C1     670            lcall ?Set_Cursor_1 ; Select column and row
+0CC6 D0E0       670            pop acc
+0CC8 C083       670            push dph
+0CCA C082       670            push dpl
+0CCC C0E0       670            push acc
+0CCE 9004A8     670            mov dptr, #Start_Message
+0CD1 1200B4     670            lcall ?Send_Constant_String
+0CD4 D0E0       670            pop acc
+0CD6 D082       670            pop dpl
+0CD8 D083       670            pop dph
+0CDA C0E0       670            push acc
+0CDC 7401       670            mov a, #1
+0CDE 14         670            dec a
+0CDF 1200BF     670            lcall ?Set_Cursor_2 ; Select column and row
+0CE2 D0E0       670            pop acc
+0CE4 C083       670            push dph
+0CE6 C082       670            push dpl
+0CE8 C0E0       670            push acc
+0CEA 9004B9     670            mov dptr, #Y_N_Message
+0CED 1200B4     670            lcall ?Send_Constant_String
+0CF0 D0E0       670            pop acc
+0CF2 D082       670            pop dpl
+0CF4 D083       670            pop dph
+0CF6            671            ; MAC (DEC_BUTTON:    Constant string for the button name           0: state to jump to if the button is pressed )
+0CF6 208420     671            jb DEC_BUTTON, no_button_pressed164
+0CF9 C002       671            push AR2
+0CFB 7A32       671            mov R2, #50
+0CFD 120039     671            lcall ?Wait_Milli_Seconds
+0D00 D002       671            pop AR2
+0D02 208414     671            jb DEC_BUTTON, no_button_pressed164
+0D05 3084FD     671            jnb DEC_BUTTON, $
+0D08            671            
+0D08 755500     671            mov state, #0
+0D0B 7401       671            mov a, #0x01
+0D0D 120083     671            lcall ?WriteCommand
+0D10 C002       671            push AR2
+0D12 7A02       671            mov R2, #2
+0D14 120039     671            lcall ?Wait_Milli_Seconds
+0D17 D002       671            pop AR2
+0D19            671   no_button_pressed164:
+0D19            671            ; Move to state 0 to reselect values
+0D19            672            ; MAC (INC_BUTTON:    Constant string for the button name           6: state to jump to if the button is pressed )
+0D19 208220     672            jb INC_BUTTON, no_button_pressed168
+0D1C C002       672            push AR2
+0D1E 7A32       672            mov R2, #50
+0D20 120039     672            lcall ?Wait_Milli_Seconds
+0D23 D002       672            pop AR2
+0D25 208214     672            jb INC_BUTTON, no_button_pressed168
+0D28 3082FD     672            jnb INC_BUTTON, $
+0D2B            672            
+0D2B 755506     672            mov state, #6
+0D2E 7401       672            mov a, #0x01
+0D30 120083     672            lcall ?WriteCommand
+0D33 C002       672            push AR2
+0D35 7A02       672            mov R2, #2
+0D37 120039     672            lcall ?Wait_Milli_Seconds
+0D3A D002       672            pop AR2
+0D3C            672   no_button_pressed168:
+0D3C            672            ; Start Process
+0D3C            673            ; Need beep here;
+0D3C 020847     674     ljmp forever   
+0D3F            675   
+0D3F            676   state6:
+0D3F            677                    ; 6 state number    10 next state
+0D3F B40602     677       cjne a, #6, skipstate172
+0D42 8011       677            sjmp no_skip_state172
+0D44            677   skipstate172:
+0D44 020D62     677       ljmp state10
+0D47 7401       677            mov a, #0x01
+0D49 120083     677            lcall ?WriteCommand
+0D4C C002       677            push AR2
+0D4E 7A02       677            mov R2, #2
+0D50 120039     677            lcall ?Wait_Milli_Seconds
+0D53 D002       677            pop AR2
+0D55            677   no_skip_state172:
+0D55 E4         678     clr a
+0D56 F538       679     mov run_time_sec, a
+0D58 F539       680     mov state_time, a
+0D5A D2CA       681     setb TR2
+0D5C 75550A     682     mov state, #10
+0D5F 020847     683     ljmp forever
+0D62            684     
+0D62            685   state10:
+0D62            686   
+0D62            687                    ; 10 state number    11 next state
+0D62 B40A02     687       cjne a, #10, skipstate175
+0D65 8011       687            sjmp no_skip_state175
+0D67            687   skipstate175:
+0D67 020E66     687       ljmp state11
+0D6A 7401       687            mov a, #0x01
+0D6C 120083     687            lcall ?WriteCommand
+0D6F            687   
+0D6F C002       687            push AR2
+0D71 7A02       687            mov R2, #2
+0D73 120039     687            lcall ?Wait_Milli_Seconds
+0D76 D002       687            pop AR2
+0D78            687   no_skip_state175:
+0D78            688            ; MAC (CYCLE_BUTTON:    Constant string for the button name           17: state to jump to if the button is pressed )
+0D78 208020     688            jb CYCLE_BUTTON, no_button_pressed178
+0D7B C002       688            push AR2
+0D7D 7A32       688            mov R2, #50
+0D7F 120039     688            lcall ?Wait_Milli_Seconds
+0D82 D002       688            pop AR2
+0D84 208014     688            jb CYCLE_BUTTON, no_button_pressed178
+0D87 3080FD     688            jnb CYCLE_BUTTON, $
+0D8A            688            
+0D8A 755511     688            mov state, #17
+0D8D 7401       688            mov a, #0x01
+0D8F 120083     688            lcall ?WriteCommand
+0D92 C002       688            push AR2
+0D94 7A02       688            mov R2, #2
+0D96 120039     688            lcall ?Wait_Milli_Seconds
+0D99 D002       688            pop AR2
+0D9B            688   no_button_pressed178:
+0D9B            688   
+0D9B C202       689            clr pwm_on                      ;100% pwm
+0D9D D2B7       690            setb SSR_OUT            ; for 100% power
+0D9F            691            ; MAC (Ramp2Soak:    Constant string for the first line on LCD           current_temp: Temperature                      run_time_sec: Time )
+0D9F C0E0       691            push acc
+0DA1 7401       691            mov a, #1
+0DA3 14         691            dec a
+0DA4 1200C1     691            lcall ?Set_Cursor_1 ; Select column and row
+0DA7 D0E0       691            pop acc
+0DA9 C083       691            push dph
+0DAB C082       691            push dpl
+0DAD C0E0       691            push acc
+0DAF 900550     691            mov dptr, #Ramp2Soak
+0DB2 1200B4     691            lcall ?Send_Constant_String
+0DB5 D0E0       691            pop acc
+0DB7 D082       691            pop dpl
+0DB9 D083       691            pop dph
+0DBB            691     
+0DBB C0E0       691            push acc
+0DBD 7401       691            mov a, #1
+0DBF 14         691            dec a
+0DC0 1200BF     691            lcall ?Set_Cursor_2 ; Select column and row
+0DC3 D0E0       691            pop acc         ;show temperture
+0DC5 85563A     691            mov x+0, current_temp+0 
+0DC8 753B00     691            mov x+1, #0
+0DCB 753C00     691            mov x+2, #0 
+0DCE 753D00     691            mov x+3, #0
+0DD1 1200DC     691            lcall hex2bcd
+0DD4 C000       691            push ar0
+0DD6 A845       691            mov r0, bcd+1
+0DD8 C0E0       691            push acc
+0DDA 1200D1     691            lcall ?Display_BCD_lsd
+0DDD D000       691            pop ar0
+0DDF C000       691            push ar0
+0DE1 A844       691            mov r0, bcd
+0DE3 C0E0       691            push acc
+0DE5 1200D1     691            lcall ?Display_BCD_lsd
+0DE8 D000       691            pop ar0
+0DEA            691   
+0DEA C0E0       691            push acc
+0DEC 740C       691            mov a, #12
+0DEE 14         691            dec a
+0DEF 1200BF     691            lcall ?Set_Cursor_2 ; Select column and row
+0DF2 D0E0       691            pop acc         ;display time in seconds TODO: put it in minute and seconds
+0DF4 85383A     691            mov x+0, run_time_sec+0 
+0DF7 753B00     691            mov x+1, #0
+0DFA 753C00     691            mov x+2, #0 
+0DFD 753D00     691            mov x+3, #0
+0E00 1200DC     691            lcall hex2bcd
+0E03 C000       691            push ar0
+0E05 A845       691            mov r0, bcd+1
+0E07 1200C6     691            lcall ?Display_BCD
+0E0A D000       691            pop ar0
+0E0C C000       691            push ar0
+0E0E A844       691            mov r0, bcd
+0E10 1200C6     691            lcall ?Display_BCD
+0E13 D000       691            pop ar0
+0E15 C0E0       691            push acc
+0E17 7410       691            mov a, #16
+0E19 14         691            dec a
+0E1A 1200BF     691            lcall ?Set_Cursor_2 ; Select column and row
+0E1D D0E0       691            pop acc
+0E1F C0E0       691            push acc
+0E21 7473       691            mov a, #'s'
+0E23 12007E     691            lcall ?WriteData
+0E26 D0E0       691            pop acc
+0E28            691     
+0E28 C0E0       691            push acc
+0E2A 7405       691            mov a, #5
+0E2C 14         691            dec a
+0E2D 1200BF     691            lcall ?Set_Cursor_2 ; Select column and row
+0E30 D0E0       691            pop acc
+0E32 C083       691            push dph
+0E34 C082       691            push dpl
+0E36 C0E0       691            push acc
+0E38 9005E6     691            mov dptr, #Cels
+0E3B 1200B4     691            lcall ?Send_Constant_String
+0E3E D0E0       691            pop acc
+0E40 D082       691            pop dpl
+0E42 D083       691            pop dph
+0E44            691     
+0E44            691    
+0E44            691            ;display the current stage and current temperature
+0E44 30010F     692     jnb one_min_flag, not_one_min      ;check if 60 seconds has passed
+0E47 E556       693     mov a, current_temp
+0E49 C3         694     clr c
+0E4A B43200     695     cjne a, #50, check_thermocouple  ;check if thermocouple degree is bigger than 50
+0E4D            696   check_thermocouple:
+0E4D 5005       697     jnc not_error   ;if not bigger than 50, c=1, jump to display error
+0E4F 755510     698     mov state, #16
+0E52 800F       699     sjmp state10_Loop
+0E54            700     
+0E54            701   not_error:
+0E54 C201       702     clr one_min_flag
+0E56            703   not_one_min:
+0E56 E535       704            mov a, soak_temp 
+0E58 C3         705     clr c 
+0E59 9556       706     subb a, current_temp   ;compare current_temp and soak_temp
+0E5B 5006       707     jnc state10_Loop
+0E5D            708     
+0E5D 75550B     709     mov state, #11
+0E60            710     
+0E60 E4         711     clr a
+0E61 F539       712            mov state_time, a       ; reset state time to 0 for next state 
+0E63            713     ;--------------------------------------------------------------------;
+0E63            714     ; A short beep
+0E63            715     ;--------------------------------------------------------------------;
+0E63            716   
+0E63            717     ;TODOOOOO     Need to show the values with labels and stuff. Take sample subroutine only prints the number
+0E63            718            
+0E63            719   
+0E63            720   state10_Loop:
+0E63 020847     721            ljmp forever
+0E66            722                    
+0E66            723   ; Soak Stage             
+0E66            724   state11:
+0E66            725                    ; 11 state number    12 next state
+0E66 B40B02     725       cjne a, #11, skipstate197
+0E69 8011       725            sjmp no_skip_state197
+0E6B            725   skipstate197:
+0E6B 020F56     725       ljmp state12
+0E6E 7401       725            mov a, #0x01
+0E70 120083     725            lcall ?WriteCommand
+0E73            725   
+0E73 C002       725            push AR2
+0E75 7A02       725            mov R2, #2
+0E77 120039     725            lcall ?Wait_Milli_Seconds
+0E7A D002       725            pop AR2
+0E7C            725   no_skip_state197:
+0E7C            726            ; MAC (CYCLE_BUTTON:    Constant string for the button name           17: state to jump to if the button is pressed )
+0E7C 208020     726            jb CYCLE_BUTTON, no_button_pressed200
+0E7F C002       726            push AR2
+0E81 7A32       726            mov R2, #50
+0E83 120039     726            lcall ?Wait_Milli_Seconds
+0E86 D002       726            pop AR2
+0E88 208014     726            jb CYCLE_BUTTON, no_button_pressed200
+0E8B 3080FD     726            jnb CYCLE_BUTTON, $
+0E8E            726            
+0E8E 755511     726            mov state, #17
+0E91 7401       726            mov a, #0x01
+0E93 120083     726            lcall ?WriteCommand
+0E96 C002       726            push AR2
+0E98 7A02       726            mov R2, #2
+0E9A 120039     726            lcall ?Wait_Milli_Seconds
+0E9D D002       726            pop AR2
+0E9F            726   no_button_pressed200:
+0E9F            726   
+0E9F D202       727            setb pwm_on                     ;25% pwm
+0EA1            728            ; MAC (Soak:    Constant string for the first line on LCD           current_temp: Temperature                   run_time_sec: Time )
+0EA1 C0E0       728            push acc
+0EA3 7401       728            mov a, #1
+0EA5 14         728            dec a
+0EA6 1200C1     728            lcall ?Set_Cursor_1 ; Select column and row
+0EA9 D0E0       728            pop acc
+0EAB C083       728            push dph
+0EAD C082       728            push dpl
+0EAF C0E0       728            push acc
+0EB1 900561     728            mov dptr, #Soak
+0EB4 1200B4     728            lcall ?Send_Constant_String
+0EB7 D0E0       728            pop acc
+0EB9 D082       728            pop dpl
+0EBB D083       728            pop dph
+0EBD            728     
+0EBD C0E0       728            push acc
+0EBF 7401       728            mov a, #1
+0EC1 14         728            dec a
+0EC2 1200BF     728            lcall ?Set_Cursor_2 ; Select column and row
+0EC5 D0E0       728            pop acc         ;show temperture
+0EC7 85563A     728            mov x+0, current_temp+0 
+0ECA 753B00     728            mov x+1, #0
+0ECD 753C00     728            mov x+2, #0 
+0ED0 753D00     728            mov x+3, #0
+0ED3 1200DC     728            lcall hex2bcd
+0ED6 C000       728            push ar0
+0ED8 A845       728            mov r0, bcd+1
+0EDA C0E0       728            push acc
+0EDC 1200D1     728            lcall ?Display_BCD_lsd
+0EDF D000       728            pop ar0
+0EE1 C000       728            push ar0
+0EE3 A844       728            mov r0, bcd
+0EE5 C0E0       728            push acc
+0EE7 1200D1     728            lcall ?Display_BCD_lsd
+0EEA D000       728            pop ar0
+0EEC            728   
+0EEC C0E0       728            push acc
+0EEE 740C       728            mov a, #12
+0EF0 14         728            dec a
+0EF1 1200BF     728            lcall ?Set_Cursor_2 ; Select column and row
+0EF4 D0E0       728            pop acc         ;display time in seconds TODO: put it in minute and seconds
+0EF6 85383A     728            mov x+0, run_time_sec+0 
+0EF9 753B00     728            mov x+1, #0
+0EFC 753C00     728            mov x+2, #0 
+0EFF 753D00     728            mov x+3, #0
+0F02 1200DC     728            lcall hex2bcd
+0F05 C000       728            push ar0
+0F07 A845       728            mov r0, bcd+1
+0F09 1200C6     728            lcall ?Display_BCD
+0F0C D000       728            pop ar0
+0F0E C000       728            push ar0
+0F10 A844       728            mov r0, bcd
+0F12 1200C6     728            lcall ?Display_BCD
+0F15 D000       728            pop ar0
+0F17 C0E0       728            push acc
+0F19 7410       728            mov a, #16
+0F1B 14         728            dec a
+0F1C 1200BF     728            lcall ?Set_Cursor_2 ; Select column and row
+0F1F D0E0       728            pop acc
+0F21 C0E0       728            push acc
+0F23 7473       728            mov a, #'s'
+0F25 12007E     728            lcall ?WriteData
+0F28 D0E0       728            pop acc
+0F2A            728     
+0F2A C0E0       728            push acc
+0F2C 7405       728            mov a, #5
+0F2E 14         728            dec a
+0F2F 1200BF     728            lcall ?Set_Cursor_2 ; Select column and row
+0F32 D0E0       728            pop acc
+0F34 C083       728            push dph
+0F36 C082       728            push dpl
+0F38 C0E0       728            push acc
+0F3A 9005E6     728            mov dptr, #Cels
+0F3D 1200B4     728            lcall ?Send_Constant_String
+0F40 D0E0       728            pop acc
+0F42 D082       728            pop dpl
+0F44 D083       728            pop dph
+0F46            728     
+0F46            728            ;display the current stage and current temperature
+0F46 E539       729            mov a, state_time 
+0F48 C3         730            clr c
+0F49 9534       731            subb a, soak_seconds 
+0F4B            732   ;        jnc time_not_equal
+0F4B 5006       733            jnc     State11_Loop
+0F4D            734     
+0F4D 75550C     735     mov state, #12 ;if time is equal set state to 12
+0F50 E4         736     clr a
+0F51 F539       737            mov state_time, a       ; reset state time to 0 for next state 
+0F53            738     ;--------------------------------------------------------------------;
+0F53            739     ; A short beep
+0F53            740     ;--------------------------------------------------------------------;
+0F53            741   ;time_not_equal:
+0F53            742     ;compare temp                                                                                                  pattern to check temp:                                                                 ____     
+0F53            743   ;  mov a, current_temp ;                                                                                                                                                                                         ____      /    \____/
+0F53            744   ;        clr c                                                           ;                                                                                                                                                                                                /    \____/     
+0F53            745   ;        subb a, soak_temp       ;                                                                                                               ____/
+0F53            746   ;        jnc temp_too_low                
+0F53            747   ;        sjmp State11_done:      ;                                                                       checks every temperature twice for the right one
+0F53            748                                                                                                                                                            
+0F53            749   ;temp_not_low:           
+0F53            750   ;        inc current_temp
+0F53            751   ;  inc current temp
+0F53            752   ;        mov a, current_temp 
+0F53            753   ;        clr c
+0F53            754   ;        subb a, soak_temp 
+0F53            755   ;        jnc temp_too_high
+0F53            756   ;  sjmp State11_done:
+0F53            757   
+0F53            758   ;temp_too_high:  
+0F53            759   ;  dec current_temp
+0F53            760   
+0F53            761   State11_Loop:
+0F53 020847     762     ljmp forever
+0F56            763     
+0F56            764                    
+0F56            765                    ;TODOOOOO     I didn't integrate this to the rest. PLZ DO IT :) TNX     I gues it's state 5 for prompting the user to start for sure or not.
+0F56            766   ; Ramp to Reflow Stage, compare current_temp with reflow_temp            
+0F56            767   state12:
+0F56            768                    ; 12 state number    13 next state
+0F56 B40C02     768       cjne a, #12, skipstate219
+0F59 8011       768            sjmp no_skip_state219
+0F5B            768   skipstate219:
+0F5B 021048     768       ljmp state13
+0F5E 7401       768            mov a, #0x01
+0F60 120083     768            lcall ?WriteCommand
+0F63            768   
+0F63 C002       768            push AR2
+0F65 7A02       768            mov R2, #2
+0F67 120039     768            lcall ?Wait_Milli_Seconds
+0F6A D002       768            pop AR2
+0F6C            768   no_skip_state219:
+0F6C            769            ; MAC (CYCLE_BUTTON:    Constant string for the button name           17: state to jump to if the button is pressed )
+0F6C 208020     769            jb CYCLE_BUTTON, no_button_pressed222
+0F6F C002       769            push AR2
+0F71 7A32       769            mov R2, #50
+0F73 120039     769            lcall ?Wait_Milli_Seconds
+0F76 D002       769            pop AR2
+0F78 208014     769            jb CYCLE_BUTTON, no_button_pressed222
+0F7B 3080FD     769            jnb CYCLE_BUTTON, $
+0F7E            769            
+0F7E 755511     769            mov state, #17
+0F81 7401       769            mov a, #0x01
+0F83 120083     769            lcall ?WriteCommand
+0F86 C002       769            push AR2
+0F88 7A02       769            mov R2, #2
+0F8A 120039     769            lcall ?Wait_Milli_Seconds
+0F8D D002       769            pop AR2
+0F8F            769   no_button_pressed222:
+0F8F            769   
+0F8F C202       770     clr pwm_on
+0F91 D2B7       771     setb SSR_OUT   ;100% power on
+0F93            772            ; MAC (Ramp2Reflow:    Constant string for the first line on LCD           current_temp: Temperature                    run_time_sec: Time )
+0F93 C0E0       772            push acc
+0F95 7401       772            mov a, #1
+0F97 14         772            dec a
+0F98 1200C1     772            lcall ?Set_Cursor_1 ; Select column and row
+0F9B D0E0       772            pop acc
+0F9D C083       772            push dph
+0F9F C082       772            push dpl
+0FA1 C0E0       772            push acc
+0FA3 90053F     772            mov dptr, #Ramp2Reflow
+0FA6 1200B4     772            lcall ?Send_Constant_String
+0FA9 D0E0       772            pop acc
+0FAB D082       772            pop dpl
+0FAD D083       772            pop dph
+0FAF            772     
+0FAF C0E0       772            push acc
+0FB1 7401       772            mov a, #1
+0FB3 14         772            dec a
+0FB4 1200BF     772            lcall ?Set_Cursor_2 ; Select column and row
+0FB7 D0E0       772            pop acc
+0FB9            772            ;show temperture
+0FB9 85563A     772            mov x+0, current_temp+0 
+0FBC 753B00     772            mov x+1, #0
+0FBF 753C00     772            mov x+2, #0 
+0FC2 753D00     772            mov x+3, #0
+0FC5 1200DC     772            lcall hex2bcd
+0FC8 C000       772            push ar0
+0FCA A845       772            mov r0, bcd+1
+0FCC C0E0       772            push acc
+0FCE 1200D1     772            lcall ?Display_BCD_lsd
+0FD1 D000       772            pop ar0
+0FD3 C000       772            push ar0
+0FD5 A844       772            mov r0, bcd
+0FD7 C0E0       772            push acc
+0FD9 1200D1     772            lcall ?Display_BCD_lsd
+0FDC D000       772            pop ar0
+0FDE            772   
+0FDE C0E0       772            push acc
+0FE0 740C       772            mov a, #12
+0FE2 14         772            dec a
+0FE3 1200BF     772            lcall ?Set_Cursor_2 ; Select column and row
+0FE6 D0E0       772            pop acc         ;display time in seconds TODO: put it in minute and seconds
+0FE8 85383A     772            mov x+0, run_time_sec+0 
+0FEB 753B00     772            mov x+1, #0
+0FEE 753C00     772            mov x+2, #0 
+0FF1 753D00     772            mov x+3, #0
+0FF4 1200DC     772            lcall hex2bcd
+0FF7 C000       772            push ar0
+0FF9 A845       772            mov r0, bcd+1
+0FFB 1200C6     772            lcall ?Display_BCD
+0FFE D000       772            pop ar0
+1000 C000       772            push ar0
+1002 A844       772            mov r0, bcd
+1004 1200C6     772            lcall ?Display_BCD
+1007 D000       772            pop ar0
+1009 C0E0       772            push acc
+100B 7410       772            mov a, #16
+100D 14         772            dec a
+100E 1200BF     772            lcall ?Set_Cursor_2 ; Select column and row
+1011 D0E0       772            pop acc
+1013 C0E0       772            push acc
+1015 7473       772            mov a, #'s'
+1017 12007E     772            lcall ?WriteData
+101A D0E0       772            pop acc
+101C            772     
+101C C0E0       772            push acc
+101E 7405       772            mov a, #5
+1020 14         772            dec a
+1021 1200BF     772            lcall ?Set_Cursor_2 ; Select column and row
+1024 D0E0       772            pop acc
+1026 C083       772            push dph
+1028 C082       772            push dpl
+102A C0E0       772            push acc
+102C 9005E6     772            mov dptr, #Cels
+102F 1200B4     772            lcall ?Send_Constant_String
+1032 D0E0       772            pop acc
+1034 D082       772            pop dpl
+1036 D083       772            pop dph
+1038            772     
+1038            772            ;display the current, temperature and running time
+1038 E537       773     mov a, reflow_temp
+103A C3         774     clr c
+103B 9556       775     subb a, current_temp
+103D 5006       776     jnc State12Loop
+103F            777     
+103F 75550D     778            mov state, #13
+1042 E4         779     clr a
+1043 F539       780            mov state_time, a       ; reset state time to 0 for next state 
+1045            781     ;--------------------------------------------------------------------;
+1045            782     ; A short beep
+1045            783     ;--------------------------------------------------------------------;
+1045            784   State12Loop:
+1045 020847     785     ljmp forever
+1048            786   
+1048            787   ; Reflow stage, compare reflow_seconds to current time, move to cooling stage when complete (Still need beep code)
+1048            788   state13:
+1048            789                    ; 13 state number    14 next state
+1048 B40D02     789       cjne a, #13, skipstate241
+104B 8011       789            sjmp no_skip_state241
+104D            789   skipstate241:
+104D 021138     789       ljmp state14
+1050 7401       789            mov a, #0x01
+1052 120083     789            lcall ?WriteCommand
+1055            789   
+1055 C002       789            push AR2
+1057 7A02       789            mov R2, #2
+1059 120039     789            lcall ?Wait_Milli_Seconds
+105C D002       789            pop AR2
+105E            789   no_skip_state241:
+105E            790            ; MAC (CYCLE_BUTTON:    Constant string for the button name           17: state to jump to if the button is pressed )
+105E 208020     790            jb CYCLE_BUTTON, no_button_pressed244
+1061 C002       790            push AR2
+1063 7A32       790            mov R2, #50
+1065 120039     790            lcall ?Wait_Milli_Seconds
+1068 D002       790            pop AR2
+106A 208014     790            jb CYCLE_BUTTON, no_button_pressed244
+106D 3080FD     790            jnb CYCLE_BUTTON, $
+1070            790            
+1070 755511     790            mov state, #17
+1073 7401       790            mov a, #0x01
+1075 120083     790            lcall ?WriteCommand
+1078 C002       790            push AR2
+107A 7A02       790            mov R2, #2
+107C 120039     790            lcall ?Wait_Milli_Seconds
+107F D002       790            pop AR2
+1081            790   no_button_pressed244:
+1081            790   
+1081 D202       791     setb pwm_on ; Set PWM to 25% power
+1083            792            ; MAC (Reflow:    Constant string for the first line on LCD           current_temp: Temperature                         run_time_sec: Time )
+1083 C0E0       792            push acc
+1085 7401       792            mov a, #1
+1087 14         792            dec a
+1088 1200C1     792            lcall ?Set_Cursor_1 ; Select column and row
+108B D0E0       792            pop acc
+108D C083       792            push dph
+108F C082       792            push dpl
+1091 C0E0       792            push acc
+1093 900572     792            mov dptr, #Reflow
+1096 1200B4     792            lcall ?Send_Constant_String
+1099 D0E0       792            pop acc
+109B D082       792            pop dpl
+109D D083       792            pop dph
+109F            792     
+109F C0E0       792            push acc
+10A1 7401       792            mov a, #1
+10A3 14         792            dec a
+10A4 1200BF     792            lcall ?Set_Cursor_2 ; Select column and row
+10A7 D0E0       792            pop acc         ;show temperture
+10A9 85563A     792            mov x+0, current_temp+0 
+10AC 753B00     792            mov x+1, #0
+10AF 753C00     792            mov x+2, #0 
+10B2 753D00     792            mov x+3, #0
+10B5 1200DC     792            lcall hex2bcd
+10B8 C000       792            push ar0
+10BA A845       792            mov r0, bcd+1
+10BC C0E0       792            push acc
+10BE 1200D1     792            lcall ?Display_BCD_lsd
+10C1 D000       792            pop ar0
+10C3 C000       792            push ar0
+10C5 A844       792            mov r0, bcd
+10C7 C0E0       792            push acc
+10C9 1200D1     792            lcall ?Display_BCD_lsd
+10CC D000       792            pop ar0
+10CE            792   
+10CE C0E0       792            push acc
+10D0 740C       792            mov a, #12
+10D2 14         792            dec a
+10D3 1200BF     792            lcall ?Set_Cursor_2 ; Select column and row
+10D6 D0E0       792            pop acc         ;display time in seconds TODO: put it in minute and seconds
+10D8 85383A     792            mov x+0, run_time_sec+0 
+10DB 753B00     792            mov x+1, #0
+10DE 753C00     792            mov x+2, #0 
+10E1 753D00     792            mov x+3, #0
+10E4 1200DC     792            lcall hex2bcd
+10E7 C000       792            push ar0
+10E9 A845       792            mov r0, bcd+1
+10EB 1200C6     792            lcall ?Display_BCD
+10EE D000       792            pop ar0
+10F0 C000       792            push ar0
+10F2 A844       792            mov r0, bcd
+10F4 1200C6     792            lcall ?Display_BCD
+10F7 D000       792            pop ar0
+10F9 C0E0       792            push acc
+10FB 7410       792            mov a, #16
+10FD 14         792            dec a
+10FE 1200BF     792            lcall ?Set_Cursor_2 ; Select column and row
+1101 D0E0       792            pop acc
+1103 C0E0       792            push acc
+1105 7473       792            mov a, #'s'
+1107 12007E     792            lcall ?WriteData
+110A D0E0       792            pop acc
+110C            792     
+110C C0E0       792            push acc
+110E 7405       792            mov a, #5
+1110 14         792            dec a
+1111 1200BF     792            lcall ?Set_Cursor_2 ; Select column and row
+1114 D0E0       792            pop acc
+1116 C083       792            push dph
+1118 C082       792            push dpl
+111A C0E0       792            push acc
+111C 9005E6     792            mov dptr, #Cels
+111F 1200B4     792            lcall ?Send_Constant_String
+1122 D0E0       792            pop acc
+1124 D082       792            pop dpl
+1126 D083       792            pop dph
+1128            792     
+1128            792            ;display the current stage and current temperature
+1128 E536       793     mov a, reflow_seconds
+112A C3         794     clr c
+112B 9539       795     subb a, state_time 
+112D 5006       796     jnc state13Loop ; Compare if time elapsed = reflow time
+112F            797     
+112F 75550E     798     mov state, #14         ; Reflow done, move to cooling
+1132 E4         799     clr a
+1133 F539       800     mov state_time, a ; Reset state time variable
+1135            801   state13Loop:
+1135 020847     802            ljmp forever
+1138            803   
+1138            804   ; Cooling stage, power is set to 0, finish and sound multiple beeps when temperature is below 60
+1138            805   state14:
+1138            806                    ; 14 state number    15 next state
+1138 B40E02     806       cjne a, #14, skipstate263
+113B 8011       806            sjmp no_skip_state263
+113D            806   skipstate263:
+113D 021229     806       ljmp state15
+1140 7401       806            mov a, #0x01
+1142 120083     806            lcall ?WriteCommand
+1145            806   
+1145 C002       806            push AR2
+1147 7A02       806            mov R2, #2
+1149 120039     806            lcall ?Wait_Milli_Seconds
+114C D002       806            pop AR2
+114E            806   no_skip_state263:
+114E            807            ; MAC (CYCLE_BUTTON:    Constant string for the button name           17: state to jump to if the button is pressed )
+114E 208020     807            jb CYCLE_BUTTON, no_button_pressed266
+1151 C002       807            push AR2
+1153 7A32       807            mov R2, #50
+1155 120039     807            lcall ?Wait_Milli_Seconds
+1158 D002       807            pop AR2
+115A 208014     807            jb CYCLE_BUTTON, no_button_pressed266
+115D 3080FD     807            jnb CYCLE_BUTTON, $
+1160            807            
+1160 755511     807            mov state, #17
+1163 7401       807            mov a, #0x01
+1165 120083     807            lcall ?WriteCommand
+1168 C002       807            push AR2
+116A 7A02       807            mov R2, #2
+116C 120039     807            lcall ?Wait_Milli_Seconds
+116F D002       807            pop AR2
+1171            807   no_button_pressed266:
+1171            807   
+1171 C202       808       clr pwm_on
+1173 C203       808       clr pwm_high
+1175 C2B7       808       clr SSR_OUT
+1177            808   
+1177            809            ; MAC (Cooling:    Constant string for the first line on LCD           current_temp: Temperature                        run_time_sec: Time )
+1177 C0E0       809            push acc
+1179 7401       809            mov a, #1
+117B 14         809            dec a
+117C 1200C1     809            lcall ?Set_Cursor_1 ; Select column and row
+117F D0E0       809            pop acc
+1181 C083       809            push dph
+1183 C082       809            push dpl
+1185 C0E0       809            push acc
+1187 900583     809            mov dptr, #Cooling
+118A 1200B4     809            lcall ?Send_Constant_String
+118D D0E0       809            pop acc
+118F D082       809            pop dpl
+1191 D083       809            pop dph
+1193            809     
+1193 C0E0       809            push acc
+1195 7401       809            mov a, #1
+1197 14         809            dec a
+1198 1200BF     809            lcall ?Set_Cursor_2 ; Select column and row
+119B D0E0       809            pop acc         ;show temperture
+119D 85563A     809            mov x+0, current_temp+0 
+11A0 753B00     809            mov x+1, #0
+11A3 753C00     809            mov x+2, #0 
+11A6 753D00     809            mov x+3, #0
+11A9 1200DC     809            lcall hex2bcd
+11AC C000       809            push ar0
+11AE A845       809            mov r0, bcd+1
+11B0 C0E0       809            push acc
+11B2 1200D1     809            lcall ?Display_BCD_lsd
+11B5 D000       809            pop ar0
+11B7 C000       809            push ar0
+11B9 A844       809            mov r0, bcd
+11BB C0E0       809            push acc
+11BD 1200D1     809            lcall ?Display_BCD_lsd
+11C0 D000       809            pop ar0
+11C2            809   
+11C2 C0E0       809            push acc
+11C4 740C       809            mov a, #12
+11C6 14         809            dec a
+11C7 1200BF     809            lcall ?Set_Cursor_2 ; Select column and row
+11CA D0E0       809            pop acc         ;display time in seconds TODO: put it in minute and seconds
+11CC 85383A     809            mov x+0, run_time_sec+0 
+11CF 753B00     809            mov x+1, #0
+11D2 753C00     809            mov x+2, #0 
+11D5 753D00     809            mov x+3, #0
+11D8 1200DC     809            lcall hex2bcd
+11DB C000       809            push ar0
+11DD A845       809            mov r0, bcd+1
+11DF 1200C6     809            lcall ?Display_BCD
+11E2 D000       809            pop ar0
+11E4 C000       809            push ar0
+11E6 A844       809            mov r0, bcd
+11E8 1200C6     809            lcall ?Display_BCD
+11EB D000       809            pop ar0
+11ED C0E0       809            push acc
+11EF 7410       809            mov a, #16
+11F1 14         809            dec a
+11F2 1200BF     809            lcall ?Set_Cursor_2 ; Select column and row
+11F5 D0E0       809            pop acc
+11F7 C0E0       809            push acc
+11F9 7473       809            mov a, #'s'
+11FB 12007E     809            lcall ?WriteData
+11FE D0E0       809            pop acc
+1200            809     
+1200 C0E0       809            push acc
+1202 7405       809            mov a, #5
+1204 14         809            dec a
+1205 1200BF     809            lcall ?Set_Cursor_2 ; Select column and row
+1208 D0E0       809            pop acc
+120A C083       809            push dph
+120C C082       809            push dpl
+120E C0E0       809            push acc
+1210 9005E6     809            mov dptr, #Cels
+1213 1200B4     809            lcall ?Send_Constant_String
+1216 D0E0       809            pop acc
+1218 D082       809            pop dpl
+121A D083       809            pop dph
+121C            809     
+121C            809    
+121C            809   
+121C E556       810     mov a, current_temp
+121E C3         811     clr c
+121F 943C       812     subb a, #60
+1221 5003       813     jnc state14loop ; If more than 60 degrees, not safe to touch yet
+1223            814     
+1223            815   SafeBeep: ;If temp is safe then beeeeepppppppppppp
+1223            816     ;--------------------------------------------------------------------;
+1223            817     ; BEEEEEEEEEEEEEEEEEEEEEEPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
+1223            818     ;--------------------------------------------------------------------;
+1223 75550F     819     mov state, #15 ; Go to done state
+1226            820   state14loop:
+1226 020847     821            ljmp forever
+1229            822     
+1229            823   ; Cooling completed state, accessed when temperature has cooled down to below 60C
+1229            824   state15:   
+1229            825                    ; 15 state number    16 next state
+1229 B40F02     825       cjne a, #15, skipstate286
+122C 8011       825            sjmp no_skip_state286
+122E            825   skipstate286:
+122E 02129F     825       ljmp state16
+1231 7401       825            mov a, #0x01
+1233 120083     825            lcall ?WriteCommand
+1236            825   
+1236 C002       825            push AR2
+1238 7A02       825            mov R2, #2
+123A 120039     825            lcall ?Wait_Milli_Seconds
+123D D002       825            pop AR2
+123F            825   no_skip_state286:
+123F C2CA       826     clr TR2
+1241 C0E0       827            push acc
+1243 7401       827            mov a, #1
+1245 14         827            dec a
+1246 1200C1     827            lcall ?Set_Cursor_1 ; Select column and row
+1249 D0E0       827            pop acc
+124B C083       827            push dph
+124D C082       827            push dpl
+124F C0E0       827            push acc
+1251 900594     827            mov dptr, #CompleteMsg
+1254 1200B4     827            lcall ?Send_Constant_String
+1257 D0E0       827            pop acc
+1259 D082       827            pop dpl
+125B D083       827            pop dph
+125D C0E0       827            push acc
+125F 7401       827            mov a, #1
+1261 14         827            dec a
+1262 1200BF     827            lcall ?Set_Cursor_2 ; Select column and row
+1265 D0E0       827            pop acc
+1267            827   
+1267 C083       827            push dph
+1269 C082       827            push dpl
+126B C0E0       827            push acc
+126D 9005C7     827            mov dptr, #ConfirmMsg
+1270 1200B4     827            lcall ?Send_Constant_String
+1273 D0E0       827            pop acc
+1275 D082       827            pop dpl
+1277 D083       827            pop dph
+1279            828            ; MAC (DEC_BUTTON:    Constant string for the button name           0: state to jump to if the button is pressed )
+1279 208420     828            jb DEC_BUTTON, no_button_pressed294
+127C C002       828            push AR2
+127E 7A32       828            mov R2, #50
+1280 120039     828            lcall ?Wait_Milli_Seconds
+1283 D002       828            pop AR2
+1285 208414     828            jb DEC_BUTTON, no_button_pressed294
+1288 3084FD     828            jnb DEC_BUTTON, $
+128B            828            
+128B 755500     828            mov state, #0
+128E 7401       828            mov a, #0x01
+1290 120083     828            lcall ?WriteCommand
+1293 C002       828            push AR2
+1295 7A02       828            mov R2, #2
+1297 120039     828            lcall ?Wait_Milli_Seconds
+129A D002       828            pop AR2
+129C            828   no_button_pressed294:
+129C            828   
+129C 020847     829     ljmp forever
+129F            830     
+129F            831   state16:                         ;display error message
+129F            832                    ; 16 state number    17 next state
+129F B41002     832       cjne a, #16, skipstate298
+12A2 8011       832            sjmp no_skip_state298
+12A4            832   skipstate298:
+12A4 02131B     832       ljmp state17
+12A7 7401       832            mov a, #0x01
+12A9 120083     832            lcall ?WriteCommand
+12AC            832   
+12AC C002       832            push AR2
+12AE 7A02       832            mov R2, #2
+12B0 120039     832            lcall ?Wait_Milli_Seconds
+12B3 D002       832            pop AR2
+12B5            832   no_skip_state298:
+12B5 C2CA       833     clr TR2
+12B7 C202       834       clr pwm_on
+12B9 C203       834       clr pwm_high
+12BB C2B7       834       clr SSR_OUT
+12BD            834   
+12BD C0E0       835            push acc
+12BF 7401       835            mov a, #1
+12C1 14         835            dec a
+12C2 1200C1     835            lcall ?Set_Cursor_1 ; Select column and row
+12C5 D0E0       835            pop acc
+12C7 C083       835            push dph
+12C9 C082       835            push dpl
+12CB C0E0       835            push acc
+12CD 9005A5     835            mov dptr, #Lessthan50ErrorMsg
+12D0 1200B4     835            lcall ?Send_Constant_String
+12D3 D0E0       835            pop acc
+12D5 D082       835            pop dpl
+12D7 D083       835            pop dph
+12D9 C0E0       835            push acc
+12DB 7401       835            mov a, #1
+12DD 14         835            dec a
+12DE 1200BF     835            lcall ?Set_Cursor_2 ; Select column and row
+12E1 D0E0       835            pop acc
+12E3 C083       835            push dph
+12E5 C082       835            push dpl
+12E7 C0E0       835            push acc
+12E9 9005C7     835            mov dptr, #ConfirmMsg
+12EC 1200B4     835            lcall ?Send_Constant_String
+12EF D0E0       835            pop acc
+12F1 D082       835            pop dpl
+12F3 D083       835            pop dph         
+12F5            836            ; MAC (DEC_BUTTON:    Constant string for the button name           0: state to jump to if the button is pressed )
+12F5 208420     836            jb DEC_BUTTON, no_button_pressed307
+12F8 C002       836            push AR2
+12FA 7A32       836            mov R2, #50
+12FC 120039     836            lcall ?Wait_Milli_Seconds
+12FF D002       836            pop AR2
+1301 208414     836            jb DEC_BUTTON, no_button_pressed307
+1304 3084FD     836            jnb DEC_BUTTON, $
+1307            836            
+1307 755500     836            mov state, #0
+130A 7401       836            mov a, #0x01
+130C 120083     836            lcall ?WriteCommand
+130F C002       836            push AR2
+1311 7A02       836            mov R2, #2
+1313 120039     836            lcall ?Wait_Milli_Seconds
+1316 D002       836            pop AR2
+1318            836   no_button_pressed307:
+1318            836   
+1318 020847     837     ljmp forever
+131B            838     
+131B            839   ; Force Quit state, accessed when STOP button is pressed during any reflow stage
+131B            840   state17:
+131B C2CA       841            clr TR2
+131D C202       842       clr pwm_on
+131F C203       842       clr pwm_high
+1321 C2B7       842       clr SSR_OUT
+1323            842   
+1323 C0E0       843            push acc
+1325 7401       843            mov a, #1
+1327 14         843            dec a
+1328 1200C1     843            lcall ?Set_Cursor_1 ; Select column and row
+132B D0E0       843            pop acc
+132D C083       843            push dph
+132F C082       843            push dpl
+1331 C0E0       843            push acc
+1333 9005B6     843            mov dptr, #AbortMsg
+1336 1200B4     843            lcall ?Send_Constant_String
+1339 D0E0       843            pop acc
+133B D082       843            pop dpl
+133D D083       843            pop dph
+133F C0E0       843            push acc
+1341 7401       843            mov a, #1
+1343 14         843            dec a
+1344 1200BF     843            lcall ?Set_Cursor_2 ; Select column and row
+1347 D0E0       843            pop acc
+1349 C083       843            push dph
+134B C082       843            push dpl
+134D C0E0       843            push acc
+134F 9005C7     843            mov dptr, #ConfirmMsg
+1352 1200B4     843            lcall ?Send_Constant_String
+1355 D0E0       843            pop acc
+1357 D082       843            pop dpl
+1359 D083       843            pop dph
+135B            844            ; MAC (DEC_BUTTON:    Constant string for the button name           0: state to jump to if the button is pressed )
+135B 208420     844            jb DEC_BUTTON, no_button_pressed317
+135E C002       844            push AR2
+1360 7A32       844            mov R2, #50
+1362 120039     844            lcall ?Wait_Milli_Seconds
+1365 D002       844            pop AR2
+1367 208414     844            jb DEC_BUTTON, no_button_pressed317
+136A 3084FD     844            jnb DEC_BUTTON, $
+136D            844            
+136D 755500     844            mov state, #0
+1370 7401       844            mov a, #0x01
+1372 120083     844            lcall ?WriteCommand
+1375 C002       844            push AR2
+1377 7A02       844            mov R2, #2
+1379 120039     844            lcall ?Wait_Milli_Seconds
+137C D002       844            pop AR2
+137E            844   no_button_pressed317:
+137E            844   
+137E 020847     845     ljmp forever
+1381            846            
+1381            847   
+1381            848   
+1381            849   end ;-;

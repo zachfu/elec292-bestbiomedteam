@@ -184,14 +184,22 @@ endmac
 	anl a, #0fh
 	orl a, #30h
 	lcall ?WriteData
+?Display_BCD_lsd:
 	; write least significant digit
 	mov a, r0
 	anl a, #0fh
-	orl a, #30h
+	orl a, #30h	
 	lcall ?WriteData
 	pop acc
 	ret
-
+	
+Display_BCD_1_digit mac
+	push ar0
+	mov r0, %0
+	push acc
+	lcall ?Display_BCD_lsd
+	pop ar0
+endmac
 ;------------------------------------;
 ; Display a char in the LCD          ;
 ;------------------------------------;
