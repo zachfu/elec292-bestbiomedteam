@@ -353,54 +353,59 @@
 0664 754000     257            mov y+2, #low (41 / 0x10000) 
 0667 754100     257            mov y+3, #high(41 / 0x10000)    ;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
 066A 120304     258            lcall div32
-066D            259            
-066D            260   
-066D 85473E     261            mov y+0, x_lm335+0 
-0670 85483F     261            mov y+1, x_lm335+1
-0673 854940     261            mov y+2, x_lm335+2 
-0676 854A41     261            mov y+3, x_lm335+3
-0679 1201C2     262            lcall add32
-067C            263   
-067C 1200FD     264            lcall hex2bcd
-067F            265   
-067F            266   Send_Serial:
-067F            267            
-067F C000       268       push ar0
-0681 A844       268       mov r0, bcd+2
-0683 120410     268       lcall ?Send_BCD
-0686 D000       268       pop ar0
-0688 C000       269       push ar0
-068A A843       269       mov r0, bcd+1
-068C 120410     269       lcall ?Send_BCD
-068F D000       269       pop ar0
-0691 740A       270            mov a, #'\n'
-0693 1203FD     271            lcall putchar
-0696            272   
-0696            273   Display_Temp_LCD:
-0696 C0E0       274            push acc
-0698 7401       274            mov a, #1
-069A 14         274            dec a
-069B 1200E2     274            lcall ?Set_Cursor_1 ; Select column and row
-069E D0E0       274            pop acc
-06A0 C000       275            push ar0
-06A2 A846       275            mov r0, bcd+4
-06A4 1200E7     275            lcall ?Display_BCD
-06A7 D000       275            pop ar0
-06A9 C000       276            push ar0
-06AB A845       276            mov r0, bcd+3
-06AD 1200E7     276            lcall ?Display_BCD
-06B0 D000       276            pop ar0
-06B2 C000       277            push ar0
-06B4 A844       277            mov r0, bcd+2
-06B6 1200E7     277            lcall ?Display_BCD
-06B9 D000       277            pop ar0
-06BB C000       278            push ar0
-06BD A843       278            mov r0, bcd+1
-06BF 1200E7     278            lcall ?Display_BCD
-06C2 D000       278            pop ar0
-06C4 C000       279            push ar0
-06C6 A842       279            mov r0, bcd
-06C8 1200E7     279            lcall ?Display_BCD
-06CB D000       279            pop ar0
-06CD 22         280       ret
-06CE            281   en
+066D            259   
+066D 85473E     260            mov y+0, x_lm335+0 
+0670 85483F     260            mov y+1, x_lm335+1
+0673 854940     260            mov y+2, x_lm335+2 
+0676 854A41     260            mov y+3, x_lm335+3
+0679 1201C2     261            lcall add32
+067C            262            
+067C 753E64     263            mov y+0, #low (100 % 0x10000) 
+067F 753F00     263            mov y+1, #high(100 % 0x10000) 
+0682 754000     263            mov y+2, #low (100 / 0x10000) 
+0685 754100     263            mov y+3, #high(100 / 0x10000) 
+0688 120304     264            lcall div32
+068B            265   
+068B 1200FD     266            lcall hex2bcd
+068E            267   
+068E            268   Send_Serial:
+068E            269            
+068E C000       270       push ar0
+0690 A844       270       mov r0, bcd+2
+0692 120410     270       lcall ?Send_BCD
+0695 D000       270       pop ar0
+0697 C000       271       push ar0
+0699 A843       271       mov r0, bcd+1
+069B 120410     271       lcall ?Send_BCD
+069E D000       271       pop ar0
+06A0 740A       272            mov a, #'\n'
+06A2 1203FD     273            lcall putchar
+06A5            274   
+06A5            275   Display_Temp_LCD:
+06A5 C0E0       276            push acc
+06A7 7401       276            mov a, #1
+06A9 14         276            dec a
+06AA 1200E2     276            lcall ?Set_Cursor_1 ; Select column and row
+06AD D0E0       276            pop acc
+06AF C000       277            push ar0
+06B1 A846       277            mov r0, bcd+4
+06B3 1200E7     277            lcall ?Display_BCD
+06B6 D000       277            pop ar0
+06B8 C000       278            push ar0
+06BA A845       278            mov r0, bcd+3
+06BC 1200E7     278            lcall ?Display_BCD
+06BF D000       278            pop ar0
+06C1 C000       279            push ar0
+06C3 A844       279            mov r0, bcd+2
+06C5 1200E7     279            lcall ?Display_BCD
+06C8 D000       279            pop ar0
+06CA C000       280            push ar0
+06CC A843       280            mov r0, bcd+1
+06CE 1200E7     280            lcall ?Display_BCD
+06D1 D000       280            pop ar0
+06D3 C000       281            push ar0
+06D5 A842       281            mov r0, bcd
+06D7 1200E7     281            lcall ?Display_BCD
+06DA D000       281            pop ar0
+06DC 22         282       ret
+06DD            283   en

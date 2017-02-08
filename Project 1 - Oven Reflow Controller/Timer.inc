@@ -41,7 +41,7 @@ Timer2_Init:
 	mov Count_Sample, a
 	; Enable the timer and interrupts
 	setb ET2  ; Enable timer 2 interrupt
-	clr TR2  ; Enable timer 2
+	setb TR2  ; Enable timer 2
 ret
 
 $LIST

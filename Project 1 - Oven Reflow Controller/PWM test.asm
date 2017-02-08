@@ -104,7 +104,7 @@ Inc_Done_1sec:
 	
 	; 1 second has passed ;
 
-	Zero_2B (Count1ms)
+	Zero_2B(Count1ms)
 
 Inc_Done_Sample:
 	
@@ -256,10 +256,12 @@ Result_SPI_Routine:
 	lcall div32
 	Load_Y(41)	;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
 	lcall div32
-	
 
 	Move_4B_to_4B (y, x_lm335)
 	lcall add32
+	
+	Load_Y(100)
+	lcall div32
 
 	lcall hex2bcd
 
