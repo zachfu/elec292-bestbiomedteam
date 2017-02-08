@@ -195,9 +195,15 @@ endmac
 	
 Display_BCD_1_digit mac
 	push ar0
-	mov r0, %0
 	push acc
-	lcall ?Display_BCD_lsd
+	mov a, #' '
+	lcall ?WriteData
+	mov r0, %0
+	mov a, r0
+	anl a, #0fh
+	orl a, #30h
+	lcall ?WriteData
+	pop acc
 	pop ar0
 endmac
 ;------------------------------------;

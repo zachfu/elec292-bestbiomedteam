@@ -152,7 +152,7 @@ CSEG
 	NEWLINE: 				db '\n', 0  
   Cels: db ' ',11011111b, 'C',0
   Secs:			db ' s',0
-	
+	TestMessage: 			db ' ITS WORKING!?  ', 0
 ;---------------------------------;
 ; ISR for timer 2                 ;
 ;---------------------------------;
@@ -447,7 +447,7 @@ Show_Header_and_Value Mac
 	Move_1B_to_4B ( x, %1)
 	lcall hex2bcd
   Display_BCD_1_digit(bcd+1)
-	Display_BCD_1_digit(bcd)
+	Display_BCD(bcd)
   Set_Cursor(2,5)
   Send_Constant_String(#%2)
 ENDMAC
@@ -539,12 +539,11 @@ ENDMAC
 ;------------------------------------------------------------------;
 check_state MAC
 		; %0 state number    %1 next state
+    mov a, state
     cjne a, #%0, skipstate%M
   	sjmp no_skip_state%M
 skipstate%M:
     ljmp state%1
-     WriteCommand(#0x01)
- 	 Wait_Milli_Seconds(#2)
 no_skip_state%M:
 ENDMAC
 ;------------------------------------------------------------------;
@@ -583,6 +582,7 @@ MainProgram:
 
 		clr settings_modified_flag
     clr one_min_flag
+    clr sample_flag
     
 		clr a
     mov soak_seconds, a
@@ -594,7 +594,6 @@ MainProgram:
   	lcall Load_Configuration ; Read values from data flash
 	
 forever:	
-	mov a, state
   jnb sample_flag, state0
   lcall Take_Sample
 
@@ -675,6 +674,11 @@ state5AndAHalf:
 
 state6:
 	check_state (6,10)
+  Show_Header (TestMessage, BlankMsg) ; Test to see if state 6 is transitioned to
+  Wait_Milli_Seconds(#250)
+  Wait_Milli_Seconds(#250)
+  Wait_Milli_Seconds(#250)
+  Wait_Milli_Seconds(#250)
   clr a
   mov run_time_sec, a
   mov state_time, a
@@ -762,7 +766,6 @@ State11_Loop:
   ljmp forever
   
 		
-		;TODOOOOO     I didn't integrate this to the rest. PLZ DO IT :) TNX     I gues it's state 5 for prompting the user to start for sure or not.
 ; Ramp to Reflow Stage, compare current_temp with reflow_temp		
 state12:
 	check_state (12,13)
