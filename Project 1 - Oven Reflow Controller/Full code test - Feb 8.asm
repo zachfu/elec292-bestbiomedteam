@@ -130,7 +130,7 @@ CSEG
 	ReflowTime_Message: 	db 'Reflow Time     ', 0
 	ReflowTemp_Message: 	db 'Reflow Temp     ', 0
 	Start_Message: 			db 'Start Process?  ', 0
-  Y_N_Message:			db '  + Yes | - No  ', 0
+  Y_N_Message:					db '  - No | + Yes  ', 0
 	PWM_ON_MESSAGE: 		db 'PWM IS ON       ', 0
 	PWM_OFF_MESSAGE:		db 'PWM IS OFF      ', 0
   SaveToFlash_Msg:		db '   Data Saved   ', 0
@@ -307,8 +307,8 @@ Result_SPI_Routine:
 ;sending Oven temperature to Computer
 Send_Serial:
 	
-	Send_BCD(bcd+2)
 	Send_BCD(bcd+1)
+	Send_BCD(bcd+0)
 	mov a, #'\n'
 	lcall putchar
 	
@@ -475,7 +475,7 @@ Show_Stage_Temp_Time Mac
 	Move_1B_to_4B ( x, %1)
 	lcall hex2bcd
   Display_BCD_1_digit(bcd+1)
-	Display_BCD_1_digit(bcd)
+	Display_BCD(bcd)
 
   Set_Cursor(2,12)	;display time in seconds TODO: put it in minute and seconds
 	Move_1B_to_4B ( x, %2)
@@ -590,6 +590,7 @@ MainProgram:
     mov reflow_seconds, a
     mov reflow_temp, a
     mov state, a
+    mov state_time, a
 	
   	lcall Load_Configuration ; Read values from data flash
 	
@@ -652,7 +653,7 @@ state4:
 	
 ; Saves value in Flash Memory and Presents Confirmation Screen to Start Process
 state5:
-	check_state (5,10)
+	check_state (5,6)
 	
   jnb settings_modified_flag, state5AndAHalf ; Save values once, once saved skip this
   
@@ -674,14 +675,10 @@ state5AndAHalf:
 
 state6:
 	check_state (6,10)
-  Show_Header (TestMessage, BlankMsg) ; Test to see if state 6 is transitioned to
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
   clr a
   mov run_time_sec, a
   mov state_time, a
+  setb sample_flag
   setb TR2
   mov state, #10
   ljmp forever
@@ -692,18 +689,17 @@ state10:
   Check_button_for_State_change (CYCLE_BUTTON, 17)
 	clr pwm_on			;100% pwm
 	setb SSR_OUT		; for 100% power
-  Show_Stage_Temp_Time (Ramp2Soak, current_temp, run_time_sec)	;display the current stage and current temperature
+  Show_Stage_Temp_Time (Ramp2Soak, current_temp, state_time)	;display the current stage and current temperature
   jnb one_min_flag, not_one_min      ;check if 60 seconds has passed
+  clr one_min_flag
   mov a, current_temp
   clr c
   cjne a, #50, check_thermocouple  ;check if thermocouple degree is bigger than 50
 check_thermocouple:
-  jnc not_error   ;if not bigger than 50, c=1, jump to display error
+  jnc not_one_min   ;if not bigger than 50, c=1, jump to display error
   mov state, #16
   sjmp state10_Loop
   
-not_error:
-  clr one_min_flag
 not_one_min:
 	mov a, soak_temp 
   clr c 
@@ -711,7 +707,6 @@ not_one_min:
   jnc state10_Loop
   
   mov state, #11
-  
   clr a
 	mov state_time, a	; reset state time to 0 for next state 
   ;--------------------------------------------------------------------;
@@ -729,12 +724,9 @@ state11:
 	check_state (11,12)
   Check_button_for_State_change (CYCLE_BUTTON, 17)
 	setb pwm_on			;25% pwm
-	Show_Stage_Temp_Time (Soak, current_temp, run_time_sec)	;display the current stage and current temperature
-	mov a, state_time 
-	clr c
-	subb a, soak_seconds 
-;	jnc time_not_equal
-	jnc	State11_Loop
+	Show_Stage_Temp_Time (Soak, current_temp, state_time)	;display the current stage and current temperature
+	mov a, state_time
+	cjne a, soak_seconds, State11_Loop
   
   mov state, #12 ;if time is equal set state to 12
   clr a
@@ -772,7 +764,7 @@ state12:
   Check_button_for_State_change (CYCLE_BUTTON, 17)
   clr pwm_on
   setb SSR_OUT	;100% power on
-  Show_Stage_Temp_Time (Ramp2Reflow, current_temp, run_time_sec)	;display the current, temperature and running time
+  Show_Stage_Temp_Time (Ramp2Reflow, current_temp, state_time)	;display the current, temperature and running time
   mov a, reflow_temp
   clr c
   subb a, current_temp
@@ -792,12 +784,9 @@ state13:
 	check_state (13,14)
   Check_button_for_State_change (CYCLE_BUTTON, 17)
   setb pwm_on ; Set PWM to 25% power
-  Show_Stage_Temp_Time (Reflow, current_temp, run_time_sec)	;display the current stage and current temperature
+  Show_Stage_Temp_Time (Reflow, current_temp, state_time)	;display the current stage and current temperature
   mov a, reflow_seconds
-  clr c
-  subb a, state_time 
-  jnc state13Loop ; Compare if time elapsed = reflow time
-  
+  cjne a, state_time, state13Loop
   mov state, #14	; Reflow done, move to cooling
   clr a
   mov state_time, a ; Reset state time variable
@@ -809,7 +798,7 @@ state14:
 	check_state (14,15)
   Check_button_for_State_change (CYCLE_BUTTON, 17)
   SSR_OFF()
-  Show_Stage_Temp_Time (Cooling, current_temp, run_time_sec)
+  Show_Stage_Temp_Time (Cooling, current_temp, state_time)
   mov a, current_temp
   clr c
   subb a, #60
@@ -851,5 +840,6 @@ state17:
 
 end ;-;
 
+	
 	
 	
