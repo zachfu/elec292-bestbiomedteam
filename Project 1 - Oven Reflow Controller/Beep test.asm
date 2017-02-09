@@ -24,8 +24,8 @@ SHORT_BEEP_BUTTON   equ P0.0	; Press for short beep
 LONG_BEEP_BUTTON	equ P0.2	; Press for long beep
 SIX_BEEP_BUTTON		equ P0.4	; Press for 6 intermittent beeps
 
-SHORT_BEEP_LENGTH	EQU 5	; Length of short beep (in 100s of ms)
-LONG_BEEP_LENGTH 	EQU 15 	; Length of long beep	(in 100s of ms)
+SHORT_BEEP_LENGTH	EQU 4	; Length of short beep (in 100s of ms)
+LONG_BEEP_LENGTH 	EQU 10 	; Length of long beep	(in 100s of ms)
 SIX_BEEP_LENGTH 	EQU 12	; Total length of six beep sequence (in 100s of ms)(keep at 12 until further notice)
 
 ; Reset vector
@@ -204,6 +204,9 @@ init:
     mov PMOD, #0 ; Configure all ports in bidirectional mode
     lcall Timer0_Init
     lcall Timer2_Init
+    clr short_beep_flag
+    clr long_beep_flag
+    clr six_beep_flag
     setb EA   ; Enable Global interrupts
 	
 Main_Loop:

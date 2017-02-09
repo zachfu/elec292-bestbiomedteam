@@ -22,8 +22,8 @@
 0000             24   LONG_BEEP_BUTTON         equ P0.2        ; Press for long beep
 0000             25   SIX_BEEP_BUTTON          equ P0.4        ; Press for 6 intermittent beeps
 0000             26   
-0000             27   SHORT_BEEP_LENGTH        EQU 5   ; Length of short beep (in 100s of ms)
-0000             28   LONG_BEEP_LENGTH         EQU 15          ; Length of long beep   (in 100s of ms)
+0000             27   SHORT_BEEP_LENGTH        EQU 4   ; Length of short beep (in 100s of ms)
+0000             28   LONG_BEEP_LENGTH         EQU 10          ; Length of long beep   (in 100s of ms)
 0000             29   SIX_BEEP_LENGTH          EQU 12  ; Total length of six beep sequence (in 100s of ms)(keep at 12 until further notice)
 0000             30   
 0000             31   ; Reset vector
@@ -121,8 +121,8 @@
 0105            124            ; Init One millisecond interrupt counter.  It is a 16-bit variable made with two 8-bit parts
 0105 E4         125            clr a
 0106 F530       126            mov Timer2_Count100ms, a
-0108 753105     127            mov Short_Beep_Counter, #SHORT_BEEP_LENGTH
-010B 75320F     128            mov Long_Beep_Counter, #LONG_BEEP_LENGTH
+0108 753104     127            mov Short_Beep_Counter, #SHORT_BEEP_LENGTH
+010B 75320A     128            mov Long_Beep_Counter, #LONG_BEEP_LENGTH
 010E 75330C     129            mov Six_Beep_Counter, #SIX_BEEP_LENGTH
 0111            130            ; Enable the timer and interrupts
 0111 D2AD       131       setb ET2  ; Enable timer 2 interrupt
@@ -160,7 +160,7 @@
 013A            163            ; Once counter has reached 0
 013A C28C       164            clr TR0
 013C C200       165            clr short_beep_flag
-013E 753105     166            mov Short_Beep_Counter, #SHORT_BEEP_LENGTH
+013E 753104     166            mov Short_Beep_Counter, #SHORT_BEEP_LENGTH
 0141 8024       167            sjmp Timer2_ISR_Return
 0143            168            
 0143            169   Timer2_Long_Beep:
@@ -171,7 +171,7 @@
 014C            174            ; Once counter has reached 0
 014C C28C       175            clr TR0
 014E C201       176            clr long_beep_flag
-0150 75320F     177            mov Long_Beep_Counter, #LONG_BEEP_LENGTH
+0150 75320A     177            mov Long_Beep_Counter, #LONG_BEEP_LENGTH
 0153 8012       178            sjmp Timer2_ISR_Return
 0155            179            
 0155            180   Timer2_Six_Beep:
@@ -201,48 +201,51 @@
 016F 75C100     204       mov PMOD, #0 ; Configure all ports in bidirectional mode
 0172 1200DC     205       lcall Timer0_Init
 0175 1200FC     206       lcall Timer2_Init
-0178 D2AF       207       setb EA   ; Enable Global interrupts
-017A            208            
-017A            209   Main_Loop:
-017A 12017F     210            lcall Check_Buttons
-017D 80FB       211            sjmp Main_Loop
-017F            212            
-017F            213   Check_Buttons:
-017F 208015     214            jb SHORT_BEEP_BUTTON, Check_Long_Button
-0182 C002       215            push AR2
-0184 7A32       215            mov R2, #50
-0186 120039     215            lcall ?Wait_Milli_Seconds
-0189 D002       215            pop AR2
-018B 208009     216            jb SHORT_BEEP_BUTTON, Check_Long_Button
-018E 3080FD     217            jnb SHORT_BEEP_BUTTON, $
-0191 D200       218            setb short_beep_flag
-0193 C201       219            clr long_beep_flag
-0195 C202       220            clr six_beep_flag
-0197            221            
-0197            222   Check_Long_Button:
-0197 208215     223            jb LONG_BEEP_BUTTON, Check_Six_Button
-019A C002       224            push AR2
-019C 7A32       224            mov R2, #50
-019E 120039     224            lcall ?Wait_Milli_Seconds
-01A1 D002       224            pop AR2
-01A3 208209     225            jb LONG_BEEP_BUTTON, Check_Six_Button
-01A6 3082FD     226            jnb LONG_BEEP_BUTTON, $
-01A9 D201       227            setb long_beep_flag
-01AB C200       228            clr short_beep_flag
-01AD C202       229            clr six_beep_flag
-01AF            230   
-01AF            231   Check_Six_Button:
-01AF 208415     232            jb SIX_BEEP_BUTTON, Check_Button_Return
-01B2 C002       233            push AR2
-01B4 7A32       233            mov R2, #50
-01B6 120039     233            lcall ?Wait_Milli_Seconds
-01B9 D002       233            pop AR2
-01BB 208409     234            jb SIX_BEEP_BUTTON, Check_Button_Return
-01BE 3084FD     235            jnb SIX_BEEP_BUTTON, $
-01C1 D202       236            setb six_beep_flag
-01C3 C201       237            clr long_beep_flag
-01C5 C200       238            clr short_beep_flag
-01C7            239            
-01C7            240   Check_Button_Return:
-01C7 22         241            ret
-01C8            242   EN
+0178 C200       207       clr short_beep_flag
+017A C201       208       clr long_beep_flag
+017C C202       209       clr six_beep_flag
+017E D2AF       210       setb EA   ; Enable Global interrupts
+0180            211            
+0180            212   Main_Loop:
+0180 120185     213            lcall Check_Buttons
+0183 80FB       214            sjmp Main_Loop
+0185            215            
+0185            216   Check_Buttons:
+0185 208015     217            jb SHORT_BEEP_BUTTON, Check_Long_Button
+0188 C002       218            push AR2
+018A 7A32       218            mov R2, #50
+018C 120039     218            lcall ?Wait_Milli_Seconds
+018F D002       218            pop AR2
+0191 208009     219            jb SHORT_BEEP_BUTTON, Check_Long_Button
+0194 3080FD     220            jnb SHORT_BEEP_BUTTON, $
+0197 D200       221            setb short_beep_flag
+0199 C201       222            clr long_beep_flag
+019B C202       223            clr six_beep_flag
+019D            224            
+019D            225   Check_Long_Button:
+019D 208215     226            jb LONG_BEEP_BUTTON, Check_Six_Button
+01A0 C002       227            push AR2
+01A2 7A32       227            mov R2, #50
+01A4 120039     227            lcall ?Wait_Milli_Seconds
+01A7 D002       227            pop AR2
+01A9 208209     228            jb LONG_BEEP_BUTTON, Check_Six_Button
+01AC 3082FD     229            jnb LONG_BEEP_BUTTON, $
+01AF D201       230            setb long_beep_flag
+01B1 C200       231            clr short_beep_flag
+01B3 C202       232            clr six_beep_flag
+01B5            233   
+01B5            234   Check_Six_Button:
+01B5 208415     235            jb SIX_BEEP_BUTTON, Check_Button_Return
+01B8 C002       236            push AR2
+01BA 7A32       236            mov R2, #50
+01BC 120039     236            lcall ?Wait_Milli_Seconds
+01BF D002       236            pop AR2
+01C1 208409     237            jb SIX_BEEP_BUTTON, Check_Button_Return
+01C4 3084FD     238            jnb SIX_BEEP_BUTTON, $
+01C7 D202       239            setb six_beep_flag
+01C9 C201       240            clr long_beep_flag
+01CB C200       241            clr short_beep_flag
+01CD            242            
+01CD            243   Check_Button_Return:
+01CD 22         244            ret
+01CE            245   EN
