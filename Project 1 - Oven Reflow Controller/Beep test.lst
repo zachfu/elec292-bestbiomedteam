@@ -1,0 +1,248 @@
+                  2   $LIST
+0000              4   
+0000              5   CLK           EQU 22118400 ; Microcontroller system crystal frequency in Hz
+0000              6   TIMER0_RATE   EQU 4096     ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
+0000              7   TIMER0_RELOAD EQU ((65536-(CLK/TIMER0_RATE)))
+0000              8   TIMER2_RATE   EQU 1000     ; 1000Hz, for a timer tick of 1ms
+0000              9   TIMER2_RELOAD EQU ((65536-(CLK/TIMER2_RATE)))
+0000             10   
+0000             11   ;ASSUMED FREQUENCIES FOR DIFFERENT PITCHES - UNTESTED;
+0000             12   C7_RATE                  EQU 4186
+0000             13   C7                               EQU ((65536-(CLK/C7_RATE)))
+0000             14   CSHARP7_RATE     EQU 4435
+0000             15   CSHARP7                  EQU ((65536-(CLK/CSHARP7_RATE)))
+0000             16   D7_RATE                  EQU 4699
+0000             17   D7                               EQU ((65536-(CLK/D7_RATE)))
+0000             18   DSHARP7_RATE     EQU 4978
+0000             19   DSHARP7                  EQU ((66536-(CLK/DSHARP7_RATE)))
+0000             20   ;MORE WILL BE ADDED WHEN CONVENIENT;
+0000             21   
+0000             22   SOUND_OUT            equ P3.6    ; Pin connected to speaker
+0000             23   SHORT_BEEP_BUTTON   equ P0.0     ; Press for short beep
+0000             24   LONG_BEEP_BUTTON         equ P0.2        ; Press for long beep
+0000             25   SIX_BEEP_BUTTON          equ P0.4        ; Press for 6 intermittent beeps
+0000             26   
+0000             27   SHORT_BEEP_LENGTH        EQU 5   ; Length of short beep (in 100s of ms)
+0000             28   LONG_BEEP_LENGTH         EQU 15          ; Length of long beep   (in 100s of ms)
+0000             29   SIX_BEEP_LENGTH          EQU 12  ; Total length of six beep sequence (in 100s of ms)(keep at 12 until further notice)
+0000             30   
+0000             31   ; Reset vector
+0000             32   org 0x0000
+0000 02016C      33       ljmp init
+0003             34   
+0003             35   ; External interrupt 0 vector (not used in this code)
+0003             36   org 0x0003
+0003 32          37            reti
+0004             38   
+0004             39   ; Timer/Counter 0 overflow interrupt vector
+000B             40   org 0x000B
+000B 0200EF      41            ljmp Timer0_ISR
+000E             42   
+000E             43   ; External interrupt 1 vector (not used in this code)
+0013             44   org 0x0013
+0013 32          45            reti
+0014             46   
+0014             47   ; Timer/Counter 1 overflow interrupt vector (not used in this code)
+001B             48   org 0x001B
+001B 32          49            reti
+001C             50   
+001C             51   ; Serial port receive/transmit interrupt vector (not used in this code)
+0023             52   org 0x0023 
+0023 32          53            reti
+0024             54            
+0024             55   ; Timer/Counter 2 overflow interrupt vector
+002B             56   org 0x002B
+002B 020116      57            ljmp Timer2_ISR
+002E             58   
+002E             59   ; In the 8051 we can define direct access variables starting at location 0x30 up to location 0x7F
+0030             60   dseg at 0x30
+0030             61   Timer2_Count100ms:        ds 1     ; Incremented every 1ms when Timer 2 ISR is triggered, used to determine when 0.1s has passed
+0031             62   Short_Beep_Counter: ds 1
+0032             63   Long_Beep_Counter:  ds 1
+0033             64   Six_Beep_Counter:          ds 1 ;
+0034             65   ; In the 8051 we have variables that are 1-bit in size.  We can use the setb, clr, jb, and jnb
+0034             66   ; instructions with these variables.  This is how you define a 1-bit variable:
+0000             67   bseg
+0000             68   short_beep_flag:         dbit 1
+0001             69   long_beep_flag:          dbit 1
+0002             70   six_beep_flag:           dbit 1
+0003             71   
+002E             72   cseg
+002E             73   LCD_RS equ P1.2
+002E             74   LCD_RW equ P1.3
+002E             75   LCD_E  equ P1.4
+002E             76   LCD_D4 equ P3.2
+002E             77   LCD_D5 equ P3.3
+002E             78   LCD_D6 equ P3.4
+002E             79   LCD_D7 equ P3.5
+002E             80   
+                218   $LIST
+                 82   $LIST
+00DC             84   
+00DC             85   ;---------------------------------;
+00DC             86   ; Routine to initialize the ISR   ;
+00DC             87   ; for timer 0                     ;
+00DC             88   ;---------------------------------;
+00DC             89   Timer0_Init:
+00DC E589        90            mov a, TMOD
+00DE 54F0        91            anl a, #0xf0 ; Clear the bits for timer 0
+00E0 4401        92            orl a, #0x01 ; Configure timer 0 as 16-timer
+00E2 F589        93            mov TMOD, a
+00E4 758CEA      94            mov TH0, #high(TIMER0_RELOAD)
+00E7 758AE8      95            mov TL0, #low(TIMER0_RELOAD)
+00EA             96            ; Enable the timer and interrupts
+00EA D2A9        97       setb ET0  ; Enable timer 0 interrupt
+00EC C28C        98       clr TR0   ; Timer 0 off initially
+00EE 22          99            ret
+00EF            100   
+00EF            101   ;---------------------------------;
+00EF            102   ; ISR for timer 0.  Set to execute;
+00EF            103   ; every 1/4096Hz to generate a    ;
+00EF            104   ; 2048 Hz square wave at pin P3.7 ;
+00EF            105   ;---------------------------------;
+00EF            106   Timer0_ISR:
+00EF            107            ;clr TF0  ; According to the data sheet this is done for us already.
+00EF            108            ; In mode 1 we need to reload the timer.
+00EF C28C       109            clr TR0
+00F1 758CEA     110            mov TH0, #high(TIMER0_RELOAD)
+00F4 758AE8     111            mov TL0, #low(TIMER0_RELOAD)
+00F7 D28C       112            setb TR0
+00F9 B2B6       113            cpl SOUND_OUT ; Connect speaker to P3.7!
+00FB 32         114            reti
+00FC            115   
+00FC            116   ;---------------------------------;
+00FC            117   ; Routine to initialize the ISR   ;
+00FC            118   ; for timer 2                     ;
+00FC            119   ;---------------------------------;
+00FC            120   Timer2_Init:
+00FC 75C800     121            mov T2CON, #0 ; Stop timer/counter.  Autoreload mode.
+00FF 75CBA9     122            mov RCAP2H, #high(TIMER2_RELOAD)
+0102 75CA9A     123            mov RCAP2L, #low(TIMER2_RELOAD)
+0105            124            ; Init One millisecond interrupt counter.  It is a 16-bit variable made with two 8-bit parts
+0105 E4         125            clr a
+0106 F530       126            mov Timer2_Count100ms, a
+0108 753105     127            mov Short_Beep_Counter, #SHORT_BEEP_LENGTH
+010B 75320F     128            mov Long_Beep_Counter, #LONG_BEEP_LENGTH
+010E 75330C     129            mov Six_Beep_Counter, #SIX_BEEP_LENGTH
+0111            130            ; Enable the timer and interrupts
+0111 D2AD       131       setb ET2  ; Enable timer 2 interrupt
+0113 D2CA       132       setb TR2  ; Enable timer 2
+0115 22         133            ret
+0116            134   
+0116            135   ;---------------------------------;
+0116            136   ; ISR for timer 2                 ;
+0116            137   ;---------------------------------;
+0116            138   Timer2_ISR:
+0116 C2CF       139            clr TF2  ; Timer 2 doesn't clear TF2 automatically. Do it in ISR
+0118            140            
+0118            141            ; The two registers used in the ISR must be saved in the stack
+0118 C0E0       142            push acc
+011A C0D0       143            push psw
+011C            144            
+011C 0530       145            inc Timer2_Count100ms                   ; Increment every 1ms
+011E E530       146            mov a, Timer2_Count100ms
+0120 B46444     147            cjne a, #100, Timer2_ISR_Return         ; Run following code every 100ms
+0123            148            
+0123 E4         149            clr a
+0124 F530       150            mov Timer2_Count100ms, a                ; Return to 0
+0126            151            
+0126            152            ; If any of the beep flags are set, run their corresponding code
+0126 200008     153            jb short_beep_flag, Timer2_Short_Beep   
+0129 200117     154            jb long_beep_flag, Timer2_Long_Beep
+012C 200226     155            jb six_beep_flag, Timer2_Six_Beep
+012F 8036       156            sjmp Timer2_ISR_Return
+0131            157            
+0131            158   Timer2_Short_Beep:
+0131 D28C       159            setb TR0
+0133 1531       160            dec Short_Beep_Counter
+0135 E531       161            mov a, Short_Beep_Counter
+0137 B4002D     162            cjne a, #0, Timer2_ISR_Return
+013A            163            ; Once counter has reached 0
+013A C28C       164            clr TR0
+013C C200       165            clr short_beep_flag
+013E 753105     166            mov Short_Beep_Counter, #SHORT_BEEP_LENGTH
+0141 8024       167            sjmp Timer2_ISR_Return
+0143            168            
+0143            169   Timer2_Long_Beep:
+0143 D28C       170            setb TR0
+0145 1532       171            dec Long_Beep_Counter
+0147 E532       172            mov a, Long_Beep_Counter
+0149 B4001B     173            cjne a, #0, Timer2_ISR_Return
+014C            174            ; Once counter has reached 0
+014C C28C       175            clr TR0
+014E C201       176            clr long_beep_flag
+0150 75320F     177            mov Long_Beep_Counter, #LONG_BEEP_LENGTH
+0153 8012       178            sjmp Timer2_ISR_Return
+0155            179            
+0155            180   Timer2_Six_Beep:
+0155 B28C       181            cpl TR0
+0157 1533       182            dec Six_Beep_Counter
+0159 E533       183            mov a, Six_Beep_Counter
+015B B40009     184            cjne a, #0, Timer2_ISR_Return
+015E            185            ; Once counter has reached 0
+015E C28C       186            clr TR0
+0160 C202       187            clr six_beep_flag
+0162 75330C     188            mov Six_Beep_Counter, #SIX_BEEP_LENGTH
+0165 8000       189            sjmp Timer2_ISR_Return
+0167            190   
+0167            191   Timer2_ISR_Return:
+0167 D0D0       192            pop psw
+0169 D0E0       193            pop acc
+016B 32         194            reti
+016C            195   
+016C            196   ;---------------------------------;
+016C            197   ; Main program. Includes hardware ;
+016C            198   ; initialization and 'forever'    ;
+016C            199   ; loop.                           ;
+016C            200   ;---------------------------------;
+016C            201   init:
+016C            202            ; Initialization
+016C 75817F     203       mov SP, #0x7F
+016F 75C100     204       mov PMOD, #0 ; Configure all ports in bidirectional mode
+0172 1200DC     205       lcall Timer0_Init
+0175 1200FC     206       lcall Timer2_Init
+0178 D2AF       207       setb EA   ; Enable Global interrupts
+017A            208            
+017A            209   Main_Loop:
+017A 12017F     210            lcall Check_Buttons
+017D 80FB       211            sjmp Main_Loop
+017F            212            
+017F            213   Check_Buttons:
+017F 208015     214            jb SHORT_BEEP_BUTTON, Check_Long_Button
+0182 C002       215            push AR2
+0184 7A32       215            mov R2, #50
+0186 120039     215            lcall ?Wait_Milli_Seconds
+0189 D002       215            pop AR2
+018B 208009     216            jb SHORT_BEEP_BUTTON, Check_Long_Button
+018E 3080FD     217            jnb SHORT_BEEP_BUTTON, $
+0191 D200       218            setb short_beep_flag
+0193 C201       219            clr long_beep_flag
+0195 C202       220            clr six_beep_flag
+0197            221            
+0197            222   Check_Long_Button:
+0197 208215     223            jb LONG_BEEP_BUTTON, Check_Six_Button
+019A C002       224            push AR2
+019C 7A32       224            mov R2, #50
+019E 120039     224            lcall ?Wait_Milli_Seconds
+01A1 D002       224            pop AR2
+01A3 208209     225            jb LONG_BEEP_BUTTON, Check_Six_Button
+01A6 3082FD     226            jnb LONG_BEEP_BUTTON, $
+01A9 D201       227            setb long_beep_flag
+01AB C200       228            clr short_beep_flag
+01AD C202       229            clr six_beep_flag
+01AF            230   
+01AF            231   Check_Six_Button:
+01AF 208415     232            jb SIX_BEEP_BUTTON, Check_Button_Return
+01B2 C002       233            push AR2
+01B4 7A32       233            mov R2, #50
+01B6 120039     233            lcall ?Wait_Milli_Seconds
+01B9 D002       233            pop AR2
+01BB 208409     234            jb SIX_BEEP_BUTTON, Check_Button_Return
+01BE 3084FD     235            jnb SIX_BEEP_BUTTON, $
+01C1 D202       236            setb six_beep_flag
+01C3 C201       237            clr long_beep_flag
+01C5 C200       238            clr short_beep_flag
+01C7            239            
+01C7            240   Check_Button_Return:
+01C7 22         241            ret
+01C8            242   EN

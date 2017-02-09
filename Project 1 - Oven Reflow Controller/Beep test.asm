@@ -69,6 +69,14 @@ short_beep_flag:	dbit 1
 long_beep_flag:		dbit 1
 six_beep_flag:		dbit 1
 
+cseg
+LCD_RS equ P1.2
+LCD_RW equ P1.3
+LCD_E  equ P1.4
+LCD_D4 equ P3.2
+LCD_D5 equ P3.3
+LCD_D6 equ P3.4
+LCD_D7 equ P3.5
 
 $NOLIST
 $include(LCD_4bit.inc)
@@ -115,7 +123,7 @@ Timer2_Init:
 	mov RCAP2L, #low(TIMER2_RELOAD)
 	; Init One millisecond interrupt counter.  It is a 16-bit variable made with two 8-bit parts
 	clr a
-	mov Timer2_Count1to100ms, a
+	mov Timer2_Count100ms, a
 	mov Short_Beep_Counter, #SHORT_BEEP_LENGTH
 	mov Long_Beep_Counter, #LONG_BEEP_LENGTH
 	mov Six_Beep_Counter, #SIX_BEEP_LENGTH
