@@ -20,30 +20,50 @@ from email import encoders
 xsize=1000
 cumsum = 1
 cumaverage = 1
-def email_send():
-    fromaddr = "elec292bestbiomedteam@gmail.com"
-    toaddr = "zachfu97@gmail.com"               # CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
-     
-    msg = MIMEMultipart()
-     
-    msg['From'] = fromaddr
-    msg['To'] = toaddr
-    msg['Subject'] = "ATTACHMENT TEST"
-     
-    body = "SEE DAT IMAGE YO"
-     
-    msg.attach(MIMEText(body, 'plain'))
-     
-    filename = "test.png"
-    attachment = open('test.png', "rb")   
-     
+
+
+def make_attachment(filename):
+    """for attaching a file"""
+    attachment = open(filename, "rb")
     part = MIMEBase('application', 'octet-stream')
     part.set_payload((attachment).read())
     encoders.encode_base64(part)
     part.add_header('Content-Disposition', "attachment; filename= %s" % filename)
-     
-    msg.attach(part)
-     
+    return part
+
+
+def msgID_Handler(msgID):
+    """different Subject line and Bodies of email based on the message ID"""
+    """msgID 0=error, 1=update, 2=complete, 3=aborted process"""
+    subjectType = {
+        0: "ERROR ALERT!!!",
+        1: "UPDATE",
+        2: "COMPLETION",
+        3: "CANSELATION ALERT!!",
+    }
+    bodyType = {
+        0: "Error occured during the process. Last moment attached",
+        1: "Last Update of the process attached",
+        2: "Process successfully completed. CSV file and graph are attached",
+        3: "your process has been manually cancelled. Attached documents",
+    }
+
+    return subjectType.get(msgID, "No Subject"), bodyType.get(msgID, "No Body")
+
+def email_send(msgID, filename):
+    """sends an email to the reciever"""
+    fromaddr = "elec292bestbiomedteam@gmail.com"
+    toaddr = "hmn16@yahoo.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
+
+    msg = MIMEMultipart()
+
+    msg['From'] = fromaddr
+    msg['To'] = toaddr
+    msg['Subject'], body = msgID_Handler(msgID)
+    
+    msg.attach(MIMEText(body, 'plain')) 
+    msg.attach(make_attachment(filename))
+
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
     server.login(fromaddr, "praisejesus")
@@ -59,7 +79,7 @@ def data_gen():
        y = 50+25*math.sin(0.1*t)    # PLACEHOLDER DATA TO BE PLOTTED
        if t == 100:
            plt.savefig('test.png')
-           email_send()
+           email_send( 0, 'test.png')
        yield t, y
 
 def run(data):
