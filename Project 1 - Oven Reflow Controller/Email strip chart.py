@@ -1,3 +1,28 @@
+# -*- coding: utf-8 -*-
+"""
+to run this python file, please make the following change in the assembly code:
+    
+; in taking the sample subroutine, make this change please:
+    
+    
+;sending Oven temperature to Computer
+Send_Serial:
+	Send_BCD(bcd+1)
+	Send_BCD(bcd)
+	mov a, #'\n'
+	lcall putchar
+	
+ +++++++++++++++++++++++++++++++++++++++ new part starts
+	;sending the state to computer
+	Move_1B_to_4B (x, state)
+	lcall hex2bcd
+	Send_BCD(bcd)
+	mov a, #'\n'
+	lcall putchar	
+---------------------------------------- new part ends
+ret
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -8,14 +33,14 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
- 
-#ser = serial.Serial(
-    #port='COM4',
-    #baudrate=115200,
-    #parity=serial.PARITY_NONE,
-    #stopbits=serial.STOPBITS_TWO,
-    #bytesize=serial.EIGHTBITS
-#)
+
+ser = serial.Serial(
+    port='COM4',
+    baudrate=115200,
+    parity=serial.PARITY_NONE,
+    stopbits=serial.STOPBITS_TWO,
+    bytesize=serial.EIGHTBITS
+)
 
 xsize=1000
 cumsum = 1
@@ -36,19 +61,31 @@ def msgID_Handler(msgID):
     """different Subject line and Bodies of email based on the message ID"""
     """msgID 0=error, 1=update, 2=complete, 3=aborted process"""
     subjectType = {
-        0: "ERROR ALERT!!!",
+        15: "COMPLETION",
+        16: "ERROR ALERT!!!",
+        17: "CANSELATION ALERT!!",
         1: "UPDATE",
-        2: "COMPLETION",
-        3: "CANSELATION ALERT!!",
     }
     bodyType = {
-        0: "Error occured during the process. Last moment attached",
+        15: "Process successfully completed. CSV file and graph are attached",
+        16: "Error occured during the process. Last moment attached",
+        17: "your process has been manually cancelled. Attached documents",
         1: "Last Update of the process attached",
-        2: "Process successfully completed. CSV file and graph are attached",
-        3: "your process has been manually cancelled. Attached documents",
     }
 
     return subjectType.get(msgID, "No Subject"), bodyType.get(msgID, "No Body")
+
+
+def fileName_Handler(msgID):
+    """different filenames for email based on the message ID"""
+    imageName = {
+        15: "COMPLETION.png",
+        16: "ERROR.png",
+        17: "CANSELATION.png",
+        1: "UPDATE.png",
+    }
+    return imageName.get(msgID, "unDefined.png")
+
 
 def email_send(msgID, filename):
     """sends an email to the reciever"""
@@ -72,26 +109,57 @@ def email_send(msgID, filename):
     server.quit()
 
 
+def get_Msg_ID(state, state_prev):
+    """to determine if sending email is necessary and what msgID it has"""
+    # if process is completed or aborted manualy or due to error
+    if (state == 15 or state == 16 or state == 17):
+        return True, state,
+    # if process stage has changed
+    elif(state_prev >= 10 and state_prev != state):
+        return True, 1
+    else:
+        return False, 1
+
+
 def data_gen():
     t = 0
+    tempsum = 0
     while True:
-       t+=1
-       y = 50+25*math.sin(0.1*t)    # PLACEHOLDER DATA TO BE PLOTTED
-       if t == 100:
-           plt.savefig('test.png')
-           email_send( 0, 'test.png')
-       yield t, y
+        t += 1
+
+        tempin = float(ser.readline())
+        temp = tempin/10000.0
+        tempsum += tempin
+        if t <= 0:
+            tempavg = tempsum
+        else:
+            tempavg = tempsum/t
+
+        state = int(ser.readline())
+        if t == 1:
+            state_prev = state
+        change, msgID = get_Msg_ID(state, state_prev)
+        state_prev = state
+
+        if change is True:
+            filename = fileName_Handler(msgID)
+            plt.savefig(filename)
+            email_send(msgID, filename)
+
+        yield t, temp, tempavg
+
 
 def run(data):
     # update the data
-    t,y = data
-    if t>-1:
+    t, y = data
+    if t > -1:
         xdata.append(t)
         ydata.append(y)
-        if t>xsize: # Scroll to the left.
+        if t > xsize:  # Scroll to the left.
             ax.set_xlim(t-xsize, t)
         line1.set_data(xdata, ydata)
-    return line1,
+    return line1
+
 
 def on_close_figure(event):
     sys.exit(0)
