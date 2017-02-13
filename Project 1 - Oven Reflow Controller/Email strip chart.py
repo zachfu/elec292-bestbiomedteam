@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+import webbrowser
  
 ser = serial.Serial(
     port='COM4',
@@ -78,9 +79,10 @@ def data_gen():
     while True:
        t+=1
        y = float(ser.readline())
-       if y >= 220 and not email_sent:
+       if y >= 150 and not email_sent:
            plt.savefig('test.png')
            email_send( 1, 'test.png')
+           webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
            email_sent = 1
        yield t, y
 
