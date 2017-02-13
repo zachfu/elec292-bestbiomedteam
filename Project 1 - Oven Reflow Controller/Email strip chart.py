@@ -9,13 +9,13 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
  
-#ser = serial.Serial(
-    #port='COM4',
-    #baudrate=115200,
-    #parity=serial.PARITY_NONE,
-    #stopbits=serial.STOPBITS_TWO,
-    #bytesize=serial.EIGHTBITS
-#)
+ser = serial.Serial(
+    port='COM4',
+    baudrate=115200,
+    parity=serial.PARITY_NONE,
+    stopbits=serial.STOPBITS_TWO,
+    bytesize=serial.EIGHTBITS
+)
 
 xsize=1000
 cumsum = 1
@@ -39,7 +39,7 @@ def msgID_Handler(msgID):
         0: "ERROR ALERT!!!",
         1: "UPDATE",
         2: "COMPLETION",
-        3: "CANSELATION ALERT!!",
+        3: "CANCELATION ALERT!!",
     }
     bodyType = {
         0: "Error occured during the process. Last moment attached",
@@ -53,7 +53,7 @@ def msgID_Handler(msgID):
 def email_send(msgID, filename):
     """sends an email to the reciever"""
     fromaddr = "elec292bestbiomedteam@gmail.com"
-    toaddr = "hmn16@yahoo.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
+    toaddr = "danielzhou4970@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
 
     msg = MIMEMultipart()
 
@@ -74,12 +74,14 @@ def email_send(msgID, filename):
 
 def data_gen():
     t = 0
+    email_sent = 0
     while True:
        t+=1
-       y = 50+25*math.sin(0.1*t)    # PLACEHOLDER DATA TO BE PLOTTED
-       if t == 100:
+       y = float(ser.readline())
+       if y >= 220 and not email_sent:
            plt.savefig('test.png')
-           email_send( 0, 'test.png')
+           email_send( 1, 'test.png')
+           email_sent = 1
        yield t, y
 
 def run(data):
@@ -101,7 +103,7 @@ fig = plt.figure()
 fig.canvas.mpl_connect('close_event', on_close_figure)
 ax = fig.add_subplot(111)
 line1, = ax.plot([], [], lw=2)
-ax.set_ylim(0,100)
+ax.set_ylim(0,300)
 ax.set_xlim(0, xsize)
 ax.grid()
 xdata, ydata = [], []
