@@ -69,6 +69,10 @@ LCD_D6 equ P3.4
 LCD_D7 equ P3.5
 ;--------------------------------------------
 
+GREEN 	equ P2.4
+YELLOW 	equ P2.5
+RED		equ	P2.6
+BLUE	equ P2.7
 
 SSR_OUT    	    equ P3.7	; Pin connected to SSR
 BOOT_BUTTON     equ P4.5
@@ -132,6 +136,7 @@ BSEG
   short_beep_flag:	dbit 1
 	long_beep_flag:		dbit 1
 	six_beep_flag:		dbit 1
+	led_flag:		dbit 1
 
 CSEG
 ;           								1234567890123456    <- This helps determine the location of the Strings
@@ -306,7 +311,7 @@ Inc_Done_1sec:
 	mov a, Count1ms+1
 	cjne a, #high(1000), Inc_Done_Sample
 	
-	; 1 second has passed.  Set a flag so the main program knows
+	cpl led_flag
 	
 	Zero_2B (Count1ms)
   ; time for state, will reset after every state
@@ -722,6 +727,11 @@ MainProgram:
     clr short_beep_flag
     clr long_beep_flag
     clr six_beep_flag
+    clr led_flag
+	clr GREEN
+	clr YELLOW
+	clr RED
+	clr BLUE
 	
   	lcall Load_Configuration ; Read values from data flash
 	
@@ -732,7 +742,11 @@ forever:
 ; Main start screen appears on boot and 
 state0:
 	check_state (0, 1)
-  
+  	clr GREEN
+  	clr YELLOW
+  	clr RED
+  	clr BLUE
+  	
   Show_Header(StartMessage, StartMessage2)
   
   Check_button_for_State_change (CYCLE_BUTTON, 1)		; Transition to parameter select states
@@ -742,7 +756,18 @@ state0:
 state1:
 	check_state (1, 2)
 	setb settings_modified_flag
-  
+	jb led_flag, state1ledon
+	setb GREEN
+	setb YELLOW
+	setb RED
+	setb BLUE
+	sjmp state1b
+state1ledon:
+  	clr GREEN
+  	clr YELLOW
+  	clr RED
+  	clr BLUE
+state1b:
 	Show_Header_and_Value (SoakTime_Message, soak_seconds, Secs)
 	Inc_variable (INC_BUTTON, soak_seconds)
 	Dec_variable (DEC_BUTTON, soak_seconds)
@@ -753,6 +778,18 @@ state1:
 ; initializing the Soak Temperature 
 state2:
 	check_state (2,3)
+	jb led_flag, state2ledon
+	setb GREEN
+	setb YELLOW
+	setb RED
+	setb BLUE
+	sjmp state2b
+state2ledon:
+  	clr GREEN
+  	clr YELLOW
+  	clr RED
+  	clr BLUE
+state2b:
 	Show_Header_and_Value (SoakTemp_Message, soak_temp, Cels)
 	Inc_variable  (INC_BUTTON, soak_temp)
 	Dec_variable (DEC_BUTTON, soak_temp)
@@ -763,7 +800,18 @@ state2:
 ; initializing the Reflow Time 
 state3:
 	check_state (3,4)
-	
+	jb led_flag, state3ledon
+	setb GREEN
+	setb YELLOW
+	setb RED
+	setb BLUE
+	sjmp state3b
+state3ledon:
+  	clr GREEN
+  	clr YELLOW
+  	clr RED
+  	clr BLUE
+state3b:
 	Show_Header_and_Value (ReflowTime_Message, reflow_seconds, Secs)	
 	Inc_variable  (INC_BUTTON, reflow_seconds)
 	Dec_variable (DEC_BUTTON, reflow_seconds)
@@ -776,7 +824,18 @@ state3:
 ; initializing the Reflow Temperature 
 state4:
 	check_state (4,5)
-	
+	jb led_flag, state4ledon
+	setb GREEN
+	setb YELLOW
+	setb RED
+	setb BLUE
+	sjmp state4b
+state4ledon:
+  	clr GREEN
+  	clr YELLOW
+  	clr RED
+  	clr BLUE
+state4b:
 	Show_Header_and_Value (ReflowTemp_Message, reflow_temp, Cels)		
 	Inc_variable  (INC_BUTTON, reflow_temp)
 	Dec_variable (DEC_BUTTON, reflow_temp)
@@ -789,7 +848,10 @@ state4:
 ; Saves value in Flash Memory and Presents Confirmation Screen to Start Process
 state5:
 	check_state (5,6)
-	
+	setb GREEN
+	setb YELLOW
+	setb RED
+	setb BLUE
   jnb settings_modified_flag, state5TempSet ; Save values once, once saved skip this
   
 	lcall Save_Configuration ; Call to save data to flash memory
@@ -833,6 +895,19 @@ state6:
 state10:
 
 	check_state (10,11)
+	jb led_flag, state10ledon
+	setb GREEN
+	setb YELLOW
+	setb RED
+	setb BLUE
+	sjmp state10b
+state10ledon:
+  	setb GREEN
+  	clr YELLOW
+  	setb RED
+  	setb BLUE
+state10b:
+
   Check_button_for_State_change (CYCLE_BUTTON, 17)
 	clr pwm_on			;100% pwm
 	setb SSR_OUT		; for 100% power
@@ -845,6 +920,7 @@ state10:
 check_thermocouple:
   jnc not_one_min   ;if not bigger than 50, c=1, jump to display error
   mov state, #16
+  setb long_beep_flag
   sjmp state10_Loop
   
 not_one_min:
@@ -866,6 +942,7 @@ state10_Loop:
 ; Soak Stage		
 state11:
 	check_state (11,12)
+	clr YELLOW
   Check_button_for_State_change (CYCLE_BUTTON, 17)
 	setb pwm_on			;25% pwm
   Show_Stage_Temp_Time (Soak, current_temp, run_time_min, run_time_sec);display the current stage and current temperature
@@ -910,6 +987,18 @@ State11_Loop:
 ; Ramp to Reflow Stage, compare current_temp with reflow_temp		
 state12:
 	check_state (12,13)
+	jb led_flag, state12ledon
+	setb GREEN
+	setb YELLOW
+	setb RED
+	setb BLUE
+	sjmp state12b
+state12ledon:
+  	setb GREEN
+  	setb YELLOW
+  	clr RED
+  	setb BLUE
+state12b:
   Check_button_for_State_change (CYCLE_BUTTON, 17)
   clr pwm_on
   setb SSR_OUT	;100% power on
@@ -930,6 +1019,7 @@ State12Loop:
 ; Reflow stage, compare reflow_seconds to current time, move to cooling stage when complete (Still need beep code)
 state13:
 	check_state (13,14)
+	clr RED
   Check_button_for_State_change (CYCLE_BUTTON, 17)
   setb pwm_on ; Set PWM to 25% power
   Show_Stage_Temp_Time (Reflow, current_temp, run_time_min, run_time_sec);display the current stage and current temperature
@@ -960,6 +1050,10 @@ state13Loop:
 ; Cooling stage, power is set to 0, finish and sound multiple beeps when temperature is below 60
 state14:
 	check_state (14,15)
+	clr BLUE
+	setb GREEN
+	setb YELLOW
+	setb RED
   Check_button_for_State_change (CYCLE_BUTTON, 17)
   SSR_OFF()
   Show_Stage_Temp_Time (Cooling, current_temp, run_time_min, run_time_sec)
@@ -977,12 +1071,20 @@ state14loop:
 ; Cooling completed state, accessed when temperature has cooled down to below 60C
 state15:   
 	check_state (15,16)
+	clr GREEN
+	setb YELLOW
+	setb RED
+	setb BLUE
   Show_Header(CompleteMsg, ConfirmMsg)
   Check_button_for_State_change(DEC_BUTTON, 0)
   ljmp forever
   
 state16: 			;display error message
 	check_state (16,17)
+	clr RED
+	setb GREEN
+	setb YELLOW
+	setb BLUE
   SSR_OFF()
 	Show_Header(Lessthan50ErrorMsg, ConfirmMsg)	
   Check_button_for_State_change(DEC_BUTTON, 0)
@@ -991,6 +1093,10 @@ state16: 			;display error message
 ; Force Quit state, accessed when STOP button is pressed during any reflow stage
 state17:
   SSR_OFF()
+  	clr RED
+	setb GREEN
+	setb YELLOW
+	setb BLUE
 	Show_Header(AbortMsg, ConfirmMsg)
   Check_button_for_State_change(DEC_BUTTON, 0)
   ljmp forever
