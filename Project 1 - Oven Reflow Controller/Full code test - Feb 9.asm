@@ -42,7 +42,7 @@ T1LOAD 		 			EQU (0x100-(CLK/(16*BAUD)))
 
 SAMPLE_INTERVAL EQU 250									; Millisecond Interval when sampling (KEEP LESS THAN 256)
 
-PWM_PERCENT			EQU 20
+PWM_PERCENT			EQU 10
 PWM_RELOAD_HIGH EQU (255*PWM_PERCENT/100)
 PWM_RELOAD_LOW 	EQU	(255 - PWM_RELOAD_HIGH)
 
@@ -173,7 +173,7 @@ CSEG
   Cels: db ' ',11011111b, 'C',0
   Secs:			db ' s',0
 	BurnMsg:					db 'PCB Burn Warning', 0
-  StopMsg:					db 'Press StopButton', 0
+  StopMsg:					db '  Aborting!...  ', 0
   Too_Long:					db 'Too Long!       ', 0
   Too_High: 				db 'Too High!       ', 0
   
@@ -1030,10 +1030,12 @@ state13:
   subb a, #235
   jc no_Burn_Warning							;if current temperature - 235 <= 0 (c=1), no warning
   Show_Header(BurnMsg, StopMsg)		;displaying warning message and ask the user to press STOP button to stop reflow process
+  setb short_beep_flag
   Wait_Milli_Seconds(#250)
   Wait_Milli_Seconds(#250)
   Wait_Milli_Seconds(#250)
   Wait_Milli_Seconds(#250)
+  mov state, #17
   
 no_Burn_Warning: 
   mov a, reflow_seconds
