@@ -40,7 +40,6 @@ from email import encoders
 import webbrowser
 import csv
 from twilio.rest import TwilioRestClient
-import time
 
 ser = serial.Serial(
     port='COM4',
@@ -97,7 +96,7 @@ def fileName_Handler(msgID):
 def email_send(msgID, filename):
     """sends an email to the reciever"""
     fromaddr = "elec292bestbiomedteam@gmail.com"
-    toaddr = "zachfu97@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
+    toaddr = "danielzhou4970@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
 
     msg = MIMEMultipart()
 
@@ -146,28 +145,6 @@ def get_state_string(state):
 def data_gen():
     t = 0
     email_sent = 0
-<<<<<<< HEAD
-    while True:
-        t += 1
-
-        temp = float(ser.readline())
-        if temp <= 17:
-			temp = float(ser.readline())	# in case serial inputs aren't lined up properly
-
-        state = int(ser.readline())
-        
-        ended, msgID = get_Msg_ID(state)
-
-        if ended is True and email_sent != 1:
-            email_sent = 1
-            filename = fileName_Handler(msgID)
-            plt.savefig(filename)
-            email_send(msgID, filename)
-            if state == 15:
-				webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
-
-        yield t, temp
-=======
     with open('ReflowProcess.csv', 'w') as csvfile:
         fieldnames = ['Time', 'Process_Time [s]', 'State', 'Temperature [centigrade]']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -183,7 +160,7 @@ def data_gen():
             state = int(ser.readline())
             if t == 1:
                 state_prev = state
-            writer.writerow({'Time': time.ctime(time.time()), 'Process_Time [s]': t, 'State': get_state_string(state), 'Temperature [Centigrade]': temp})
+            writer.writerow({'Process_Time [s]': t, 'State': get_state_string(state), 'Temperature [Centigrade]': temp})
             ended, msgID = get_Msg_ID(state)
             state_prev = state
     
@@ -197,7 +174,6 @@ def data_gen():
                     webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
     
             yield t, temp
->>>>>>> b9481678b533d3a322e34258704d3b21ff50363a
 
 def run(data):
     # update the data
