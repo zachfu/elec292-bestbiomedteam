@@ -63,7 +63,7 @@ def msgID_Handler(msgID):
     subjectType = {
         15: "COMPLETION",
         16: "ERROR ALERT!!!",
-        17: "CANSELATION ALERT!!",
+        17: "CANCELATION ALERT!!",
         1: "UPDATE",
     }
     bodyType = {
@@ -81,7 +81,7 @@ def fileName_Handler(msgID):
     imageName = {
         15: "COMPLETION.png",
         16: "ERROR.png",
-        17: "CANSELATION.png",
+        17: "CANCELATION.png",
         1: "UPDATE.png",
     }
     return imageName.get(msgID, "unDefined.png")
@@ -127,13 +127,9 @@ def data_gen():
     while True:
         t += 1
 
-        tempin = float(ser.readline())
-        temp = tempin/10000.0
-        tempsum += tempin
-        if t <= 0:
-            tempavg = tempsum
-        else:
-            tempavg = tempsum/t
+        temp = float(ser.readline())
+		if temp <= 17:
+			temp = float(ser.readline())	# in case serial inputs aren't lined up properly
 
         state = int(ser.readline())
         if t == 1:
@@ -146,7 +142,7 @@ def data_gen():
             plt.savefig(filename)
             email_send(msgID, filename)
 
-        yield t, temp, tempavg
+        yield t, temp
 
 
 def run(data):
