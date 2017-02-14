@@ -21,8 +21,7 @@ def data_gen():
     while True:
        t+=1
        tempin = float(ser.readline())
-       temp=tempin/100.0
-       yield t, temp
+       yield t, tempin
 
 def get_colour(t):
     cmap = matplotlib.cm.get_cmap('gist_rainbow')

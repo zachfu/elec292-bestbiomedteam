@@ -33,7 +33,12 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+<<<<<<< HEAD
 
+=======
+import webbrowser
+ 
+>>>>>>> master
 ser = serial.Serial(
     port='COM4',
     baudrate=115200,
@@ -65,6 +70,11 @@ def msgID_Handler(msgID):
         16: "ERROR ALERT!!!",
         17: "CANCELATION ALERT!!",
         1: "UPDATE",
+<<<<<<< HEAD
+=======
+        2: "COMPLETION",
+        3: "CANCELATION ALERT!!",
+>>>>>>> master
     }
     bodyType = {
         15: "Process successfully completed. CSV file and graph are attached",
@@ -90,7 +100,7 @@ def fileName_Handler(msgID):
 def email_send(msgID, filename):
     """sends an email to the reciever"""
     fromaddr = "elec292bestbiomedteam@gmail.com"
-    toaddr = "hmn16@yahoo.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
+    toaddr = "danielzhou4970@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
 
     msg = MIMEMultipart()
 
@@ -123,6 +133,7 @@ def get_Msg_ID(state, state_prev):
 
 def data_gen():
     t = 0
+<<<<<<< HEAD
     tempsum = 0
     while True:
         t += 1
@@ -144,6 +155,18 @@ def data_gen():
 
         yield t, temp
 
+=======
+    email_sent = 0
+    while True:
+       t+=1
+       y = float(ser.readline())
+       if y >= 150 and not email_sent:
+           plt.savefig('test.png')
+           email_send( 1, 'test.png')
+           webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
+           email_sent = 1
+       yield t, y
+>>>>>>> master
 
 def run(data):
     # update the data
@@ -165,7 +188,7 @@ fig = plt.figure()
 fig.canvas.mpl_connect('close_event', on_close_figure)
 ax = fig.add_subplot(111)
 line1, = ax.plot([], [], lw=2)
-ax.set_ylim(0,100)
+ax.set_ylim(0,300)
 ax.set_xlim(0, xsize)
 ax.grid()
 xdata, ydata = [], []

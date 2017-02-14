@@ -26,6 +26,14 @@ portstatus = StringVar()
 DMM_Name = StringVar()
 connected=0
 global ser
+
+board = serial.Serial(
+    port='COM4',
+    baudrate=115200,
+    parity=serial.PARITY_NONE,
+    stopbits=serial.STOPBITS_TWO,
+    bytesize=serial.EIGHTBITS
+)
    
 def Just_Exit():
     top.destroy()
@@ -41,6 +49,7 @@ def update_temp():
         return
     try:
         strin_bytes = ser.readline() # Read the requested value, for example "+0.234E-3 VDC"
+        board_temp = float(board.readline())/10.0
         strin=strin_bytes.decode()
         ser.readline() # Read and discard the prompt "=>"
         if len(strin)>1:
@@ -79,6 +88,7 @@ def update_temp():
                Temp.set("OVER")
            else:
                Temp.set(ktemp)
+               print(str(ktemp) + "    " + str(board_temp))
        else:
            Temp.set("----");
     else:

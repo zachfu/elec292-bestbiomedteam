@@ -74,27 +74,6 @@ mf: dbit 1
 CSEG
 NEWLINE: db '\n'
 
-; Takes the average of 100 samples from specified
-; ADC channel. Reading is stored in x
-Average_ADC_Channel MAC
-	mov b, #%0
-	lcall ?Average_ADC_Channel
-ENDMAC
-?Average_ADC_Channel:
-	Load_x(0)
-	mov R5, #100
-Sum_loop0:
-	lcall _Read_ADC_Channel
-	mov y+3, #0
-	mov y+2, #0
-	mov y+1, result+1
-	mov y+0, result+0
-	lcall add32
-	djnz R5, Sum_loop0
-	load_y(100)
-	lcall div32
-ret
- 
 Init:
     mov SP, #7FH
     mov PMOD, #0 
@@ -105,6 +84,8 @@ Init:
 Main_Loop:
 	lcall Take_Sample
 	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+
 	 
 	setb P3.7
 	sjmp Main_Loop	
@@ -162,13 +143,16 @@ Result_SPI_Routine:
 
 	Move_4B_to_4B (y, x_lm335)
 	lcall add32
+	
+	Load_Y(10)
+	lcall div32
 
 	lcall hex2bcd
 
 Send_Serial:
 	
-	Send_BCD(bcd+2)
 	Send_BCD(bcd+1)
+	Send_BCD(bcd)
 	mov a, #'\n'
 	lcall putchar
 	
