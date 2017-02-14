@@ -34,6 +34,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import webbrowser
+import csv
 
 ser = serial.Serial(
     port='COM4',
@@ -114,31 +115,54 @@ def get_Msg_ID(state):
         return False, 1
 
 
+def get_state_string(state):
+    """to generate a string for states, used in CSV, and TextToSpeach modules"""
+    stateName = {
+        10: "Ramp to Soak",
+        11: "Soak",
+        12: "Ramp to reflow",
+        13: "Reflow",
+        14: "Cooling",
+        15: "Finished",
+        16: "Error",
+        17: "Cancelled",
+    }
+    if state < 10:
+        return "Initialization"
+    else:
+        return stateName.get(state)
+
 def data_gen():
     t = 0
-	email_sent = 0
-    while True:
-        t += 1
+    email_sent = 0
+    with open('ReflowProcess.csv', 'w') as csvfile:
+        fieldnames = ['Time', 'Process_Time [s]', 'State', 'Temperature [centigrade]']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
 
-        temp = float(ser.readline())
-		if temp <= 17:
-			temp = float(ser.readline())	# in case serial inputs aren't lined up properly
-
-        state = int(ser.readline())
-        if t == 1:
+        while True:
+            t += 1
+    
+            temp = float(ser.readline())
+            if temp <= 17:
+                temp = float(ser.readline())	# in case serial inputs aren't lined up properly
+    
+            state = int(ser.readline())
+            if t == 1:
+                state_prev = state
+            writer.writerow({'Process_Time [s]': t, 'State': get_state_string(state), 'Temperature [Centigrade]': temp})
+            ended, msgID = get_Msg_ID(state)
             state_prev = state
-        ended, msgID = get_Msg_ID(state)
-        state_prev = state
-
-        if ended is True and email_sent not 1:
-			email_sent = 1
-            filename = fileName_Handler(msgID)
-            plt.savefig(filename)
-            email_send(msgID, filename)
-			if state == 15:
-				webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
-
-        yield t, temp
+    
+            if ended is True and email_sent != 1:
+                email_sent = 1
+                filename = fileName_Handler(msgID)
+                plt.savefig(filename)
+                email_send(msgID, filename)
+                if state == 15:
+                    webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
+    
+            yield t, temp
 
 def run(data):
     # update the data
