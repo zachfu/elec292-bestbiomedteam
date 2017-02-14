@@ -85,7 +85,7 @@ def fileName_Handler(msgID):
 def email_send(msgID, filename):
     """sends an email to the reciever"""
     fromaddr = "elec292bestbiomedteam@gmail.com"
-    toaddr = "danielzhou4970@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
+    toaddr = "zachfu97@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
 
     msg = MIMEMultipart()
 
@@ -116,26 +116,24 @@ def get_Msg_ID(state):
 
 def data_gen():
     t = 0
-	email_sent = 0
+    email_sent = 0
     while True:
         t += 1
 
         temp = float(ser.readline())
-		if temp <= 17:
+        if temp <= 17:
 			temp = float(ser.readline())	# in case serial inputs aren't lined up properly
 
         state = int(ser.readline())
-        if t == 1:
-            state_prev = state
+        
         ended, msgID = get_Msg_ID(state)
-        state_prev = state
 
-        if ended is True and email_sent not 1:
-			email_sent = 1
+        if ended is True and email_sent != 1:
+            email_sent = 1
             filename = fileName_Handler(msgID)
             plt.savefig(filename)
             email_send(msgID, filename)
-			if state == 15:
+            if state == 15:
 				webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
 
         yield t, temp

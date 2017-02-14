@@ -40,7 +40,7 @@
 002E             42   
 002E             43   SAMPLE_INTERVAL EQU 250                                                                  ; Millisecond Interval when sampling (KEEP LESS THAN 256)
 002E             44   
-002E             45   PWM_PERCENT                      EQU 10
+002E             45   PWM_PERCENT                      EQU 20
 002E             46   PWM_RELOAD_HIGH EQU (255*PWM_PERCENT/100)
 002E             47   PWM_RELOAD_LOW   EQU     (255 - PWM_RELOAD_HIGH)
 002E             48   
@@ -470,7 +470,7 @@
 071D 30030E     348            jnb pwm_high, Inc_Done_PWM_Low
 0720            349   
 0720 E533       350            mov a, Count_PWM
-0722 B41915     351            cjne a, #PWM_RELOAD_HIGH, Timer2_ISR_done
+0722 B43315     351            cjne a, #PWM_RELOAD_HIGH, Timer2_ISR_done
 0725            352            
 0725 C203       353            clr pwm_high
 0727 C2B7       354            clr SSR_OUT
@@ -483,7 +483,7 @@
 072E            361   Inc_Done_PWM_Low:
 072E            362   
 072E E533       363            mov a, Count_PWM
-0730 B4E607     364            cjne a, #PWM_RELOAD_LOW, Timer2_ISR_done
+0730 B4CC07     364            cjne a, #PWM_RELOAD_LOW, Timer2_ISR_done
 0733            365            
 0733 D203       366            setb pwm_high
 0735 D2B7       367            setb SSR_OUT
