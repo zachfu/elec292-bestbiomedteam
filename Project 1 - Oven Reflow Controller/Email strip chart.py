@@ -33,12 +33,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-<<<<<<< HEAD
-
-=======
 import webbrowser
- 
->>>>>>> master
+
 ser = serial.Serial(
     port='COM4',
     baudrate=115200,
@@ -48,8 +44,6 @@ ser = serial.Serial(
 )
 
 xsize=1000
-cumsum = 1
-cumaverage = 1
 
 
 def make_attachment(filename):
@@ -64,23 +58,15 @@ def make_attachment(filename):
 
 def msgID_Handler(msgID):
     """different Subject line and Bodies of email based on the message ID"""
-    """msgID 0=error, 1=update, 2=complete, 3=aborted process"""
     subjectType = {
         15: "COMPLETION",
         16: "ERROR ALERT!!!",
         17: "CANCELATION ALERT!!",
-        1: "UPDATE",
-<<<<<<< HEAD
-=======
-        2: "COMPLETION",
-        3: "CANCELATION ALERT!!",
->>>>>>> master
     }
     bodyType = {
         15: "Process successfully completed. CSV file and graph are attached",
         16: "Error occured during the process. Last moment attached",
         17: "your process has been manually cancelled. Attached documents",
-        1: "Last Update of the process attached",
     }
 
     return subjectType.get(msgID, "No Subject"), bodyType.get(msgID, "No Body")
@@ -92,7 +78,6 @@ def fileName_Handler(msgID):
         15: "COMPLETION.png",
         16: "ERROR.png",
         17: "CANCELATION.png",
-        1: "UPDATE.png",
     }
     return imageName.get(msgID, "unDefined.png")
 
@@ -119,22 +104,19 @@ def email_send(msgID, filename):
     server.quit()
 
 
-def get_Msg_ID(state, state_prev):
+def get_Msg_ID(state):
     """to determine if sending email is necessary and what msgID it has"""
     # if process is completed or aborted manualy or due to error
     if (state == 15 or state == 16 or state == 17):
         return True, state,
     # if process stage has changed
-    elif(state_prev >= 10 and state_prev != state):
-        return True, 1
     else:
         return False, 1
 
 
 def data_gen():
     t = 0
-<<<<<<< HEAD
-    tempsum = 0
+	email_sent = 0
     while True:
         t += 1
 
@@ -145,28 +127,18 @@ def data_gen():
         state = int(ser.readline())
         if t == 1:
             state_prev = state
-        change, msgID = get_Msg_ID(state, state_prev)
+        ended, msgID = get_Msg_ID(state)
         state_prev = state
 
-        if change is True:
+        if ended is True and email_sent not 1:
+			email_sent = 1
             filename = fileName_Handler(msgID)
             plt.savefig(filename)
             email_send(msgID, filename)
+			if state == 15:
+				webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
 
         yield t, temp
-
-=======
-    email_sent = 0
-    while True:
-       t+=1
-       y = float(ser.readline())
-       if y >= 150 and not email_sent:
-           plt.savefig('test.png')
-           email_send( 1, 'test.png')
-           webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
-           email_sent = 1
-       yield t, y
->>>>>>> master
 
 def run(data):
     # update the data
