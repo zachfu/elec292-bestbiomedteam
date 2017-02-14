@@ -40,6 +40,7 @@ from email import encoders
 import webbrowser
 import csv
 from twilio.rest import TwilioRestClient
+import time
 
 ser = serial.Serial(
     port='COM4',
@@ -160,7 +161,7 @@ def data_gen():
             state = int(ser.readline())
             if t == 1:
                 state_prev = state
-            writer.writerow({'Process_Time [s]': t, 'State': get_state_string(state), 'Temperature [Centigrade]': temp})
+            writer.writerow({'Time': time.ctime(time.time()), 'Process_Time [s]': t, 'State': get_state_string(state), 'Temperature [Centigrade]': temp})
             ended, msgID = get_Msg_ID(state)
             state_prev = state
     
