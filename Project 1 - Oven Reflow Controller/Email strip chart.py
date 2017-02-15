@@ -43,6 +43,7 @@ import csv
 from twilio.rest import TwilioRestClient
 import speech_recognition as sr
 import pyaudio
+import thread
 
 ser = serial.Serial(
     port='COM4',
@@ -58,6 +59,7 @@ auth_token = "dc2928b0ca4fe591930b0a2d25216d55"
 client = TwilioRestClient(account_sid, auth_token)
 
 global state
+state = 0
 
 def make_attachment(filename):
     """for attaching a file"""
@@ -176,42 +178,27 @@ def text_to_speech(state):
         client.messages.create(from_="+17786537756", to="+17783184871",body='Process Cancelled!')
 
 
-#def speech_to_text(state):
-#    r = sr.Recognizer()
-#    r.dynamic_energy_threshold=True
- #   with sr.Microphone() as source:                # use the default microphone as the audio source
- #       r.adjust_for_ambient_noise(source, duration = 1)
- #       print ("say something")
- #       audio = r.listen(source, timeout= 3)                   # listen for the first phrase and extract it into audio data
- #   try:
- #       print("You said " + r.recognize_google(audio))    # recognize speech using Google Speech Recognition
- #       var=r.recognize_google(audio)
-#        if var == 'State' or var == 'States':
- #           print(get_state_string(state))
- #           engine.say("Your current state is" + get_state_string(state))
- #           engine.runAndWait()
- #       elif var == 'Bush did 9/11':
- #           engine.say("Yes I agree with you")
- #           engine.runAndWait()
- #   except sr.UnknownValueError:
- #       print("Google Speech Recognition could not understand audio")
- #   except sr.RequestError as e:
- #       print("Could not request results from Google Speech Recognition service; {0}".format(e))
-
- def callback(recognizer, audio):                          # this is called from the background thread
-    print("say something")
+def speech_to_text(state):
+    r = sr.Recognizer()
+    r.dynamic_energy_threshold=True
+    with sr.Microphone() as source:                # use the default microphone as the audio source
+        r.adjust_for_ambient_noise(source, duration = 1)
+        print ("say something")
+        audio = r.listen(source, timeout= 3)                   # listen for the first phrase and extract it into audio data
     try:
         print("You said " + r.recognize_google(audio))    # recognize speech using Google Speech Recognition
+        var=r.recognize_google(audio)
+        if var == 'State' or var == 'States':
+            print(get_state_string(state))
+            engine.say("Your current state is" + get_state_string(state))
+            engine.runAndWait()
+        elif var == 'Bush did 9/11':
+            engine.say("Yes I agree with you")
+            engine.runAndWait()
     except sr.UnknownValueError:
         print("Google Speech Recognition could not understand audio")
     except sr.RequestError as e:
         print("Could not request results from Google Speech Recognition service; {0}".format(e))
-
-r = sr.Recognizer()
-r.dynamic_energy_threshold=True
-m = sr.Microphone()
-with m as source: r.adjust_for_ambient_noise(source)      # we only need to calibrate once, before we start listening
-stop_listening = r.listen_in_background(m, callback)
 
 
 def data_gen():
@@ -239,8 +226,6 @@ def data_gen():
                 text_to_speech(state)
             state_prev = state
 
-            speech_to_text(state)
-
             if ended is True and email_sent != 1:
                 email_sent = 1
                 filename = fileName_Handler(msgID)
@@ -251,6 +236,12 @@ def data_gen():
                     webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
     
             yield t, temp
+
+
+def speech_Recognition():
+    while True:
+        speech_to_text(state)
+
 
 def run(data):
     # update the data
@@ -327,6 +318,7 @@ for label in ticklabels:
     label.set_color('b')
     label.set_fontsize('large')
 
+thread.start_new_thread (speech_Recognition, ())
 # Important: Although blit=True makes graphing faster, we need blit=False to prevent
 # spurious lines to appear when resizing the stripchart.
 ani = animation.FuncAnimation(fig, run, data_gen, blit=False, interval=100, repeat=False)
