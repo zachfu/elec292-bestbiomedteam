@@ -41,6 +41,8 @@ import webbrowser
 import pyttsx
 import csv
 from twilio.rest import TwilioRestClient
+import speech_recognition as sr
+import pyaudio
 
 ser = serial.Serial(
     port='COM4',
@@ -172,7 +174,31 @@ def text_to_speech(state):
         engine.runAndWait()
         webbrowser.open('https://www.youtube.com/watch?v=Le9sLw2VdUg')
         client.messages.create(from_="+17786537756", to="+17783184871",body='Process Cancelled!')
-        
+
+
+def speech_to_text(state):
+    r = sr.Recognizer()
+    r.dynamic_energy_threshold=True
+    with sr.Microphone() as source:                # use the default microphone as the audio source
+        r.adjust_for_ambient_noise(source, duration = 1)
+        print ("say something")
+        audio = r.listen(source,timeout=3)                   # listen for the first phrase and extract it into audio data
+    try:
+        print("You said " + r.recognize_google(audio))    # recognize speech using Google Speech Recognition
+        var=r.recognize_google(audio)
+        if var == 'State' or 'States':
+            print(get_state_string(state))
+            engine.say("Your current state is" + get_state_string(state))
+            engine.runAndWait()
+        if var == 'Bush did 9/11':
+            engine.say("Yes I agree with you")
+            engine.runAndWait()
+    except sr.UnknownValueError:
+        print("Google Speech Recognition could not understand audio")
+    except sr.RequestError as e:
+        print("Could not request results from Google Speech Recognition service; {0}".format(e))
+
+
 def data_gen():
     t = 0
     email_sent = 0
@@ -197,7 +223,9 @@ def data_gen():
             if state_prev != state:
                 text_to_speech(state)
             state_prev = state
-    
+
+            speech_to_text(state)
+
             if ended is True and email_sent != 1:
                 email_sent = 1
                 filename = fileName_Handler(msgID)
