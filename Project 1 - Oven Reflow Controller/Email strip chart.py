@@ -55,7 +55,6 @@ account_sid = "ACfc81dca730513b75df2e4c12ca6803bf"
 auth_token = "dc2928b0ca4fe591930b0a2d25216d55"
 client = TwilioRestClient(account_sid, auth_token)
 
-message = client.messages.create(from_="+17786537756", to="+17783184871",body='Reflow Process Done!')
 global state
 
 def make_attachment(filename):
@@ -147,6 +146,7 @@ def text_to_speech(state):
     if state == 10:
         engine.say('Process has started. Ensure oven door is closed. State Ramp to Soak.')
         engine.runAndWait()
+        client.messages.create(from_="+17786537756", to="+17783184871",body='Process has Started!')
     if state == 11:
         engine.say('Process is now in soak stage')
         engine.runAndWait()
@@ -162,6 +162,17 @@ def text_to_speech(state):
     if state == 15:
         engine.say('Process complete. Please remove board from oven')
         engine.runAndWait()
+    if state == 16:
+        engine.say('Process aborted. Check thermocouple')
+        engine.runAndWait()
+        webbrowser.open('https://www.youtube.com/watch?v=9Deg7VrpHbM')
+        client.messages.create(from_="+17786537756", to="+17783184871",body='Process Aborted!')
+    if state == 17:
+        engine.say('Process cancelled')
+        engine.runAndWait()
+        webbrowser.open('https://www.youtube.com/watch?v=Le9sLw2VdUg')
+        client.messages.create(from_="+17786537756", to="+17783184871",body='Process Cancelled!')
+        
 def data_gen():
     t = 0
     email_sent = 0
@@ -193,7 +204,7 @@ def data_gen():
                 plt.savefig(filename)
                 email_send(msgID, filename, "ReflowProcess.csv")
                 if state == 15:
-                    print(message.sid)
+                    client.messages.create(from_="+17786537756", to="+17783184871",body='Reflow Process Done!')
                     webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
     
             yield t, temp
