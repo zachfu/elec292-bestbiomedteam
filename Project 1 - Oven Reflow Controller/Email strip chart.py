@@ -50,7 +50,7 @@ ser = serial.Serial(
     bytesize=serial.EIGHTBITS
 )
 
-xsize=1000
+xsize = 1000
 account_sid = "ACfc81dca730513b75df2e4c12ca6803bf"
 auth_token = "dc2928b0ca4fe591930b0a2d25216d55"
 client = TwilioRestClient(account_sid, auth_token)
@@ -141,33 +141,11 @@ def get_state_string(state):
     if state < 10:
         return "Initialization"
     else:
-        return stateName.get(state)
+        return stateName.get(state, "unknown")
 
 def data_gen():
     t = 0
     email_sent = 0
-<<<<<<< HEAD
-    while True:
-        t += 1
-
-        temp = float(ser.readline())
-        if temp <= 17:
-			temp = float(ser.readline())	# in case serial inputs aren't lined up properly
-
-        state = int(ser.readline())
-        
-        ended, msgID = get_Msg_ID(state)
-
-        if ended is True and email_sent != 1:
-            email_sent = 1
-            filename = fileName_Handler(msgID)
-            plt.savefig(filename)
-            email_send(msgID, filename)
-            if state == 15:
-				webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
-
-        yield t, temp
-=======
     with open('ReflowProcess.csv', 'w') as csvfile:
         fieldnames = ['Time', 'Process_Time [s]', 'State', 'Temperature [centigrade]']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -197,7 +175,7 @@ def data_gen():
                     webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
     
             yield t, temp
->>>>>>> b9481678b533d3a322e34258704d3b21ff50363a
+
 
 def run(data):
     # update the data
@@ -252,7 +230,7 @@ ticklabels = ax.get_xticklabels() + ax.get_yticklabels()
 frame = legend.get_frame()
 frame.set_facecolor('0.9')
 plt.ylabel('Temperature(°C)')
-plt.xlabel('Time')
+plt.xlabel('Time (x 0.25s)')
 plt.title('Real-time Temperature monitoring')
 ax.set_ylim(0,300)
 ax.set_xlim(0, xsize)
@@ -276,7 +254,7 @@ for lline in gridlines:
     lline.set_linestyle('-.')
     lline.set_color('gray')
     lline.set_linewidth(1)
-    
+
 for label in ticklabels:
     label.set_color('b')
     label.set_fontsize('large')
