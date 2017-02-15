@@ -182,15 +182,15 @@ def speech_to_text(state):
     with sr.Microphone() as source:                # use the default microphone as the audio source
         r.adjust_for_ambient_noise(source, duration = 1)
         print ("say something")
-        audio = r.listen(source,timeout=3)                   # listen for the first phrase and extract it into audio data
+        audio = r.listen(source, timeout= 3)                   # listen for the first phrase and extract it into audio data
     try:
         print("You said " + r.recognize_google(audio))    # recognize speech using Google Speech Recognition
         var=r.recognize_google(audio)
-        if var == 'State' or 'States':
+        if var == 'State' or var == 'States':
             print(get_state_string(state))
             engine.say("Your current state is" + get_state_string(state))
             engine.runAndWait()
-        if var == 'Bush did 9/11':
+        elif var == 'Bush did 9/11':
             engine.say("Yes I agree with you")
             engine.runAndWait()
     except sr.UnknownValueError:
