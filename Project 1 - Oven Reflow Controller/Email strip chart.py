@@ -30,7 +30,7 @@ run 'pip install twilio' in Python terminal to enable sending text messages
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import sys, time, math
+import sys, time
 import serial
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -40,7 +40,6 @@ from email import encoders
 import webbrowser
 import csv
 from twilio.rest import TwilioRestClient
-import time
 
 ser = serial.Serial(
     port='COM9',
@@ -50,7 +49,7 @@ ser = serial.Serial(
     bytesize=serial.EIGHTBITS
 )
 
-xsize = 1000
+xsize=1000
 account_sid = "ACfc81dca730513b75df2e4c12ca6803bf"
 auth_token = "dc2928b0ca4fe591930b0a2d25216d55"
 client = TwilioRestClient(account_sid, auth_token)
@@ -97,7 +96,7 @@ def fileName_Handler(msgID):
 def email_send(msgID, filename):
     """sends an email to the reciever"""
     fromaddr = "elec292bestbiomedteam@gmail.com"
-    toaddr = "zachfu97@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
+    toaddr = "danielzhou4970@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
 
     msg = MIMEMultipart()
 
@@ -141,13 +140,14 @@ def get_state_string(state):
     if state < 10:
         return "Initialization"
     else:
-        return stateName.get(state, "unknown")
+        return stateName.get(state)
 
 def data_gen():
     t = 0
     email_sent = 0
+    global state
     with open('ReflowProcess.csv', 'w') as csvfile:
-        fieldnames = ['Time', 'Process_Time [s]', 'State', 'Temperature [centigrade]']
+        fieldnames = ['Time', 'Process_Time [s]', 'State', 'Temperature [Centigrade]']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -161,7 +161,7 @@ def data_gen():
             state = int(ser.readline())
             if t == 1:
                 state_prev = state
-            writer.writerow({'Time': time.ctime(time.time()), 'Process_Time [s]': t, 'State': get_state_string(state), 'Temperature [Centigrade]': temp})
+            writer.writerow({'Time': time.ctime(time.time()),'Process_Time [s]': t, 'State': get_state_string(state), 'Temperature [Centigrade]': temp})
             ended, msgID = get_Msg_ID(state)
             state_prev = state
     
@@ -170,17 +170,15 @@ def data_gen():
                 filename = fileName_Handler(msgID)
                 plt.savefig(filename)
                 email_send(msgID, filename)
-                print(message.sid)
                 if state == 15:
+                    print(message.sid)
                     webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
     
             yield t, temp
 
-
 def run(data):
     # update the data
     t, y = data
-    global state
     if t > xsize:  # Scroll to the left.
             ax.set_xlim(t-xsize, t)
     if state==10:         
@@ -203,13 +201,13 @@ def run(data):
         xdata4.append(t)
         ydata4.append(y)
         line4.set_data(xdata4, ydata4)
-    if state>15:
+    if state>=15:
         xdata5.append(t)
         ydata5.append(y)
         line5.set_data(xdata5, ydata5)
-    return line,line1,line2,line3,line4,line5
+    return line,line1,line2,line3,line4,line5,
 
- 
+
 def on_close_figure(event):
     sys.exit(0)
 
@@ -218,19 +216,19 @@ fig = plt.figure()
 fig.canvas.mpl_connect('close_event', on_close_figure)
 ax = fig.add_subplot(111)
 ax.set_axis_bgcolor('k')    #set background color:black
-line, = ax.plot([], [], '-',color='r',lw=4,label='Ramp to Soak')
-line1, = ax.plot([], [], '-.',color='r',lw=4,label='Soak')
-line2, = ax.plot([], [], '-',color='yellow',lw=4,label='Ramp to Reflow')
-line3, = ax.plot([], [], '-.',color='yellow',lw=4,label='Reflow')
-line4, = ax.plot([], [], '-',color='b',lw=4,label='Cooling')
-line5, = ax.plot([], [], '-',color='white',lw=4,label='Not in process')
+line, = ax.plot([], [], '-',color='yellow',lw=3,label='Ramp to Soak')
+line1, = ax.plot([], [], '-.',color='yellow',lw=3,label='Soak')
+line2, = ax.plot([], [], '-',color='r',lw=3,label='Ramp to Reflow')
+line3, = ax.plot([], [], '-.',color='r',lw=3,label='Reflow')
+line4, = ax.plot([], [], '-',color='dodgerblue',lw=3,label='Cooling')
+line5, = ax.plot([], [], '-',color='white',lw=3,label='Not in process')
 legend = ax.legend(loc='upper left', shadow=True)   #initiate legend
 gridlines = ax.get_xgridlines() + ax.get_ygridlines()
 ticklabels = ax.get_xticklabels() + ax.get_yticklabels()
 frame = legend.get_frame()
 frame.set_facecolor('0.9')
 plt.ylabel('Temperature(°C)')
-plt.xlabel('Time (x 0.25s)')
+plt.xlabel('Time(quater seconds)')
 plt.title('Real-time Temperature monitoring')
 ax.set_ylim(0,300)
 ax.set_xlim(0, xsize)
@@ -254,7 +252,7 @@ for lline in gridlines:
     lline.set_linestyle('-.')
     lline.set_color('gray')
     lline.set_linewidth(1)
-
+    
 for label in ticklabels:
     label.set_color('b')
     label.set_fontsize('large')
