@@ -38,17 +38,18 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import webbrowser
+import pyttsx
 import csv
 from twilio.rest import TwilioRestClient
 
 ser = serial.Serial(
-    port='COM9',
+    port='COM4',
     baudrate=115200,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_TWO,
     bytesize=serial.EIGHTBITS
 )
-
+engine = pyttsx.init()
 xsize=1000
 account_sid = "ACfc81dca730513b75df2e4c12ca6803bf"
 auth_token = "dc2928b0ca4fe591930b0a2d25216d55"
@@ -93,7 +94,7 @@ def fileName_Handler(msgID):
     return imageName.get(msgID, "unDefined.png")
 
 
-def email_send(msgID, filename):
+def email_send(msgID, filename1, filename2):
     """sends an email to the reciever"""
     fromaddr = "elec292bestbiomedteam@gmail.com"
     toaddr = "danielzhou4970@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
@@ -105,7 +106,8 @@ def email_send(msgID, filename):
     msg['Subject'], body = msgID_Handler(msgID)
     
     msg.attach(MIMEText(body, 'plain')) 
-    msg.attach(make_attachment(filename))
+    msg.attach(make_attachment(filename1))
+    msg.attach(make_attachment(filename2))
 
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
@@ -141,7 +143,25 @@ def get_state_string(state):
         return "Initialization"
     else:
         return stateName.get(state)
-
+def text_to_speech(state):
+    if state == 10:
+        engine.say('Process has started. Ensure oven door is closed. State Ramp to Soak.')
+        engine.runAndWait()
+    if state == 11:
+        engine.say('Process is now in soak stage')
+        engine.runAndWait()
+    if state == 12:
+        engine.say('Process is now in ramp to reflow stage')
+        engine.runAndWait()
+    if state == 13:
+        engine.say('Process is now in reflow')
+        engine.runAndWait()
+    if state == 14:
+        engine.say('Now cooling. Please open oven door')
+        engine.runAndWait()
+    if state == 15:
+        engine.say('Process complete. Please remove board from oven')
+        engine.runAndWait()
 def data_gen():
     t = 0
     email_sent = 0
@@ -163,13 +183,15 @@ def data_gen():
                 state_prev = state
             writer.writerow({'Time': time.ctime(time.time()),'Process_Time [s]': t, 'State': get_state_string(state), 'Temperature [Centigrade]': temp})
             ended, msgID = get_Msg_ID(state)
+            if state_prev != state:
+                text_to_speech(state)
             state_prev = state
     
             if ended is True and email_sent != 1:
                 email_sent = 1
                 filename = fileName_Handler(msgID)
                 plt.savefig(filename)
-                email_send(msgID, filename)
+                email_send(msgID, filename, "ReflowProcess.csv")
                 if state == 15:
                     print(message.sid)
                     webbrowser.open('https://www.youtube.com/watch?v=-YCN-a0NsNk')
@@ -212,18 +234,18 @@ fig = plt.figure()
 fig.canvas.mpl_connect('close_event', on_close_figure)
 ax = fig.add_subplot(111)
 ax.set_axis_bgcolor('k')    #set background color:black
-line, = ax.plot([], [], '-',color='yellow',lw=3,label='Ramp to Soak')
-line1, = ax.plot([], [], '-.',color='yellow',lw=3,label='Soak')
-line2, = ax.plot([], [], '-',color='r',lw=3,label='Ramp to Reflow')
-line3, = ax.plot([], [], '-.',color='r',lw=3,label='Reflow')
+line, = ax.plot([], [], '-.',color='yellow',lw=3,label='Ramp to Soak')
+line1, = ax.plot([], [], '-',color='yellow',lw=3,label='Soak')
+line2, = ax.plot([], [], '-.',color='r',lw=3,label='Ramp to Reflow')
+line3, = ax.plot([], [], '-',color='r',lw=3,label='Reflow')
 line4, = ax.plot([], [], '-',color='dodgerblue',lw=3,label='Cooling')
 legend = ax.legend(loc='upper left', shadow=True)   #initiate legend
 gridlines = ax.get_xgridlines() + ax.get_ygridlines()
 ticklabels = ax.get_xticklabels() + ax.get_yticklabels()
 frame = legend.get_frame()
 frame.set_facecolor('0.9')
-plt.ylabel('Temperature(°C)')
-plt.xlabel('Time(quater seconds)')
+plt.ylabel('Temperature(C)')
+plt.xlabel('Time(quarter seconds)')
 plt.title('Real-time Temperature monitoring')
 ax.set_ylim(0,300)
 ax.set_xlim(0, xsize)
