@@ -201,11 +201,7 @@ def run(data):
         xdata4.append(t)
         ydata4.append(y)
         line4.set_data(xdata4, ydata4)
-    if state>=15:
-        xdata5.append(t)
-        ydata5.append(y)
-        line5.set_data(xdata5, ydata5)
-    return line,line1,line2,line3,line4,line5,
+    return line,line1,line2,line3,line4,
 
 
 def on_close_figure(event):
@@ -221,7 +217,6 @@ line1, = ax.plot([], [], '-.',color='yellow',lw=3,label='Soak')
 line2, = ax.plot([], [], '-',color='r',lw=3,label='Ramp to Reflow')
 line3, = ax.plot([], [], '-.',color='r',lw=3,label='Reflow')
 line4, = ax.plot([], [], '-',color='dodgerblue',lw=3,label='Cooling')
-line5, = ax.plot([], [], '-',color='white',lw=3,label='Not in process')
 legend = ax.legend(loc='upper left', shadow=True)   #initiate legend
 gridlines = ax.get_xgridlines() + ax.get_ygridlines()
 ticklabels = ax.get_xticklabels() + ax.get_yticklabels()
@@ -238,7 +233,6 @@ xdata1, ydata1 = [], []
 xdata2, ydata2 = [], []
 xdata3, ydata3 = [], []
 xdata4, ydata4 = [], []
-xdata5, ydata5 = [], []
 """
 set the legend, ticklabels and grid lines
 """
