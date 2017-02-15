@@ -184,11 +184,11 @@ def speech_to_text(state):
     with sr.Microphone() as source:                # use the default microphone as the audio source
         r.adjust_for_ambient_noise(source, duration = 1)
         print ("say something")
-        audio = r.listen(source, timeout= 3)                   # listen for the first phrase and extract it into audio data
+        audio = r.listen(source, phrase_time_limit = 2)                   # listen for the first phrase and extract it into audio data
     try:
         print("You said " + r.recognize_google(audio))    # recognize speech using Google Speech Recognition
         var=r.recognize_google(audio)
-        if var == 'State' or var == 'States':
+        if var == 'state' or var == 'State' or var == 'States' or var == 'states' or var == 'steak' or var == 'spade' or var== 'estate' or var == 'stage' or var == 'spate' or var == 'skate' :
             print(get_state_string(state))
             engine.say("Your current state is" + get_state_string(state))
             engine.runAndWait()
@@ -199,6 +199,10 @@ def speech_to_text(state):
         print("Google Speech Recognition could not understand audio")
     except sr.RequestError as e:
         print("Could not request results from Google Speech Recognition service; {0}".format(e))
+    except sr.WaitTimeoutError:
+        print("waited so long, no audio detected")
+    except sr.HTTPError:
+        print("http error")
 
 
 def data_gen():
