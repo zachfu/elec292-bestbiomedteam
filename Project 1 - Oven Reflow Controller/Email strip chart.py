@@ -46,7 +46,7 @@ import pyaudio
 import thread
 
 ser = serial.Serial(
-    port='COM4',
+    port='COM3',
     baudrate=115200,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_TWO,
@@ -100,7 +100,7 @@ def fileName_Handler(msgID):
 def email_send(msgID, filename1, filename2):
     """sends an email to the reciever"""
     fromaddr = "elec292bestbiomedteam@gmail.com"
-    toaddr = "danielzhou4970@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
+    toaddr = "hmn16@yahoo.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
 
     msg = MIMEMultipart()
 
@@ -178,6 +178,12 @@ def text_to_speech(state):
         client.messages.create(from_="+17786537756", to="+17783184871",body='Process Cancelled!')
 
 
+def state_list_Check(string):
+    state_list = [ 'state', 'State', 'states', 'States', 'steak', 'date', 'dates', 'spade', 'estate', 'stage', 'spate', 'skate', 'bait']
+    
+    if string in state_list:
+        return "state"
+
 def speech_to_text(state):
     r = sr.Recognizer()
     r.dynamic_energy_threshold=True
@@ -188,7 +194,7 @@ def speech_to_text(state):
     try:
         print("You said " + r.recognize_google(audio))    # recognize speech using Google Speech Recognition
         var=r.recognize_google(audio)
-        if var == 'state' or var == 'State' or var == 'States' or var == 'states' or var == 'steak' or var == 'spade' or var== 'estate' or var == 'stage' or var == 'spate' or var == 'skate' :
+        if state_list_Check(var) == 'state':
             print(get_state_string(state))
             engine.say("Your current state is" + get_state_string(state))
             engine.runAndWait()
