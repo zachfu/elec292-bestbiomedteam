@@ -30,8 +30,8 @@ org 0x002B
 	ljmp Timer2_ISR
 	
 ;++++++++++++++++++ CONSTANTS ++++++++++++++++++++
-VLED 	EQU 207
-;++++++++++++++++++ TIME SENSITIVE ++++++++++++
+VLED 				EQU 207							; Typical LED voltage drop (*100)
+;++++++++++++++++++ TIME SENSITIVE +++++++++++++++
 CLK           		EQU 22118400							 ; Microcontroller system crystal frequency in Hz
 TIMER0_RATE  	  	EQU 4096     							 ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
 TIMER0_RELOAD	  	EQU ((65536-(CLK/TIMER0_RATE)))
@@ -106,13 +106,13 @@ DSEG at 0x30
 	Long_Beep_Counter:  ds 1 ; Duration/Rhythm counter for long beep
 	Six_Beep_Counter:	ds 1 ; Duration/Rhythm counter for six intermittent beeps
 	
-;+++++++++ 32 bit Calculation variables +++++++++++	
-	x:  	    	ds 4
-	y:   			ds 4
-	Result: 		ds 2
-	bcd:			ds 5
-	x_lm335:		ds 4
-	Vcc:			ds 4
+;+++++++++ Calculation variables +++++++++++	
+	x:  	    	ds 4	; Operand 1 of math macros
+	y:   			ds 4	; Operand 2 of math macros
+	Result: 		ds 2	; Variable storing result of ADC read calls
+	bcd:			ds 5	; Variable storing result of hex2bcd macro calls
+	x_lm335:		ds 4	; Cold junction temperature (from LM335)
+	Vcc:			ds 4	; Vcc * 10^6
 ;--------------------------------------------
 	state:			ds 1
 	current_temp:	ds 4
@@ -379,29 +379,30 @@ Take_Sample:
 	
 	; Reading the thermocouple temperature
   	Average_ADC_Channel(1)
-  	lcall Result_SPI_Routine	; 0.5 second delay between samples
+  	lcall Result_SPI_Routine	; Calculate oven temperature and send over serial
 	ret
 
 ; Calculates Vcc from measured LED voltage
 Calculate_Vcc:
+	; Vcc*10^6 = VLED*1023*10000/result 	- Where 'result' is the ADC value of the LED voltage (typically 2.07V)
 	Move_2B_to_4B (y, result)
 	load_X(VLED*1023)
 	lcall div32
 	load_Y(10000)
-	lcall mul32			; Gets Vcc*10^6
+	lcall mul32			
 
 	Move_4B_to_4B (Vcc, x)
 	
 	ret
 	
-;calculating cold junction temperature
+; Calculates cold junction temperature
 LM335_Result_SPI_Routine:
+	; x_lm335 = Cold Junction Temp * 100 = ((LM335*Vcc*10^6/102300) - 27300)	- Where 'LM335' is the ADC value of the cold junction voltage
 	Move_4B_to_4B (y, Vcc)
-
-    lcall mul32			; Vout*10^6 = ADC*(Vcc*10^6)/1023
+	lcall mul32			
     load_y (1023)	
     lcall div32
-    load_y (2730000)	; T*10^4 = (Vout*10^6-2.73*10^6)/100
+    load_y (2730000)
     lcall sub32
     load_y (100)		
     lcall div32
@@ -410,8 +411,9 @@ LM335_Result_SPI_Routine:
 	
 	ret
 
-;calculating the oven temperature and sending it to computer and LCD
+; Calculates the oven temperature
 Result_SPI_Routine:
+	; x_kt = Thermocouple Temp * 100 = (KT*Vcc*10^6*1000)/(1023*3133*41) = 100 * (KT*Vcc)/(1023*313.3*41*10^-6)		- Where 'KT' is the ADC value of the thermocouple voltage
 	Move_4B_to_4B (y, Vcc)
 	
 	lcall mul32
@@ -419,30 +421,31 @@ Result_SPI_Routine:
 	lcall div32
 	Load_Y(1000)
 	lcall mul32	
-	Load_Y(3130)	;Gain 
+	Load_Y(3133)	; Gain*10 
 	lcall div32
-	Load_Y(41)	;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
+	Load_Y(41)	; Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
 	lcall div32
 	
+	; current_temp = (x_kt + x_lm335)/100
 	Move_4B_to_4B (y, x_lm335)
 	lcall add32
-  
-  Load_Y(100)
-  lcall div32
+	Load_Y(100)
+	lcall div32
 
-	;updating the temperature of OVEN variable
+	;update the oven temperature variable
 	Move_4B_to_4B (current_temp, x)
 	
 	lcall hex2bcd
 
-;sending Oven temperature to Computer
+; Sends oven temperature and reflow stage over serial
 Send_Serial:
+	; Only concerned with three digits of temperature reading
 	Send_BCD(bcd+1)
 	Send_BCD(bcd)
 	mov a, #'\n'
 	lcall putchar
 	
-	;sending the state to computer
+	; Send state number
 	Move_1B_to_4B (x, state)
 	lcall hex2bcd
 	Send_BCD(bcd)
@@ -461,71 +464,71 @@ Save_Configuration:
 	mov a, #0xff			; Write 1111 1111 to flash mem
 	movx @DPTR, A
 	; Load page
-  mov MEMCON, #00111000B ; LDPG=1, MWEN=1, DMEN=1
-  ; Enables loading of multiple bytes to temporary page buffer
-  ; Enables programming of nonvolatile memory location
-  ; Enables nonvolatile data memory and map it into FDATA space
-  ; Save variables
-  mov a, soak_temp	; Move soak temperature to accumulator
-  movx @DPTR, A			; Save data in buffer
-  inc DPTR					; Increment data pointer
-  mov a, soak_seconds ; Repeat for remaining variables
-  movx @DPTR, A
-  inc DPTR
-  mov a, reflow_temp
-  movx @DPTR,A
-  inc DPTR
-  mov a, reflow_seconds
-  movx @DPTR, A
-  ; Write Validation Keys to flash memory (Check upon write)
-  inc DPTR
-  mov a, #0x55 ; First key value (0101 0101)
-  movx @DPTR, A
-  inc DPTR
-  mov a, #0xAA ; Second key value (1010 1010)
-  movx @DPTR, A
-  ; Copy Buffer to Flash
-  mov MEMCON, #00011000B ; Copy page to flash
-  mov a, #0xff
-  movx @DPTR, A
-  mov MEMCON, #00000000B ; Disable access to data flash
-  setb EA ; Re-enable interrupts
-  ret
+	mov MEMCON, #00111000B ; LDPG=1, MWEN=1, DMEN=1
+	; Enables loading of multiple bytes to temporary page buffer
+	; Enables programming of nonvolatile memory location
+	; Enables nonvolatile data memory and map it into FDATA space
+	; Save variables
+	mov a, soak_temp	; Move soak temperature to accumulator
+	movx @DPTR, A			; Save data in buffer
+	inc DPTR					; Increment data pointer
+	mov a, soak_seconds ; Repeat for remaining variables
+	movx @DPTR, A
+	inc DPTR
+	mov a, reflow_temp
+	movx @DPTR,A
+	inc DPTR
+	mov a, reflow_seconds
+	movx @DPTR, A
+	; Write Validation Keys to flash memory (Check upon write)
+	inc DPTR
+	mov a, #0x55 ; First key value (0101 0101)
+	movx @DPTR, A
+	inc DPTR
+	mov a, #0xAA ; Second key value (1010 1010)
+	movx @DPTR, A
+	; Copy Buffer to Flash
+	mov MEMCON, #00011000B ; Copy page to flash
+	mov a, #0xff
+	movx @DPTR, A
+	mov MEMCON, #00000000B ; Disable access to data flash
+	setb EA ; Re-enable interrupts
+	ret
 
 ; Reading variables from flash memory
 Load_Configuration:
 	mov MEMCON, #00001000B ; Enable read access to data flash
   
-  mov dptr, #0x0004 ; Move dptr to first key value location
-  movx a, @dptr
-  cjne a, #0x55, Load_Defaults ; If keys do not match, write to flash failed, load default values
-  inc dptr ; Second key value location
-  movx a, @dptr
-  cjne a, #0xAA, Load_Defaults ; Check if second keys match or not, if not then load defaults
-  ; Keys match. Now load saved values from flash
-  mov dptr, #0x0000
-  movx a, @dptr
-  mov soak_temp, a	; Load soak temperature
-  inc dptr
-  movx a, @dptr
-  mov soak_seconds, a ; Load soak time
-  inc dptr
+	mov dptr, #0x0004 ; Move dptr to first key value location
 	movx a, @dptr
-  mov reflow_temp, a ; Load reflow temperature
-  inc dptr
-  movx a, @dptr
-  mov reflow_seconds, a ; Load reflow time
-  mov MEMCON, #00000000B ; Disables access to data flashx
-  ret
+	cjne a, #0x55, Load_Defaults ; If keys do not match, write to flash failed, load default values
+	inc dptr ; Second key value location
+	movx a, @dptr
+	cjne a, #0xAA, Load_Defaults ; Check if second keys match or not, if not then load defaults
+	; Keys match. Now load saved values from flash
+	mov dptr, #0x0000
+	movx a, @dptr
+	mov soak_temp, a	; Load soak temperature
+	inc dptr
+	movx a, @dptr
+	mov soak_seconds, a ; Load soak time
+	inc dptr
+	movx a, @dptr
+	mov reflow_temp, a ; Load reflow temperature
+	inc dptr
+	movx a, @dptr
+	mov reflow_seconds, a ; Load reflow time
+	mov MEMCON, #00000000B ; Disables access to data flashx
+	ret
   
 ; Default (optimal) values for soldering profile
 Load_Defaults: ; Load defaults if keys are incorrect
 	mov soak_temp, #150
-  mov soak_seconds, #45
-  mov reflow_temp, #225
-  mov reflow_seconds, #30
-  mov MEMCON, #00000000B ; Disables access to data flash
-  ljmp forever 
+	mov soak_seconds, #45
+	mov reflow_temp, #225
+	mov reflow_seconds, #30
+	mov MEMCON, #00000000B ; Disables access to data flash
+	ljmp forever 
  
 ;------------------------------------------------------------------;
 ; ********************MACRO LIST***********************************;
@@ -535,11 +538,12 @@ Load_Defaults: ; Load defaults if keys are incorrect
 ; MACRO for incrementing a variable
 ;------------------------------------------------------------------;
 Inc_variable MAC
-	;Mac (%0 : inc/dec button    %1 : variable ) 
+	; %0 : inc/dec button    
+	; %1 : variable 
 	jb %0, no_inc_dec_var%M
 	Wait_Milli_Seconds(#50)
 	jb %0, no_inc_dec_var%M
-  Wait_Milli_Seconds(#100)
+	Wait_Milli_Seconds(#100)
 
 	inc %1
 	
@@ -551,7 +555,8 @@ ENDMAC
 ; MACRO for decrementing a variable
 ;------------------------------------------------------------------;
 Dec_variable MAC
-	;Mac (%0 : inc/dec button    %1 : variable ) 
+	; %0 : inc/dec button   
+	; %1 : variable 
 	jb %0, no_inc_dec_var%M
 	Wait_Milli_Seconds(#50)
 	jb %0, no_inc_dec_var%M
@@ -567,16 +572,18 @@ ENDMAC
 ; MACRO for Showing values with header on LCD
 ;------------------------------------------------------------------;
 Show_Header_and_Value Mac
-	; MAC (%0:    Constant string for the first line on LCD       %1: value to be shown on second line				%2: unit )
+	; %0: Constant string for the first line on LCD      
+	; %1: Value to be shown on second line				
+	; %2: Unit
 	Set_Cursor(1,1)
 	Send_Constant_String(#%0)
 	Set_Cursor(2,1)
 	Move_1B_to_4B ( x, %1)
 	lcall hex2bcd
-  Display_BCD_1_digit(bcd+1)
+	Display_BCD_1_digit(bcd+1)
 	Display_BCD(bcd)
-  Set_Cursor(2,5)
-  Send_Constant_String(#%2)
+	Set_Cursor(2,5)
+	Send_Constant_String(#%2)
 ENDMAC
 
 
@@ -584,37 +591,42 @@ ENDMAC
 ; MACRO for Showing messages with header on LCD
 ;------------------------------------------------------------------;
 Show_Header Mac
+	; %0: Top message
+	; %1: Bottom message
 	Set_Cursor(1,1)
-  Send_Constant_String(#%0)
-  Set_Cursor(2,1)
-  Send_Constant_String(#%1)
+	Send_Constant_String(#%0)
+	Set_Cursor(2,1)
+	Send_Constant_String(#%1)
 ENDMAC
 
 ;------------------------------------------------------------------;
 ; MACRO for Showing 2 values with header on LCD
 ;------------------------------------------------------------------;
 Show_Stage_Temp_Time Mac
-	; MAC (%0:    Constant string for the first line on LCD           %1: Temperature			%2: Time (minutes)   %3: Time (seconds) )
+	; %0:    Constant string for the first line on LCD         
+	; %1: Temperature		
+	; %2: Time (minutes)  
+	; %3: Time (seconds)
 	Set_Cursor(1,1)
 	Send_Constant_String(#%0)
   
-  Set_Cursor(2,1)	;show temperture
+	Set_Cursor(2,1)	;show temperture
 	Move_1B_to_4B ( x, %1)
 	lcall hex2bcd
-  Display_BCD_1_digit(bcd+1)
+	Display_BCD_1_digit(bcd+1)
 	Display_BCD(bcd)
 
 	Set_Cursor(2,5)
 	Send_Constant_String(#Cels)
 
-  Set_Cursor(2,11)
-  Move_1B_to_4B (x, %2)
-  lcall hex2bcd
-  Display_BCD(bcd)
-  Display_char(#':')
- Move_1B_to_4B (x, %3)
-  lcall hex2bcd
-  Display_BCD(bcd)
+	Set_Cursor(2,11)
+	Move_1B_to_4B (x, %2)
+	lcall hex2bcd
+	Display_BCD(bcd)
+	Display_char(#':')
+	Move_1B_to_4B (x, %3)
+	lcall hex2bcd
+	Display_BCD(bcd)
 
   
  
@@ -624,15 +636,16 @@ ENDMAC
 ; MACRO for checking a button and changing state
 ;------------------------------------------------------------------;
 Check_button_for_State_change Mac
-	; MAC (%0:    Constant string for the button name           %1: state to jump to if the button is pressed )
+	; %0: Constant string for the button name         
+	; %1: State to jump to if the button is pressed
 	jb %0, no_button_pressed%M
 	Wait_Milli_Seconds(#50)
 	jb %0, no_button_pressed%M
 	jnb %0, $
 	
 	mov state, #%1
-  WriteCommand(#0x01)
-  Wait_Milli_Seconds(#2)
+	WriteCommand(#0x01)
+	Wait_Milli_Seconds(#2)
 no_button_pressed%M:
 
 ENDMAC
@@ -641,16 +654,16 @@ ENDMAC
 ; MACRO for comparing 2 values and changing state
 ;------------------------------------------------------------------;
 Compare_Values_for_State_Change MAC
-	;	%0: variable to check
-	;	%1: value set at using the buttons
-	;	%2: next state
+	; %0: variable to check
+	; %1: value set at using the buttons
+	; %2: next state
 	mov a, %0
-  clr c
-  subb a, %1
-  jnc values_not_equal%M
+	clr c
+	subb a, %1
+	jnc values_not_equal%M
 	mov state, #%2
-	 WriteCommand(#0x01)
-  Wait_Milli_Seconds(#2)
+	WriteCommand(#0x01)
+	Wait_Milli_Seconds(#2)
 values_not_equal%M:
 
 ENDMAC
@@ -667,7 +680,8 @@ ENDMAC
 ; MACRO for going to next state
 ;------------------------------------------------------------------;
 check_state MAC
-		; %0 state number    %1 next state
+	; %0: State number   
+	; %1: Next state
     mov a, state
     cjne a, #%0, skipstate%M
   	sjmp no_skip_state%M
@@ -677,34 +691,36 @@ no_skip_state%M:
 ENDMAC
 
 Over_Limit MAC
+	; %0: Parameter
+	; %1: Limit
 	mov a, %0
-  clr c
-  dec a
-  subb a, #%1			;reflow time should be less than 45 seconds
-  jc	Not_over_Limit%M	;if reflow_seconds - 45 < 0
-
-  mov %0, #%1	;reset reflow seconds to 0s
+	clr c
+	dec a
+	subb a, #%1			
+	jc	Not_over_Limit%M
+	; If limit is met, keep parameter at that limit
+	mov %0, #%1	
   
 Not_over_Limit%M:  
 ENDMAC
 ;------------------------------------------------------------------;
 ; Main program   (FSM)
 ;	-state 0:  Start Screen
-;	-state 1:  initialization 	Soak Time  
-;	-state 2:  initialization		Soak Temperature
-;	-state 3:  initialization		Reflow Time
-;	-state 4:  initialization		Reflow Temp
+;	-state 1:  Initialization 	Soak Time  
+;	-state 2:  Initialization	Soak Temperature
+;	-state 3:  Initialization	Reflow Time
+;	-state 4:  Initialization	Reflow Temp
 ;
-;	-state 5:  Storing the variables in flash memory, and asking for user confirmation to begin process				
-; -state 6:  initialising Timer and resetting Global Timer
+;	-state 5:  Storing parameters in flash memory (if changed), and asking for user confirmation to begin process				
+; 	-state 6:  Initialising timer and resetting run-time variables
 ;	-state 10: Ramp to Soak
 ;	-state 11: Soak
 ;	-state 12: Ramp to reflow
-;	-state 13: Reflow (Done for now, possible additions check if temperature goes too high, if so then begin cooling immediately etc.)
+;	-state 13: Reflow
 ;	-state 14: Cooling
 ;	-state 15: Finished successfully
 ;	-state 16: ERROR State
-; -state 17: Force Quit State
+; 	-state 17: User Abort State
 ;------------------------------------------------------------------;
 MainProgram:
 
@@ -718,9 +734,9 @@ MainProgram:
 	lcall InitSerialPort
     lcall LCD_4BIT  ; For convenience a few handy macros are included in 'LCD_4bit.inc':
     
-		SSR_OFF()	; clears  pwm_on ------- pwm_high ------- SSR_OUT ------- in_process				
+	SSR_OFF()	; clears  pwm_on ------- pwm_high ------- SSR_OUT ------- in_process				
 
-		clr settings_modified_flag
+	clr settings_modified_flag
     clr one_min_flag
     clr sample_flag
     clr short_beep_flag
@@ -735,27 +751,31 @@ MainProgram:
   	lcall Load_Configuration ; Read values from data flash
 	
 forever:	
-  jnb sample_flag, state0
-  lcall Take_Sample
+	jnb sample_flag, state0
+	lcall Take_Sample
 
-; Main start screen appears on boot and 
+; Main start screen appears on boot 
+; Can cycle through each parameter setting or begin process from here
 state0:
-	check_state (0, 1)
+	check_state (0, 1)	; Check if state is '0', otherwise check if 1, and so on
+	; LEDs operate in negative logic - All on at start screen
   	clr GREEN
   	clr YELLOW
   	clr RED
   	clr BLUE
   	
-  Show_Header(StartMessage, StartMessage2)
+	Show_Header(StartMessage, StartMessage2)	; "Reflow Control || Start / Settings"
   
-  Check_button_for_State_change (CYCLE_BUTTON, 1)		; Transition to parameter select states
-  Check_button_for_State_change (INC_BUTTON, 5)			; Transition to save/start confirm state
-  ljmp forever
-; initializing the Soak Time 
+	Check_button_for_State_change (CYCLE_BUTTON, 1)		; Transition to parameter select states
+	Check_button_for_State_change (INC_BUTTON, 5)		; Transition to save/start confirm state
+	ljmp forever
+	
+; Changing Soak Time Parameter
 state1:
 	check_state (1, 2)
-	setb settings_modified_flag
-	jb led_flag, state1ledon
+	setb settings_modified_flag	; Set flag to indicate settings have been modified and to trigger flash memory save
+	; All LEDs flash on and off in parameter select stages
+	jb led_flag, state1ledon	; led_flag is complemented every 1 second in Timer 2 ISR
 	setb GREEN
 	setb YELLOW
 	setb RED
@@ -768,13 +788,15 @@ state1ledon:
   	clr BLUE
 state1b:
 	Show_Header_and_Value (SoakTime_Message, soak_seconds, Secs)
+	; Poll for +/- buttons to modify parameter
 	Inc_variable (INC_BUTTON, soak_seconds)
 	Dec_variable (DEC_BUTTON, soak_seconds)
 	
+	; Poll for cycle button to cycle to next parameter stage
 	Check_button_for_State_change (CYCLE_BUTTON, 2)
 	ljmp forever									
 	
-; initializing the Soak Temperature 
+; Changing Soak Temperature Parameter
 state2:
 	check_state (2,3)
 	jb led_flag, state2ledon
@@ -796,7 +818,7 @@ state2b:
 	Check_button_for_State_change (CYCLE_BUTTON, 3)
 	ljmp forever									
 
-; initializing the Reflow Time 
+; Changing Reflow Time Parameter
 state3:
 	check_state (3,4)
 	jb led_flag, state3ledon
@@ -815,12 +837,12 @@ state3b:
 	Inc_variable  (INC_BUTTON, reflow_seconds)
 	Dec_variable (DEC_BUTTON, reflow_seconds)
 	
-  Over_Limit (reflow_seconds, 45)
+	Over_Limit (reflow_seconds, 45)	; Caps reflow time at 45 seconds max
   
 	Check_button_for_State_change (CYCLE_BUTTON, 4)
 	ljmp forever									
 
-; initializing the Reflow Temperature 
+; Changing Reflow Temperature Parameter
 state4:
 	check_state (4,5)
 	jb led_flag, state4ledon
@@ -839,61 +861,66 @@ state4b:
 	Inc_variable  (INC_BUTTON, reflow_temp)
 	Dec_variable (DEC_BUTTON, reflow_temp)
 	
-  Over_Limit (reflow_temp, 235)
+	Over_Limit (reflow_temp, 235) ; Caps reflow temperature at 235C max
   
+	; Poll cycle button to return to start screen
 	Check_button_for_State_change (CYCLE_BUTTON, 0)
 	ljmp forever									
 	
 ; Saves value in Flash Memory and Presents Confirmation Screen to Start Process
 state5:
 	check_state (5,6)
+	; All LEDs off
 	setb GREEN
 	setb YELLOW
 	setb RED
 	setb BLUE
-  jnb settings_modified_flag, state5TempSet ; Save values once, once saved skip this
+	; If settings have been modified, save into flash memory only once
+	jnb settings_modified_flag, state5TempSet
   
 	lcall Save_Configuration ; Call to save data to flash memory
 	clr settings_modified_flag
-	Show_Header (SaveToFlash_Msg, BlankMsg)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
+	Show_Header (SaveToFlash_Msg, BlankMsg)	; Show "Data Saved" for one second
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
   
 state5TempSet:
-  mov a, current_temp
-  clr c 
-  subb a, soak_temp ; Compare to soak temp
+	mov a, current_temp
+	clr c 
+	subb a, soak_temp ; Compare to soak temperature parameter
 	jc state5AndThreeQuarters ; If temp is too high, do not allow user to continue
-  Show_Header (TempTooHighMsg, TempTooHighMsg2) ; Display cooling message, prevent user from starting reflow process
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  ljmp forever
+	Show_Header (TempTooHighMsg, TempTooHighMsg2) ; Display cooling message, prevent user from starting reflow process
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	ljmp forever
+	
 state5AndThreeQuarters:
-	Show_Header	(Start_Message, Y_N_Message)
-	Check_button_for_State_change (DEC_BUTTON, 0)	; Move to state 0 to reselect values
-	Check_button_for_State_change (INC_BUTTON, 6)	; Start Process
- 
-  ljmp forever	
+	Show_Header	(Start_Message, Y_N_Message)		; Ask user for start confirmation
+	Check_button_for_State_change (DEC_BUTTON, 0)	; Return to start screen 
+	Check_button_for_State_change (INC_BUTTON, 6)	; Or start process
+	ljmp forever	
 
 state6:
 	check_state (6,10)
+	; Clear relevant variables
 	clr one_min_flag
-	
-  clr a
-  mov run_time_sec, a
-  mov run_time_min, a
-  mov state_time, a
-  mov state, #10
-  setb short_beep_flag
-  ljmp forever
-  
-state10:
+	clr a
+	mov run_time_sec, a
+	mov run_time_min, a
+	mov state_time, a
+	mov state, #10
+	; Play a short beep when starting process
+	setb short_beep_flag
+	ljmp forever
 
+; Ramp to soak stage - Oven power at 100% until soak temperature is reached
+state10:
 	check_state (10,11)
+	; Flash yellow LED
 	jb led_flag, state10ledon
 	setb GREEN
 	setb YELLOW
@@ -905,66 +932,69 @@ state10ledon:
   	clr YELLOW
   	setb RED
   	setb BLUE
+	
 state10b:
-
-  Check_button_for_State_change (CYCLE_BUTTON, 17)
-	clr pwm_on			;100% pwm
-	setb SSR_OUT		; for 100% power
-  Show_Stage_Temp_Time (Ramp2Soak, current_temp, run_time_min, run_time_sec)	;display the current stage and current temperature
-  jnb one_min_flag, not_one_min      ;check if 60 seconds has passed
-  clr one_min_flag
-  mov a, current_temp
-  clr c
-  cjne a, #50, check_thermocouple  ;check if thermocouple degree is bigger than 50
+	Check_button_for_State_change (CYCLE_BUTTON, 17) ; Poll for abort button
+	clr pwm_on		; PWM not used
+	setb SSR_OUT	; Oven at 100% power
+	
+	Show_Stage_Temp_Time (Ramp2Soak, current_temp, run_time_min, run_time_sec)	; Display current stage, temperature, and run-time
+	
+	jnb one_min_flag, not_one_min      ; Check if 60 seconds has passed
+	clr one_min_flag
+	mov a, current_temp
+	clr c
+	cjne a, #50, check_thermocouple  ; Check if thermocouple degree is bigger than 50
 check_thermocouple:
-  jnc not_one_min   ;if not bigger than 50, c=1, jump to display error
-  mov state, #16
-  setb long_beep_flag
-  sjmp state10_Loop
+	jnc not_one_min   ; If after 60 seconds, temperature is not greater than 50C, thermocouple is likely misplaced. Jump to error stage
+	mov state, #16
+	setb long_beep_flag	; Play long beep for error
+	sjmp state10_Loop
   
 not_one_min:
 	mov a, soak_temp 
-  clr c 
-  subb a, current_temp   ;compare current_temp and soak_temp
-  jnc state10_Loop
+	clr c 
+	subb a, current_temp   ; Check if current temperature >= soak temperature
+	jnc state10_Loop		; If so, transition to soak stage
   
-  mov state, #11
-  clr a
-	mov state_time, a	; reset state time to 0 for next state 
+	mov state, #11
+	clr a
+	mov state_time, a	; Reset state time to 0 for next state 
  
-  setb short_beep_flag
+	setb short_beep_flag ; Play short beep for stage transition
 	
-
 state10_Loop:
 	ljmp forever
 		
-; Soak Stage		
+; Soak Stage - Oven powered with PWM running at PWM_PERCENT% power	
 state11:
 	check_state (11,12)
+	; Yellow LED solid brightness
 	clr YELLOW
-  Check_button_for_State_change (CYCLE_BUTTON, 17)
-	setb pwm_on			;25% pwm
-  Show_Stage_Temp_Time (Soak, current_temp, run_time_min, run_time_sec);display the current stage and current temperature
+	
+	Check_button_for_State_change (CYCLE_BUTTON, 17)
+	setb pwm_on		; PWM on at PWM_PERCENT% power
+	Show_Stage_Temp_Time (Soak, current_temp, run_time_min, run_time_sec)
 	mov a, state_time 
 	clr c
-	subb a, soak_seconds 
-;	jnc time_not_equal
+	subb a, soak_seconds ; Check if soak has been on for the set amount of time
 	jc	State11_Loop
   
-  mov state, #12 ;if time is equal set state to 12
-  clr a
-	mov state_time, a	; reset state time to 0 for next state 
+	mov state, #12 ; If soak time is met, transition to ramp to reflow stage
+	clr a
+	mov state_time, a	; Reset state time to 0 for next state 
   
-  setb short_beep_flag
+	setb short_beep_flag
  
 
 State11_Loop:
-  ljmp forever
+	ljmp forever
   
 		
-; Ramp to Reflow Stage, compare current_temp with reflow_temp		
+; Ramp to Reflow Stage - Oven at 100% power until reflow temperature is reached		
 state12:
 	check_state (12,13)
+	; Flash red LED
 	jb led_flag, state12ledon
 	setb GREEN
 	setb YELLOW
@@ -977,112 +1007,116 @@ state12ledon:
   	clr RED
   	setb BLUE
 state12b:
-  Check_button_for_State_change (CYCLE_BUTTON, 17)
-  clr pwm_on
-  setb SSR_OUT	;100% power on
-  Show_Stage_Temp_Time (Ramp2Reflow, current_temp, run_time_min, run_time_sec)	;display the current, temperature and running time
-  mov a, reflow_temp
-  clr c
-  subb a, current_temp
-  jnc State12Loop
+	Check_button_for_State_change (CYCLE_BUTTON, 17)
+	clr pwm_on		; PWM not used
+	setb SSR_OUT	; Oven at 100% power
+	Show_Stage_Temp_Time (Ramp2Reflow, current_temp, run_time_min, run_time_sec)	;display the current, temperature and running time
+	mov a, reflow_temp
+	clr c
+	subb a, current_temp	; If reflow temperature is reached, transition to reflow stage
+	jnc State12Loop
   
 	mov state, #13
-  setb short_beep_flag
-  clr a
-	mov state_time, a	; reset state time to 0 for next state 
+	setb short_beep_flag
+	clr a
+	mov state_time, a	; Reset state time to 0 for next state 
   
 State12Loop:
-  ljmp forever
+	ljmp forever
 
-; Reflow stage, compare reflow_seconds to current time, move to cooling stage when complete (Still need beep code)
+; Reflow stage - Oven is powered at PWM_PERCENT% power until reflow time is met
 state13:
 	check_state (13,14)
 	clr RED
-  Check_button_for_State_change (CYCLE_BUTTON, 17)
-  setb pwm_on ; Set PWM to 25% power
-  Show_Stage_Temp_Time (Reflow, current_temp, run_time_min, run_time_sec);display the current stage and current temperature
+	Check_button_for_State_change (CYCLE_BUTTON, 17)
+	setb pwm_on ; Oven at PWM_PERCENT% power
+	Show_Stage_Temp_Time (Reflow, current_temp, run_time_min, run_time_sec);display the current stage and current temperature
   
-  ;compare the temperature with 235 degree for safety consideration
-  mov a, current_temp
-  clr c
-  subb a, #235
-  jc no_Burn_Warning							;if current temperature - 235 <= 0 (c=1), no warning
-  Show_Header(BurnMsg, StopMsg)		;displaying warning message and ask the user to press STOP button to stop reflow process
-  setb short_beep_flag
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
-  Wait_Milli_Seconds(#250)
+	; Compare the temperature with 235 degree for safety consideration
+	mov a, current_temp
+	clr c
+	subb a, #235
+	jc no_Burn_Warning							;if current temperature >= 235, display warning
+	Show_Header(BurnMsg, StopMsg)		;displaying warning message and ask the user to press STOP button to stop reflow process
+	setb short_beep_flag				
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
+	Wait_Milli_Seconds(#250)
   
 no_Burn_Warning: 
-  mov a, reflow_seconds
-  clr c
-  subb a, state_time 
-  jnc state13Loop ; Compare if time elapsed = reflow time
-  mov state, #14	; Reflow done, move to cooling
-  clr a
-  mov state_time, a ; Reset state time variable
-  setb long_beep_flag
+	mov a, reflow_seconds
+	clr c
+	subb a, state_time 
+	jnc state13Loop ; Compare if time elapsed = reflow time
+	mov state, #14	; Reflow done, move to cooling
+	clr a
+	mov state_time, a ; Reset state time variable
+	setb long_beep_flag	; Long beep to indicate cooling stage
 state13Loop:
 	ljmp forever
 
 ; Cooling stage, power is set to 0, finish and sound multiple beeps when temperature is below 60
 state14:
 	check_state (14,15)
+	; Blue LED solid brightness
 	clr BLUE
 	setb GREEN
 	setb YELLOW
 	setb RED
-  Check_button_for_State_change (CYCLE_BUTTON, 17)
-  SSR_OFF()
-  Show_Stage_Temp_Time (Cooling, current_temp, run_time_min, run_time_sec)
-  mov a, current_temp
-  clr c
-  subb a, #60
-  jnc state14loop ; If more than 60 degrees, not safe to touch yet
-  
-SafeBeep: ;If temp is safe then beeeeepppppppppppp
-  setb six_beep_flag
-  mov state, #15 ; Go to done state
+	Check_button_for_State_change (CYCLE_BUTTON, 17)
+	SSR_OFF()
+	Show_Stage_Temp_Time (Cooling, current_temp, run_time_min, run_time_sec)
+	mov a, current_temp
+	clr c
+	subb a, #60
+	jnc state14loop ; If more than 60 degrees, not safe to touch yet
+	; Else, six intermittent beeps
+	setb six_beep_flag
+	mov state, #15 ; Go to done state
 state14loop:
 	ljmp forever
   
 ; Cooling completed state, accessed when temperature has cooled down to below 60C
 state15:   
 	check_state (15,16)
+	; Green LED solid brightness
 	clr GREEN
 	setb YELLOW
 	setb RED
 	setb BLUE
-  Show_Header(CompleteMsg, ConfirmMsg)
-  Check_button_for_State_change(DEC_BUTTON, 0)
-  ljmp forever
+	Show_Header(CompleteMsg, ConfirmMsg)
+	Check_button_for_State_change(DEC_BUTTON, 0)
+	ljmp forever
   
+; Error state, accessed when measured temperature of thermocouple does not exceed 50C in the first 60 seconds
 state16: 			;display error message
 	check_state (16,17)
+	; Red LED solid brightness
 	clr RED
 	setb GREEN
 	setb YELLOW
 	setb BLUE
-  SSR_OFF()
-	Show_Header(Lessthan50ErrorMsg, ConfirmMsg)	
-  Check_button_for_State_change(DEC_BUTTON, 0)
-  ljmp forever
+	SSR_OFF()
+	Show_Header(Lessthan50ErrorMsg, ConfirmMsg)	; Error message
+	; User acknowledges error and returns to start screen
+	Check_button_for_State_change(DEC_BUTTON, 0)
+	ljmp forever
   
 ; Force Quit state, accessed when STOP button is pressed during any reflow stage
 state17:
-  SSR_OFF()
+	SSR_OFF()
+	; Red LED solid brightness
   	clr RED
 	setb GREEN
 	setb YELLOW
 	setb BLUE
 	Show_Header(AbortMsg, ConfirmMsg)
-  Check_button_for_State_change(DEC_BUTTON, 0)
-  ljmp forever
-	
+	; User acknowledges abort and returns to start screen
+	Check_button_for_State_change(DEC_BUTTON, 0)
+	ljmp forever
 
-
-end ;-;
+end
 
 	
 	
