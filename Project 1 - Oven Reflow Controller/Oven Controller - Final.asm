@@ -158,7 +158,7 @@ CSEG
   	AbortMsg:				db 'Process Aborted!', 0
   	ConfirmMsg: 			db '- Continue?     ', 0
 	BurnMsg:				db 'PCB Burn Warning', 0
-  	StopMsg:				db '  Aborting!...  ', 0
+  	StopMsg:				db ' Press Stop     ', 0
   	
   	Cels: 					db ' ',11011111b, 'C',0
   	Secs:					db ' s',0
@@ -417,9 +417,9 @@ Result_SPI_Routine:
 	lcall mul32
 	Load_Y(1023)
 	lcall div32
-	Load_Y(100)
+	Load_Y(1000)
 	lcall mul32	
-	Load_Y(454)	;Gain 
+	Load_Y(3130)	;Gain 
 	lcall div32
 	Load_Y(41)	;Since calculations have been scaled up by 10^6, this is equivalent to dividing by 41*10^-6
 	lcall div32
@@ -956,28 +956,7 @@ state11:
 	mov state_time, a	; reset state time to 0 for next state 
   
   setb short_beep_flag
-  ;--------------------------------------------------------------------;
-  ; A short beep
-  ;--------------------------------------------------------------------;
-;time_not_equal:
-  ;compare temp													pattern to check temp:								       ____     
-;  mov a, current_temp ;									     														____      /    \____/
-;	clr c								; 																								 /    \____/     
-;	subb a, soak_temp 	;                     												____/
-;	jnc temp_too_low		
-;	sjmp State11_done:	;									checks every temperature twice for the right one
-  																			
-;temp_not_low:		
-;	inc current_temp
-;  inc current temp
-;	mov a, current_temp 
-;	clr c
-;	subb a, soak_temp 
-;	jnc temp_too_high
-;  sjmp State11_done:
-
-;temp_too_high:  
-;  dec current_temp
+ 
 
 State11_Loop:
   ljmp forever
@@ -1034,7 +1013,6 @@ state13:
   Wait_Milli_Seconds(#250)
   Wait_Milli_Seconds(#250)
   Wait_Milli_Seconds(#250)
-  mov state, #17
   
 no_Burn_Warning: 
   mov a, reflow_seconds

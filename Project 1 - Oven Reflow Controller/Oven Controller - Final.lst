@@ -1,0 +1,87 @@
+                  2   $LIST
+0000              4   ; Reset vector
+0000              5   org 0000H
+0000 02088D       6      ljmp MainProgram
+0003              7   
+0003              8   ; External interrupt 0 vector (not used in this code)
+0003              9   org 0x0003
+0003 32          10            reti
+0004             11   
+0004             12   ; Timer/Counter 0 overflow interrupt vector
+000B             13   org 0x000B
+000B 0205EA      14            ljmp Timer0_ISR
+000E             15            
+000E             16   ; External interrupt 1 vector (not used in this code)
+0013             17   org 0x0013
+0013 32          18            reti
+0014             19   
+0014             20   ; Timer/Counter 1 overflow interrupt vector (not used in this code)
+001B             21   org 0x001B
+001B 32          22            reti
+001C             23   
+001C             24   ; Serial port receive/transmit interrupt vector (not used in this code)
+0023             25   org 0x0023 
+0023 32          26            reti
+0024             27            
+0024             28   ; Timer/Counter 2 overflow interrupt vector
+002B             29   org 0x002B
+002B 020629      30            ljmp Timer2_ISR
+002E             31            
+002E             32   ;++++++++++++++++++ CONSTANTS ++++++++++++++++++++
+002E             33   VLED     EQU 207
+002E             34   ;++++++++++++++++++ TIME SENSITIVE ++++++++++++
+002E             35   CLK                      EQU 22118400                                                     ; Microcontroller system crystal frequency in Hz
+002E             36   TIMER0_RATE              EQU 4096                                                         ; 2048Hz squarewave (peak amplitude of CEM-1203 speaker)
+002E             37   TIMER0_RELOAD            EQU ((65536-(CLK/TIMER0_RATE)))
+002E             38   TIMER2_RATE              EQU 1000                                                         ; 1000Hz, for a timer tick of 1ms
+002E             39   TIMER2_RELOAD            EQU ((65536-(CLK/TIMER2_RATE)))
+002E             40   BAUD                             EQU 115200
+002E             41   T1LOAD                           EQU (0x100-(CLK/(16*BAUD)))
+002E             42   
+002E             43   SAMPLE_INTERVAL          EQU 250                                                                         ; Millisecond Interval when sampling (KEEP LESS THAN 256)
+002E             44   
+002E             45   PWM_PERCENT                      EQU 20                                          ; % of each PWM cycle that output is high
+002E             46   PWM_RELOAD_HIGH          EQU (255*PWM_PERCENT/100)       
+002E             47   PWM_RELOAD_LOW           EQU     (255 - PWM_RELOAD_HIGH)
+002E             48   
+002E             49   SHORT_BEEP_LENGTH        EQU 4   ; Length of short beep (in 100s of ms)
+002E             50   LONG_BEEP_LENGTH         EQU 10          ; Length of long beep (in 100s of ms)
+002E             51   SIX_BEEP_LENGTH          EQU 12  ; Total length of six beep sequence (in 100s of ms) (Keep at 12)
+002E             52   ;------------------------------------------------
+002E             53   
+002E             54   ;++++++++++++++++++ SPI PINS ++++++++++++++++
+002E             55   CE_ADC  EQU P2.0
+002E             56   MY_MOSI EQU P2.1
+002E             57   MY_MISO EQU P2.2
+002E             58   MY_SCLK EQU P2.3
+002E             59   ;--------------------------------------------
+002E             60   
+002E             61   ;++++++++++++++++++ LCD PINS ++++++++++++++++
+002E             62   LCD_RS EQU P1.2
+002E             63   LCD_RW EQU P1.3
+002E             64   LCD_E  EQU P1.4
+002E             65   LCD_D4 EQU P3.2
+002E             66   LCD_D5 EQU P3.3
+002E             67   LCD_D6 EQU P3.4
+002E             68   LCD_D7 EQU P3.5
+002E             69   ;--------------------------------------------
+002E             70   
+002E             71   ;++++++++++++++++++ I/O +++++++++++++++++++++
+002E             72   GREEN    EQU P2.4        ; Green LED
+002E             73   YELLOW   EQU P2.5        ; Yellow LED
+002E             74   RED              EQU     P2.6    ; Red LED
+002E             75   BLUE     EQU P2.7        ; Blue LED
+002E             76   
+002E             77   SSR_OUT              EQU P3.7    ; Pin connected to SSR
+002E             78   SOUND_OUT       EQU P1.0         ; Pin connected to speaker
+002E             79   BOOT_BUTTON     EQU P4.5         ; Boot button (unused aside from bootloader)
+002E             80                                                            ; ----- BEFORE REFLOW ------ / --- DURING SELECTION AND REFLOW --- ;
+002E             81   CYCLE_BUTTON    EQU P0.0         ; Cycle through parameters   / Abort reflow process
+002E             82   INC_BUTTON               EQU P0.2        ; Increment parameter values / Confirm choices
+002E             83   DEC_BUTTON      EQU P0.4         ; Decrement parameter values / Decline choices
+002E             84   ;--------------------------------------------
+002E             85   
+                218   $LIST
+                586   $LIST
+                 96   $LIST
+0418            111   $LIST

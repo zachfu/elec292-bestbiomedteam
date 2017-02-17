@@ -46,14 +46,14 @@ import pyaudio
 import thread
 
 ser = serial.Serial(
-    port='COM3',
+    port='COM4',
     baudrate=115200,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_TWO,
     bytesize=serial.EIGHTBITS
 )
 engine = pyttsx.init()
-xsize=1000
+xsize=2000
 account_sid = "ACfc81dca730513b75df2e4c12ca6803bf"
 auth_token = "dc2928b0ca4fe591930b0a2d25216d55"
 client = TwilioRestClient(account_sid, auth_token)
@@ -100,7 +100,7 @@ def fileName_Handler(msgID):
 def email_send(msgID, filename1, filename2):
     """sends an email to the reciever"""
     fromaddr = "elec292bestbiomedteam@gmail.com"
-    toaddr = "hmn16@yahoo.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
+    toaddr = "zachfu97@gmail.com"# CHANGE THIS TO YOUR EMAIL THAT WILL RECEIVE THE MESSAGE
 
     msg = MIMEMultipart()
 

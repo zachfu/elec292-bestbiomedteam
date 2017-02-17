@@ -26,7 +26,7 @@ portstatus = StringVar()
 DMM_Name = StringVar()
 connected=0
 global ser
-
+   
 def Just_Exit():
     top.destroy()
     try:
@@ -41,7 +41,6 @@ def update_temp():
         return
     try:
         strin_bytes = ser.readline() # Read the requested value, for example "+0.234E-3 VDC"
-        board_temp = float(board.readline())/10.0
         strin=strin_bytes.decode()
         ser.readline() # Read and discard the prompt "=>"
         if len(strin)>1:
