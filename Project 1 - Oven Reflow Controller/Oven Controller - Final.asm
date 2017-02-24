@@ -1,6 +1,15 @@
+; File: Oven Controller - Final.asm
+; ELEC 292 BIOMEDICAL ENGINEERING DESIGN STUDIO 
+; PROJECT 1 - OVEN REFLOW CONTROLLER  
+; TEAM A1:
+; ZACHARY FU		HOOMAN VASELI
+; KAY XI			DANIEL ZHOU
+; ANGUS TSANG		SALLY WANG
+
 $NOLIST
 $MODLP52
 $LIST
+
 ; Reset vector
 org 0000H
    ljmp MainProgram
@@ -40,7 +49,7 @@ TIMER2_RELOAD 		EQU ((65536-(CLK/TIMER2_RATE)))
 BAUD 		  		EQU 115200
 T1LOAD 		 		EQU (0x100-(CLK/(16*BAUD)))
 
-SAMPLE_INTERVAL 	EQU 250									; Millisecond Interval when sampling (KEEP LESS THAN 256)
+SAMPLE_INTERVAL 	EQU 250						; Millisecond Interval when sampling (KEEP LESS THAN 256)
 
 PWM_PERCENT			EQU 20						; % of each PWM cycle that output is high
 PWM_RELOAD_HIGH 	EQU (255*PWM_PERCENT/100)	
@@ -132,7 +141,7 @@ BSEG
 	led_flag:				dbit 1	; Flag used to flash LEDs in some situations
 
 CSEG
-;           								1234567890123456    <- This helps determine the location of the Strings
+							;   1234567890123456    <- This helps determine the location of the Strings
   	StartMessage:		 	db ' Reflow Control ', 0
   	StartMessage2:   		db 'Start / Settings', 0
 	SoakTime_Message:  		db 'Soak Time       ', 0
