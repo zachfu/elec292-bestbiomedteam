@@ -393,7 +393,7 @@ Take_Sample:
 
 ; Calculates Vcc from measured LED voltage
 Calculate_Vcc:
-	; Vcc*10^6 = VLED*1023*10000/result 	- Where 'result' is the ADC value of the LED voltage (typically 2.07V)
+	; Vcc*10^6 = VLED*1023*10000/result 	- Where 'result' is the ADC value of the LED voltage (typically 2.07V*1023/Vcc)
 	Move_2B_to_4B (y, result)
 	load_X(VLED*1023)
 	lcall div32
