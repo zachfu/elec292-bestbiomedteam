@@ -13,7 +13,14 @@
 #pragma config FSOSCEN = OFF		// Secondary Oscillator disabled 
 #pragma config FWDTEN = OFF         // Watchdog Timer Disabled
 #pragma config FPBDIV = DIV_1       // PBCLK = SYCLK
- 
+
+volatile int 	an1;
+volatile int 	an2;
+volatile int 	an3;
+volatile float  voltage1;
+volatile float  voltage2;
+volatile float	voltage3;
+
 void UART2Configure(int baud_rate)
 {
     // Peripheral Pin Select
@@ -38,19 +45,8 @@ void ADCConf(void)
     AD1CON1SET=0x8000;      // Enable ADC
 }
 
-int ADCRead(char analogPIN)
-{
-    AD1CHS = analogPIN << 16;    // AD1CHS<16:19> controls which analog pin goes to the ADC
- 
-    AD1CON1bits.SAMP = 1;        // Begin sampling
-    while(AD1CON1bits.SAMP);     // wait until acquisition is done
-    while(!AD1CON1bits.DONE);    // wait until conversion done
- 
-    return ADC1BUF0;             // result stored in ADC1BUF0
-}
-
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
-void __ISR(8, IPL3SOFT) Timer2_Counter(void)
+void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 {
   LATBbits.LATB0 = !LATBbits.LATB0;
   IFS0bits.T2IF = 0;      // Clear timer2 interrupt status flag
@@ -66,11 +62,67 @@ void Timer2Configure (void)
 	T2CONbits.TCKPS = 0; // Pre-scaler 1:1
 	T2CONbits.TCS = 0; // Clock source
 	T2CONbits.ON = 1;
-	IPC2bits.T2IP = 3;
+	IPC2bits.T2IP = 7;	// Top priority
 	IPC2bits.T2IS = 0;
 	IFS0bits.T2IF = 0;
 	IEC0bits.T2IE = 1;
 }
+
+void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
+{
+	LATBbits.LATB0 = !LATBbits.LATB0;
+	AD1CON1bits.ASAM = 0;           // stop automatic sampling (essentially shut down ADC in this mode) while reading from buffers
+ 			
+	if( AD1CON2bits.BUFS == 1)	 // check which buffers are being written to and read from the other set
+	{    
+		an1 = ADC1BUF0;								// AD1CON2bits.BUFS==1 corresponds to ADC1BUF0-7
+		an2 = ADC1BUF1;
+		an3 = ADC1BUF2;
+	}
+	else
+	{														// AD1CON2bits.BUFS==0 corresponds to ADC1BUF8-F
+   		an1 = ADC1BUF8;	
+		an2 = ADC1BUF9;
+		an3 = ADC1BUFA;
+	}
+	AD1CON1bits.ASAM = 1;           // restart automatic sampling
+	IFS0CLR = 0x10000000;           // clear ADC interrupt flag	
+      
+}
+
+// Configuration for ADC in Auto-Scan Mode
+// Code from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
+void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
+{
+    AD1CON1 = 0x0000; // disable ADC
+ 
+    // AD1CON1<2>, ASAM    : Sampling begins immediately after last conversion completes
+    // AD1CON1<7:5>, SSRC  : Internal counter ends sampling and starts conversion (auto convert)
+    AD1CON1SET = 0x00e4;
+ 
+    // AD1CON2<1>, BUFM    : Buffer configured as two 8-word buffers, ADC1BUF7-ADC1BUF0, ADC1BUFF-ADCBUF8
+    // AD1CON2<10>, CSCNA  : Scan inputs
+    AD1CON2 = 0x0402;
+ 
+    // AD2CON2<5:2>, SMPI  : Interrupt flag set at after numPins completed conversions
+  	// Also specifies number of locations that will be written in the results buffer (from 1-8 samples in Dual-Mode which is what we're using)
+    AD1CON2SET = (numPins-1) << 2;
+ 
+    // AD1CON3<7:0>, ADCS  : TAD = TPB * 2 * (ADCS<7:0> + 1) = 4 * TPB in this example
+    // AD1CON3<12:8>, SAMC : Acquisition time = AD1CON3<12:8> * TAD = 15 * TAD in this example
+    AD1CON3 = 0x0f01;
+ 
+    // AD1CHS is ignored in scan mode
+    AD1CHS = 0;
+ 
+    // select which pins to use for scan mode
+    AD1CSSL = adcPINS;
+	IPC5bits.AD1IP = 6; // Priority 6
+	IPC5bits.AD1IS = 0;
+	IFS0bits.AD1IF = 0; // Clear interrupt flag
+	IEC0bits.AD1IE = 1; // Enable ADC interrupt
+}
+
 
 void main(void)
 {
@@ -78,41 +130,33 @@ void main(void)
     int adcval;
     float voltage;
 	char LCDstring[17];
-	TRISBbits.TRISB0 = 0;
+
 	TRISBbits.TRISB4 = 0;
 	TRISAbits.TRISA4 = 0;
-	LATBbits.LATB4 = 1;
-	LATAbits.LATA4 = 1;
+	TRISBbits.TRISB12 = 0;
+  	TRISBbits.TRISB13 = 0;
+  	TRISBbits.TRISB14 = 0;
+  	TRISBbits.TRISB15 = 0;
+	
+	TRISBbits.TRISB0 = 0;		// DEBUG PIN
 	LATBbits.LATB0 = 0;
 
 	CFGCON = 0;
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
 
-    // Configure pins as analog inputs
-    ANSELBbits.ANSB3 = 1;   // set RB3 (AN5, pin 7 of DIP28) as analog pin
-    TRISBbits.TRISB3 = 1;   // set RB3 as an input
     
 	INTCONbits.MVEC = 1;
   	__builtin_enable_interrupts();
-    ADCConf(); // Configure ADC
 	Timer2Configure();
 	LCD_4BIT();
-
-    printf("*** PIC32 ADC test ***\r\n");
+	adcConfigureAutoScan( 0x000E, 3); // Bitwise select of which pins to use as analog input (choice of AN0-AN15, though I can't locate AN6-8 or 13-15 :/) 
+	AD1CON1SET = 0x8000;              // start ADC
+	
 	while(1)
 	{	
-		t++;
-		if(t==500000)
-		{
-        	adcval = ADCRead(5); // note that we call pin AN5 (RB3) by it's analog number
-        	voltage=adcval*3.265/1023.0;
-        	printf("AN5=0x%04x, %.3fV\r", adcval, voltage);
-			fflush(stdout);
-			sprintf(LCDstring, "AN5=0x%04x, %.3fV\r", adcval, voltage);
-			waitms(20);
-			LCDprint(LCDstring, 1, 1);
-			LCDprint(LCDstring, 2, 1);
-			t = 0;
-		}
+		voltage1=an1*VREF/1023.0; 		// conversions from adc inputs to voltage
+		voltage2=an2*VREF/1023.0;
+		voltage3=an3*VREF/1023.0;
+		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3);
 	}
 }
