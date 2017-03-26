@@ -14,6 +14,14 @@
 #pragma config FWDTEN = OFF         // Watchdog Timer Disabled
 #pragma config FPBDIV = DIV_1       // PBCLK = SYCLK
 
+#define H11_PIN LATBbits.LATB15
+#define H12_PIN LATBbits.LATB14
+#define H21_PIN LATBbits.LATB13
+#define H22_PIN LATBbits.LATB12
+
+
+volatile unsigned char pwm_count;
+volatile unsigned char base_duty = 50, duty1 = 50, duty2 = 50;
 volatile int 	an1;
 volatile int 	an2;
 volatile int 	an3;
@@ -48,8 +56,38 @@ void ADCConf(void)
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 {
-  LATBbits.LATB0 = !LATBbits.LATB0;
-  IFS0bits.T2IF = 0;      // Clear timer2 interrupt status flag
+	LATBbits.LATB0 = !LATBbits.LATB0;
+	
+	pwm_count++;
+	if(pwm_count==100)
+		pwm_count = 0;
+	
+	if(pwm_count < duty1) {
+		//if(direction==0){
+			H11_PIN = 1;
+			H12_PIN = 0;
+	}
+		/*else {
+			H_1_PIN = 0;
+			H_2_PIN = 1;
+		}
+	}*/
+	else
+		H11_PIN = H12_PIN;
+	
+	if(pwm_count < duty2) {
+		//if(direction==0){
+		H21_PIN = 0;
+		H22_PIN = 1;
+	}
+	/*else {
+		H_1_PIN = 0;
+		H_2_PIN = 1;
+	}
+	}*/
+	else 
+		H21_PIN = H22_PIN;
+	IFS0bits.T2IF = 0;      // Clear timer2 interrupt status flag
 }
 
 // Enables 16bit Timer2 Interrupts, loads Timer2 Period Register and Starts the Timer
@@ -124,6 +162,31 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 }
 
 
+// Function to adjust duty cycles in order to realign the cart
+// The voltages from the inductors are read from main and determines the misalignmnet of the wheels (the degree of turn in the track)
+// Code in progress, currently using a constant change 
+void DriveStraight(void)
+{
+	float difference = voltage1 - voltage2;
+	float speed_adjust = 0.5;
+  
+  
+	if( difference-0.05 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
+	{
+		duty1 = base_duty*speed_adjust;
+		duty2 = base_duty;
+	}
+	else if (difference+0.05 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
+	{
+		duty2 = base_duty*speed_adjust;
+		duty1 = base_duty;
+	}
+	else {										// More or less alignment, keep duty cycles the same
+		duty1 = base_duty;
+		duty2 = base_duty;
+	}
+}
+
 void main(void)
 {
 	volatile unsigned long t=0;
@@ -131,8 +194,6 @@ void main(void)
     float voltage;
 	char LCDstring[17];
 
-	TRISBbits.TRISB4 = 0;
-	TRISAbits.TRISA4 = 0;
 	TRISBbits.TRISB12 = 0;
   	TRISBbits.TRISB13 = 0;
   	TRISBbits.TRISB14 = 0;
@@ -157,6 +218,7 @@ void main(void)
 		voltage1=an1*VREF/1023.0; 		// conversions from adc inputs to voltage
 		voltage2=an2*VREF/1023.0;
 		voltage3=an3*VREF/1023.0;
-		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3);
+		DriveStraight();
+		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, (voltage1-voltage2));
 	}
 }
