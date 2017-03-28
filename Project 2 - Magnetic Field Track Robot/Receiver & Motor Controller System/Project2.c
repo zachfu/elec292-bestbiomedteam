@@ -15,11 +15,6 @@
 #pragma config FWDTEN = OFF         // Watchdog Timer Disabled
 #pragma config FPBDIV = DIV_1       // PBCLK = SYCLK
 
-#define H11_PIN LATBbits.LATB15
-#define H12_PIN LATBbits.LATB14
-#define H21_PIN LATBbits.LATB13
-#define H22_PIN LATBbits.LATB12
-
 
 volatile unsigned char pwm_count;
 volatile unsigned char direction=0;
@@ -27,9 +22,11 @@ volatile unsigned char base_duty = 50, duty1 = 50, duty2 = 50;
 volatile int 	an1;
 volatile int 	an2;
 volatile int 	an3;
+volatile int	StartTurn = 0;
 volatile float  voltage1;
 volatile float  voltage2;
 volatile float	voltage3;
+volatile float 	Misalignment;
 
 void UART2Configure(int baud_rate)
 {
@@ -58,7 +55,7 @@ void ADCConf(void)
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 {
-	LATBbits.LATB0 = !LATBbits.LATB0;
+	LATBbits.LATB0 = !LATBbits.LATB0; // Debug purposes
 	
 	pwm_count++;
 	
@@ -66,7 +63,7 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 		pwm_count = 0;
 	
 	if(pwm_count < duty1) {
-		if(direction==0)
+		if(direction==0) // change later to char corresponding to a direction change command
 		{ 
 			H11_PIN = 1;
 			H12_PIN = 0;
@@ -194,20 +191,19 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 // vroom 
 void AlignPathDynamic(void)
 {
-  float difference = voltage1 - voltage2; // Max difference in amplitude is +/- 2V
   float speed_adjust;
   
   // Scale speed adjust depending on the difference in amplitude. An absolute difference of 2V indicates maximum turn
   // In that case the car should simply rotate (one wheel completely turned off). 2V difference, speed adjust = 0%
   // 0V difference, speed adjust = 100% (nothing happens) 
-  speed_adjust = (1-(0.5*fabs(difference)));
+  speed_adjust = (1-((1/Max_Misalignment)*fabs(Misalignment)));
     
-  if( difference-0.01 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
+  if( Misalignment-0.01 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
   {
     duty1 = base_duty*speed_adjust;
     duty2 = base_duty;
   }
-  else if (difference+0.01 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
+  else if (Misalignment+0.01 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
   {
     duty2 = base_duty*speed_adjust;
     duty1 = base_duty;
@@ -217,6 +213,16 @@ void AlignPathDynamic(void)
   	duty2 = base_duty;
   }
 }
+void PinConfigure(void)
+{
+	TRISBbits.TRISB12 = 0;
+  	TRISBbits.TRISB13 = 0;
+  	TRISBbits.TRISB14 = 0;
+  	TRISBbits.TRISB15 = 0;
+	
+	TRISBbits.TRISB0 = 0;		// DEBUG PIN
+	LATBbits.LATB0 = 0;
+}
 
 void main(void)
 {
@@ -225,15 +231,9 @@ void main(void)
     float voltage;
 	char LCDstring[17];
 
-	TRISBbits.TRISB12 = 0;
-  	TRISBbits.TRISB13 = 0;
-  	TRISBbits.TRISB14 = 0;
-  	TRISBbits.TRISB15 = 0;
 	
-	TRISBbits.TRISB0 = 0;		// DEBUG PIN
-	LATBbits.LATB0 = 0;
-
 	CFGCON = 0;
+	PinConfigure();
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
 
     
@@ -246,9 +246,10 @@ void main(void)
 	
 	while(1)
 	{	
-		voltage1=an1*VREF/1023.0; 		// conversions from adc inputs to voltage
+		voltage1=an1*VREF/1023.0; 			// conversions from ADC inputs to voltages
 		voltage2=an2*VREF/1023.0;
 		voltage3=an3*VREF/1023.0;
+		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
 		AlignPathDynamic();
 		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, (voltage1-voltage2));
 	}
