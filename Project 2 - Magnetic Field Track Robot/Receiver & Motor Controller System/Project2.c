@@ -2,6 +2,7 @@
 #include <sys/attribs.h>
 #include <stdio.h>
 #include <stdlib.h> 
+#include <math.h>
 #include "global.h"
 #include "PIC32_LCD.h"
  
@@ -162,29 +163,52 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 }
 
 
-// Function to adjust duty cycles in order to realign the cart
+// Function to adjust duty cycles in order to realign the cart to drive 'straight'
 // The voltages from the inductors are read from main and determines the misalignmnet of the wheels (the degree of turn in the track)
-// Code in progress, currently using a constant change 
-void DriveStraight(void)
+// The speed of the wheels are adjusted dynamically to correct the misalignment, speed adjustment is currently a linear function
+// of the misalignment.
+// Duty1 controls the pwm of the wheels on the left side of the car, duty2 controls right side
+/*                  __..-======-------..__
+              . '    ______    ___________`.
+            .' .--. '.-----.`. `.-----.-----`.
+           / .'   | ||      `.` \\     \     \\            _
+         .' /     | ||        \\ \\_____\_____\\__________[_]
+        /   `-----' |'---------`\  .'                       \
+       /============|============\'-------------------.._____|
+    .-`---.         |-==.        |'.__________________  =====|-._
+  .'        `.      |            |      .--------.    _` ====|  _ .
+ /     __     \     |            |   .'           `. [_] `.==| [_] \
+[   .`    `.  |     |            | .'     .---.     \      \=|     |
+|  | / .-. '  |_____\___________/_/     .'---. `.    |     | |     |
+ `-'| | O |'..`------------------'.....'/ .-. \ |    |       ___.--'
+     \ `-' / /   `._.'                 | | O | |'___...----''___.--'
+      `._.'.'                           \ `-' / [___...----''_.'
+                                         `._.'.' */
+// vroom 
+void AlignPathDynamic(void)
 {
-	float difference = voltage1 - voltage2;
-	float speed_adjust = 0.5;
+  float difference = voltage1 - voltage2; // Max difference in amplitude is +/- 2V
+  float speed_adjust;
   
-  
-	if( difference-0.05 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
-	{
-		duty1 = base_duty*speed_adjust;
-		duty2 = base_duty;
-	}
-	else if (difference+0.05 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
-	{
-		duty2 = base_duty*speed_adjust;
-		duty1 = base_duty;
-	}
-	else {										// More or less alignment, keep duty cycles the same
-		duty1 = base_duty;
-		duty2 = base_duty;
-	}
+  // Scale speed adjust depending on the difference in amplitude. An absolute difference of 2V indicates maximum turn
+  // In that case the car should simply rotate (one wheel completely turned off). 2V difference, speed adjust = 0%
+  // 0V difference, speed adjust = 100% (nothing happens) 
+  speed_adjust = (1-(0.5*fabs(difference)));
+    
+  if( difference-0.01 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
+  {
+    duty1 = base_duty*speed_adjust;
+    duty2 = base_duty;
+  }
+  else if (difference+0.01 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
+  {
+    duty2 = base_duty*speed_adjust;
+    duty1 = base_duty;
+  }
+  else {										// More or less alignment, keep duty cycles the same
+    duty1 = base_duty;
+  	duty2 = base_duty;
+  }
 }
 
 void main(void)
@@ -218,7 +242,7 @@ void main(void)
 		voltage1=an1*VREF/1023.0; 		// conversions from adc inputs to voltage
 		voltage2=an2*VREF/1023.0;
 		voltage3=an3*VREF/1023.0;
-		DriveStraight();
+		AlignPathDynamic();
 		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, (voltage1-voltage2));
 	}
 }
