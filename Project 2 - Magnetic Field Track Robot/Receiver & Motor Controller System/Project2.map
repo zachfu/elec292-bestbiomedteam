@@ -151,11 +151,13 @@ Allocating common symbols
 Common symbol       size              file
 
 an2                 0x4               Project2.o
+duty1               0x1               Project2.o
 voltage1            0x4               Project2.o
 an1                 0x4               Project2.o
 voltage3            0x4               Project2.o
 an3                 0x4               Project2.o
 voltage2            0x4               Project2.o
+duty2               0x1               Project2.o
 Misalignment        0x4               Project2.o
 pwm_count           0x1               Project2.o
 
@@ -280,20 +282,20 @@ kseg1 Data-Memory Usage
 section                    address  length [bytes]      (dec)  Description
 -------                 ----------  -------------------------  -----------
 .sdata                  0xa0000000            0xc          12  Small init data 
-.sbss                   0xa000000c           0x2c          44  Small uninit data 
-.data                   0xa0000038           0xd4         212  Initialized data 
-.bss                    0xa000010c           0x88         136  Uninitialized data 
-         Total kseg1_data_mem used  :       0x194         404  2.5% of 0x4000
+.sbss                   0xa000000c           0x34          52  Small uninit data 
+.data                   0xa0000040           0xd4         212  Initialized data 
+.bss                    0xa0000114           0x88         136  Uninitialized data 
+         Total kseg1_data_mem used  :       0x19c         412  2.5% of 0x4000
         --------------------------------------------------------------------------
-            Total Data Memory used  :       0x194         404  2.5% of 0x4000
+            Total Data Memory used  :       0x19c         412  2.5% of 0x4000
         --------------------------------------------------------------------------
 
 
 Dynamic Data-Memory Reservation
 section                    address  length [bytes]      (dec)  Description
 -------                 ----------  -------------------------  -----------
-heap                    0xa0000198           0x10          16  Reserved for heap 
-stack                   0xa00001c0         0x3e30       15920  Reserved for stack 
+heap                    0xa00001a0           0x10          16  Reserved for heap 
+stack                   0xa00001c8         0x3e28       15912  Reserved for stack 
 
         --------------------------------------------------------------------------
 
@@ -927,11 +929,9 @@ END GROUP
 .sdata          0xa0000000        0xc
                 0xa0000000                _sdata_begin = .
  *(.sdata .sdata.* .gnu.linkonce.s.*)
- .sdata         0xa0000000        0x3 Project2.o
+ .sdata         0xa0000000        0x1 Project2.o
                 0xa0000000                base_duty
-                0xa0000001                duty1
-                0xa0000002                duty2
- *fill*         0xa0000003        0x1 
+ *fill*         0xa0000001        0x3 
  .sdata         0xa0000004        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
                 0xa0000004                _libc_data
  .sdata         0xa0000008        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(xc32_uart.o)
@@ -948,7 +948,7 @@ END GROUP
                 0xa000000c                _data_end = .
                 0xa000000c                _bss_begin = .
 
-.sbss           0xa000000c       0x2c
+.sbss           0xa000000c       0x34
                 0xa000000c                _sbss_begin = .
  *(.dynsbss)
  *(.sbss .sbss.* .gnu.linkonce.sb.*)
@@ -958,26 +958,28 @@ END GROUP
  .sbss          0xa0000014        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(errno.o)
                 0xa0000014                errno
  *(.scommon)
- .scommon       0xa0000018       0x1d Project2.o
+ .scommon       0xa0000018       0x25 Project2.o
                 0xa0000018                an2
-                0xa000001c                voltage1
-                0xa0000020                an1
-                0xa0000024                voltage3
-                0xa0000028                an3
-                0xa000002c                voltage2
-                0xa0000030                Misalignment
-                0xa0000034                pwm_count
-                0xa0000035                _sbss_end = .
-                0xa0000038                . = ALIGN (0x4)
- *fill*         0xa0000035        0x3 
+                0xa000001c                duty1
+                0xa0000020                voltage1
+                0xa0000024                an1
+                0xa0000028                voltage3
+                0xa000002c                an3
+                0xa0000030                voltage2
+                0xa0000034                duty2
+                0xa0000038                Misalignment
+                0xa000003c                pwm_count
+                0xa000003d                _sbss_end = .
+                0xa0000040                . = ALIGN (0x4)
+ *fill*         0xa000003d        0x3 
 
-.bss            0xa0000038        0x0
+.bss            0xa0000040        0x0
  *(.dynbss)
  *(COMMON)
-                0xa0000038                . = ALIGN ((. != 0x0)?0x4:0x1)
-                0xa0000038                . = ALIGN (0x4)
-                0xa0000038                _end = .
-                0xa0000038                _bss_end = .
+                0xa0000040                . = ALIGN ((. != 0x0)?0x4:0x1)
+                0xa0000040                . = ALIGN (0x4)
+                0xa0000040                _end = .
+                0xa0000040                _bss_end = .
                 0x00004000                _bmxdudba_address = 0x4000
                 0x00004000                _bmxdupba_address = 0x4000
 
@@ -998,29 +1000,29 @@ END GROUP
  *(.gptab.bss)
  *(.gptab.sbss)
 
-.mdebug.abi32   0xa0000038        0x0
+.mdebug.abi32   0xa0000040        0x0
  *(.mdebug.abi32)
- .mdebug.abi32  0xa0000038        0x0 Project2.o
- .mdebug.abi32  0xa0000038        0x0 PIC32_LCD.o
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(printf_fF.eo)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(strlen.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(errno.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(xc32_uart.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
- .mdebug.abi32  0xa0000038        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
+ .mdebug.abi32  0xa0000040        0x0 Project2.o
+ .mdebug.abi32  0xa0000040        0x0 PIC32_LCD.o
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(printf_fF.eo)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(strlen.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(errno.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(xc32_uart.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
+ .mdebug.abi32  0xa0000040        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
 
 .mdebug.abiN32
  *(.mdebug.abiN32)
@@ -1319,14 +1321,14 @@ LOAD data_init
 .reginfo        0x00000000       0x18
  .reginfo       0x00000000       0x18 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/./proc/32MX130F064B/crt0_mips32r2.o
 
-.stack          0xa00001c0      0x400
- .stack         0xa00001c0      0x400 stack
+.stack          0xa00001c8      0x400
+ .stack         0xa00001c8      0x400 stack
 
-.data           0xa0000038       0xd4
- .data          0xa0000038       0xd4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
+.data           0xa0000040       0xd4
+ .data          0xa0000040       0xd4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
 
-.bss            0xa000010c       0x88
- .bss           0xa000010c       0x88 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
+.bss            0xa0000114       0x88
+ .bss           0xa0000114       0x88 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
 
 .bss            0x00000000        0x0
  .bss           0x00000000        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)

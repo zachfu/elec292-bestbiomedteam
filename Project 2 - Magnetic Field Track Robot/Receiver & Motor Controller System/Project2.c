@@ -18,7 +18,9 @@
 
 volatile unsigned char pwm_count;
 volatile unsigned char direction=0;
-volatile unsigned char base_duty = 50, duty1 = 50, duty2 = 50;
+volatile unsigned char base_duty = 50;
+volatile unsigned char duty1;
+volatile unsigned char duty2;
 volatile int 	an1;
 volatile int 	an2;
 volatile int 	an3;
