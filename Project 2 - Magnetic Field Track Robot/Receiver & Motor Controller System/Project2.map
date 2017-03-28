@@ -163,51 +163,51 @@ Microchip PIC32 Memory-Usage Report
 kseg0 Program-Memory Usage
 section                    address  length [bytes]      (dec)  Description
 -------                 ----------  -------------------------  -----------
-.text                   0x9d000000          0x758        1880  App's exec code 
-.text._do_print_fF      0x9d000758          0x618        1560   
-.text                   0x9d000d70          0xae4        2788  App's exec code 
-.text._fconvert         0x9d001854          0x304         772   
-.text.fpsubadd          0x9d001b58          0x278         632   
-.text.fp32div           0x9d001dd0          0x230         560   
-.text.fp32mul           0x9d002000          0x1bc         444   
-.dinit                  0x9d0021bc          0x130         304   
-.rodata                 0x9d0022ec          0x100         256  Read-only const 
-.text.general_exception 0x9d0023ec           0xdc         220   
-.text.libm              0x9d0024c8           0xd4         212   
-.text.fpcmp             0x9d00259c           0x9c         156   
-.text._mon_getc         0x9d002638           0x88         136   
-.text.fptoli            0x9d0026c0           0x80         128   
-.text.fptoul            0x9d002740           0x7c         124   
-.text._outcnvrt         0x9d0027bc           0x7c         124   
-.text._mon_putc         0x9d002838           0x78         120   
-.text._flsbuf_simple    0x9d0028b0           0x74         116   
-.text.sitofp            0x9d002924           0x60          96   
-.text.main_entry        0x9d002984           0x54          84   
-.text.fputc             0x9d0029d8           0x4c          76   
-.text._bootstrap_except 0x9d002a24           0x48          72   
-.text._general_exceptio 0x9d002a6c           0x48          72   
-.vector_default         0x9d002ab4           0x48          72   
-.rodata                 0x9d002afc           0x48          72  Read-only const 
-.text                   0x9d002b44           0x44          68  App's exec code 
-.text.strlen            0x9d002b88           0x40          64   
-.text._fflush_simple    0x9d002bc8           0x3c          60   
-.text._fwrite_simple    0x9d002c04           0x3c          60   
-.text.repl              0x9d002c40           0x2c          44   
-.text.__sputn           0x9d002c6c           0x24          36   
-.rodata                 0x9d002c90           0x20          32  Read-only const 
-.text._filbuf_simple    0x9d002cb0           0x20          32   
-.text._printf_fF        0x9d002cd0           0x1c          28   
-.text._fsync_simple     0x9d002cec           0x1c          28   
-.text._mon_write        0x9d002d08           0x1c          28   
-.text                   0x9d002d24           0x18          24  App's exec code 
-.rodata                 0x9d002d3c           0x14          20  Read-only const 
-.text.putchar           0x9d002d50           0x14          20   
-.text._io_exit          0x9d002d64           0x20          32   
-.text._vfprintf_fF      0x9d002d84            0xc          12   
-.text.putc              0x9d002d90            0xc          12   
-.text._on_reset         0x9d002d9c            0x4           4   
-.text._on_bootstrap     0x9d002da0            0x4           4   
-      Total kseg0_program_mem used  :      0x2da4       11684  19.0% of 0xf000
+.text                   0x9d000000          0x7d0        2000  App's exec code 
+.text._do_print_fF      0x9d0007d0          0x618        1560   
+.text                   0x9d000de8          0xae4        2788  App's exec code 
+.text._fconvert         0x9d0018cc          0x304         772   
+.text.fpsubadd          0x9d001bd0          0x278         632   
+.text.fp32div           0x9d001e48          0x230         560   
+.text.fp32mul           0x9d002078          0x1bc         444   
+.dinit                  0x9d002234          0x140         320   
+.rodata                 0x9d002374          0x100         256  Read-only const 
+.text.general_exception 0x9d002474           0xdc         220   
+.text.libm              0x9d002550           0xd4         212   
+.text.fpcmp             0x9d002624           0x9c         156   
+.text._mon_getc         0x9d0026c0           0x88         136   
+.text.fptoli            0x9d002748           0x80         128   
+.text.fptoul            0x9d0027c8           0x7c         124   
+.text._outcnvrt         0x9d002844           0x7c         124   
+.text._mon_putc         0x9d0028c0           0x78         120   
+.text._flsbuf_simple    0x9d002938           0x74         116   
+.text.sitofp            0x9d0029ac           0x60          96   
+.text.main_entry        0x9d002a0c           0x54          84   
+.text.fputc             0x9d002a60           0x4c          76   
+.text._bootstrap_except 0x9d002aac           0x48          72   
+.text._general_exceptio 0x9d002af4           0x48          72   
+.vector_default         0x9d002b3c           0x48          72   
+.rodata                 0x9d002b84           0x48          72  Read-only const 
+.text                   0x9d002bcc           0x44          68  App's exec code 
+.text.strlen            0x9d002c10           0x40          64   
+.text._fflush_simple    0x9d002c50           0x3c          60   
+.text._fwrite_simple    0x9d002c8c           0x3c          60   
+.text.repl              0x9d002cc8           0x2c          44   
+.text.__sputn           0x9d002cf4           0x24          36   
+.rodata                 0x9d002d18           0x20          32  Read-only const 
+.text._filbuf_simple    0x9d002d38           0x20          32   
+.text._printf_fF        0x9d002d58           0x1c          28   
+.text._fsync_simple     0x9d002d74           0x1c          28   
+.text._mon_write        0x9d002d90           0x1c          28   
+.text                   0x9d002dac           0x18          24  App's exec code 
+.rodata                 0x9d002dc4           0x14          20  Read-only const 
+.text.putchar           0x9d002dd8           0x14          20   
+.text._io_exit          0x9d002dec           0x20          32   
+.text._vfprintf_fF      0x9d002e0c            0xc          12   
+.text.putc              0x9d002e18            0xc          12   
+.text._on_reset         0x9d002e24            0x4           4   
+.text._on_bootstrap     0x9d002e28            0x4           4   
+      Total kseg0_program_mem used  :      0x2e2c       11820  19.2% of 0xf000
 
 kseg0 Boot-Memory Usage
 section                    address  length [bytes]      (dec)  Description
@@ -271,7 +271,7 @@ section                    address  length [bytes]      (dec)  Description
 .bev_excpt              0xbfc00380           0x10          16  BEV-Exception 
          Total kseg1_boot_mem used  :       0x1f4         500  42.8% of 0x490
         --------------------------------------------------------------------------
-         Total Program Memory used  :      0x3108       12552  18.8% of 0x10490
+         Total Program Memory used  :      0x3190       12688  19.0% of 0x10490
         --------------------------------------------------------------------------
 
 
@@ -279,12 +279,12 @@ kseg1 Data-Memory Usage
 section                    address  length [bytes]      (dec)  Description
 -------                 ----------  -------------------------  -----------
 .sdata                  0xa0000000            0xc          12  Small init data 
-.sbss                   0xa000000c           0x20          32  Small uninit data 
-.data                   0xa000002c           0xd4         212  Initialized data 
-.bss                    0xa0000100           0x88         136  Uninitialized data 
-         Total kseg1_data_mem used  :       0x188         392  2.4% of 0x4000
+.sbss                   0xa000000c           0x24          36  Small uninit data 
+.data                   0xa0000030           0xd4         212  Initialized data 
+.bss                    0xa0000104           0x88         136  Uninitialized data 
+         Total kseg1_data_mem used  :       0x18c         396  2.4% of 0x4000
         --------------------------------------------------------------------------
-            Total Data Memory used  :       0x188         392  2.4% of 0x4000
+            Total Data Memory used  :       0x18c         396  2.4% of 0x4000
         --------------------------------------------------------------------------
 
 
@@ -292,7 +292,7 @@ Dynamic Data-Memory Reservation
 section                    address  length [bytes]      (dec)  Description
 -------                 ----------  -------------------------  -----------
 heap                    0xa0000190           0x10          16  Reserved for heap 
-stack                   0xa00001b8         0x3e40       15936  Reserved for stack 
+stack                   0xa00001b8         0x3e38       15928  Reserved for stack 
 
         --------------------------------------------------------------------------
 
@@ -947,32 +947,35 @@ END GROUP
                 0xa000000c                _data_end = .
                 0xa000000c                _bss_begin = .
 
-.sbss           0xa000000c       0x20
+.sbss           0xa000000c       0x24
                 0xa000000c                _sbss_begin = .
  *(.dynsbss)
  *(.sbss .sbss.* .gnu.linkonce.sb.*)
- .sbss          0xa000000c        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(errno.o)
-                0xa000000c                errno
+ .sbss          0xa000000c        0x1 Project2.o
+                0xa000000c                direction
+ *fill*         0xa000000d        0x3 
+ .sbss          0xa0000010        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(errno.o)
+                0xa0000010                errno
  *(.scommon)
- .scommon       0xa0000010       0x19 Project2.o
-                0xa0000010                an2
-                0xa0000014                voltage1
-                0xa0000018                an1
-                0xa000001c                voltage3
-                0xa0000020                an3
-                0xa0000024                voltage2
-                0xa0000028                pwm_count
-                0xa0000029                _sbss_end = .
-                0xa000002c                . = ALIGN (0x4)
- *fill*         0xa0000029        0x3 
+ .scommon       0xa0000014       0x19 Project2.o
+                0xa0000014                an2
+                0xa0000018                voltage1
+                0xa000001c                an1
+                0xa0000020                voltage3
+                0xa0000024                an3
+                0xa0000028                voltage2
+                0xa000002c                pwm_count
+                0xa000002d                _sbss_end = .
+                0xa0000030                . = ALIGN (0x4)
+ *fill*         0xa000002d        0x3 
 
-.bss            0xa000002c        0x0
+.bss            0xa0000030        0x0
  *(.dynbss)
  *(COMMON)
-                0xa000002c                . = ALIGN ((. != 0x0)?0x4:0x1)
-                0xa000002c                . = ALIGN (0x4)
-                0xa000002c                _end = .
-                0xa000002c                _bss_end = .
+                0xa0000030                . = ALIGN ((. != 0x0)?0x4:0x1)
+                0xa0000030                . = ALIGN (0x4)
+                0xa0000030                _end = .
+                0xa0000030                _bss_end = .
                 0x00004000                _bmxdudba_address = 0x4000
                 0x00004000                _bmxdupba_address = 0x4000
 
@@ -993,29 +996,29 @@ END GROUP
  *(.gptab.bss)
  *(.gptab.sbss)
 
-.mdebug.abi32   0xa000002c        0x0
+.mdebug.abi32   0xa0000030        0x0
  *(.mdebug.abi32)
- .mdebug.abi32  0xa000002c        0x0 Project2.o
- .mdebug.abi32  0xa000002c        0x0 PIC32_LCD.o
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(printf_fF.eo)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(strlen.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(errno.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(xc32_uart.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
- .mdebug.abi32  0xa000002c        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
+ .mdebug.abi32  0xa0000030        0x0 Project2.o
+ .mdebug.abi32  0xa0000030        0x0 PIC32_LCD.o
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(printf_fF.eo)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(strlen.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(errno.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(xc32_uart.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
+ .mdebug.abi32  0xa0000030        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
 
 .mdebug.abiN32
  *(.mdebug.abiN32)
@@ -1132,21 +1135,21 @@ END GROUP
 .debug_pubnames
  *(.debug_pubnames)
 
-.debug_info     0x00000000     0x3b53
+.debug_info     0x00000000     0x3b6b
  *(.debug_info .gnu.linkonce.wi.*)
- .debug_info    0x00000000     0x17c3 Project2.o
- .debug_info    0x000017c3      0x957 PIC32_LCD.o
- .debug_info    0x0000211a       0xf5 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
- .debug_info    0x0000220f       0xcf c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
- .debug_info    0x000022de       0xd7 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
- .debug_info    0x000023b5       0xf1 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
- .debug_info    0x000024a6       0xe9 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
- .debug_info    0x0000258f       0xc8 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
- .debug_info    0x00002657       0xca c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
- .debug_info    0x00002721       0xc8 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
- .debug_info    0x000027e9      0x862 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
- .debug_info    0x0000304b      0x8bf c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
- .debug_info    0x0000390a      0x249 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
+ .debug_info    0x00000000     0x17db Project2.o
+ .debug_info    0x000017db      0x957 PIC32_LCD.o
+ .debug_info    0x00002132       0xf5 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
+ .debug_info    0x00002227       0xcf c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
+ .debug_info    0x000022f6       0xd7 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
+ .debug_info    0x000023cd       0xf1 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
+ .debug_info    0x000024be       0xe9 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
+ .debug_info    0x000025a7       0xc8 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
+ .debug_info    0x0000266f       0xca c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
+ .debug_info    0x00002739       0xc8 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
+ .debug_info    0x00002801      0x862 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
+ .debug_info    0x00003063      0x8bf c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
+ .debug_info    0x00003922      0x249 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
 
 .debug_abbrev   0x00000000      0x6c4
  *(.debug_abbrev)
@@ -1164,22 +1167,22 @@ END GROUP
  .debug_abbrev  0x00000506      0x16c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
  .debug_abbrev  0x00000672       0x52 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
 
-.debug_line     0x00000000      0xb4e
+.debug_line     0x00000000      0xb56
  *(.debug_line)
- .debug_line    0x00000000      0x1ca Project2.o
- .debug_line    0x000001ca      0x1a9 PIC32_LCD.o
- .debug_line    0x00000373       0xa9 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
- .debug_line    0x0000041c       0x96 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
- .debug_line    0x000004b2       0x9a c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
- .debug_line    0x0000054c       0xa7 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
- .debug_line    0x000005f3       0xa8 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
- .debug_line    0x0000069b       0x8f c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
- .debug_line    0x0000072a       0x90 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
- .debug_line    0x000007ba        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(xc32_uart.o)
- .debug_line    0x000007ba       0x8f c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
- .debug_line    0x00000849      0x13b c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
- .debug_line    0x00000984      0x138 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
- .debug_line    0x00000abc       0x92 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
+ .debug_line    0x00000000      0x1d2 Project2.o
+ .debug_line    0x000001d2      0x1a9 PIC32_LCD.o
+ .debug_line    0x0000037b       0xa9 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
+ .debug_line    0x00000424       0x96 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
+ .debug_line    0x000004ba       0x9a c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
+ .debug_line    0x00000554       0xa7 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
+ .debug_line    0x000005fb       0xa8 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
+ .debug_line    0x000006a3       0x8f c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
+ .debug_line    0x00000732       0x90 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
+ .debug_line    0x000007c2        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(xc32_uart.o)
+ .debug_line    0x000007c2       0x8f c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
+ .debug_line    0x00000851      0x13b c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
+ .debug_line    0x0000098c      0x138 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
+ .debug_line    0x00000ac4       0x92 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
 
 .debug_frame    0x00000000      0x3a8
  *(.debug_frame)
@@ -1317,11 +1320,11 @@ LOAD data_init
 .stack          0xa00001b8      0x400
  .stack         0xa00001b8      0x400 stack
 
-.data           0xa000002c       0xd4
- .data          0xa000002c       0xd4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
+.data           0xa0000030       0xd4
+ .data          0xa0000030       0xd4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
 
-.bss            0xa0000100       0x88
- .bss           0xa0000100       0x88 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
+.bss            0xa0000104       0x88
+ .bss           0xa0000104       0x88 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
 
 .bss            0x00000000        0x0
  .bss           0x00000000        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
@@ -1791,254 +1794,254 @@ LOAD data_init
                 0xbfc00480       0x2c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\debug-exception-return.o
                 0xbfc00480                __DbgExecReturn
 
-.text           0x9d000000      0x758
- .text          0x9d000000      0x758 Project2.o
+.text           0x9d000000      0x7d0
+ .text          0x9d000000      0x7d0 Project2.o
                 0x9d000001                UART2Configure
                 0x9d000079                ADCConf
                 0x9d0000bc                Timer2_ISR
-                0x9d000281                Timer2Configure
-                0x9d000308                ADC_ISR
-                0x9d000469                adcConfigureAutoScan
-                0x9d000511                AlignPathDynamic
-                0x9d0005fd                main
+                0x9d0002f9                Timer2Configure
+                0x9d000380                ADC_ISR
+                0x9d0004e1                adcConfigureAutoScan
+                0x9d000589                AlignPathDynamic
+                0x9d000675                main
 
 .text._do_print_fF
-                0x9d000758      0x618
+                0x9d0007d0      0x618
  .text._do_print_fF
-                0x9d000758      0x618 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
-                0x9d000759                _do_print_fF
+                0x9d0007d0      0x618 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+                0x9d0007d1                _do_print_fF
 
-.text           0x9d000d70      0xae4
- .text          0x9d000d70      0x3d0 PIC32_LCD.o
-                0x9d000d71                Timer4us
-                0x9d000e01                waitms
-                0x9d000e3d                LCD_pulse
-                0x9d000e69                LCD_byte
-                0x9d000f99                WriteData
-                0x9d000fc5                WriteCommand
-                0x9d000ff1                LCD_4BIT
-                0x9d0010d1                LCDprint
- .text          0x9d001140      0x3b8 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
-                0x9d001141                __udivdi3
- .text          0x9d0014f8      0x35c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
-                0x9d0014f9                __umoddi3
+.text           0x9d000de8      0xae4
+ .text          0x9d000de8      0x3d0 PIC32_LCD.o
+                0x9d000de9                Timer4us
+                0x9d000e79                waitms
+                0x9d000eb5                LCD_pulse
+                0x9d000ee1                LCD_byte
+                0x9d001011                WriteData
+                0x9d00103d                WriteCommand
+                0x9d001069                LCD_4BIT
+                0x9d001149                LCDprint
+ .text          0x9d0011b8      0x3b8 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_udivdi3.o)
+                0x9d0011b9                __udivdi3
+ .text          0x9d001570      0x35c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_umoddi3.o)
+                0x9d001571                __umoddi3
 
 .text._fconvert
-                0x9d001854      0x304
+                0x9d0018cc      0x304
  .text._fconvert
-                0x9d001854      0x304 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+                0x9d0018cc      0x304 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
 
-.text.fpsubadd  0x9d001b58      0x278
+.text.fpsubadd  0x9d001bd0      0x278
  .text.fpsubadd
-                0x9d001b58      0x278 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fp32subadd.o)
-                0x9d001b58                fpsub
-                0x9d001b58                __subsf3
-                0x9d001b60                __addsf3
-                0x9d001b60                fpadd
+                0x9d001bd0      0x278 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fp32subadd.o)
+                0x9d001bd0                fpsub
+                0x9d001bd0                __subsf3
+                0x9d001bd8                __addsf3
+                0x9d001bd8                fpadd
 
-.text.fp32div   0x9d001dd0      0x230
- .text.fp32div  0x9d001dd0      0x230 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fp32div.o)
-                0x9d001dd0                fpdiv
-                0x9d001dd0                __divsf3
+.text.fp32div   0x9d001e48      0x230
+ .text.fp32div  0x9d001e48      0x230 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fp32div.o)
+                0x9d001e48                fpdiv
+                0x9d001e48                __divsf3
 
-.text.fp32mul   0x9d002000      0x1bc
- .text.fp32mul  0x9d002000      0x1bc c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fp32mul.o)
-                0x9d002000                fpmul
-                0x9d002000                __mulsf3
+.text.fp32mul   0x9d002078      0x1bc
+ .text.fp32mul  0x9d002078      0x1bc c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fp32mul.o)
+                0x9d002078                fpmul
+                0x9d002078                __mulsf3
 
-.dinit          0x9d0021bc      0x130
- .dinit         0x9d0021bc      0x130 data_init
+.dinit          0x9d002234      0x140
+ .dinit         0x9d002234      0x140 data_init
 
-.rodata         0x9d0022ec      0x100
- .rodata        0x9d0022ec      0x100 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
-                0x9d0022ec                __clz_tab
+.rodata         0x9d002374      0x100
+ .rodata        0x9d002374      0x100 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)
+                0x9d002374                __clz_tab
 
 .text.general_exception
-                0x9d0023ec       0xdc
+                0x9d002474       0xdc
  .text.general_exception
-                0x9d0023ec       0xdc c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(general-exception.o)
-                0x9d0023ec                _general_exception_context
+                0x9d002474       0xdc c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(general-exception.o)
+                0x9d002474                _general_exception_context
 
-.text.libm      0x9d0024c8       0xd4
- .text.libm     0x9d0024c8       0xd4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fpmodf.o)
-                0x9d0024c8                fpmodf
-                0x9d0024c8                modff
+.text.libm      0x9d002550       0xd4
+ .text.libm     0x9d002550       0xd4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fpmodf.o)
+                0x9d002550                fpmodf
+                0x9d002550                modff
 
-.text.fpcmp     0x9d00259c       0x9c
- .text.fpcmp    0x9d00259c       0x9c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fpcmp.o)
-                0x9d00259c                __nesf2
-                0x9d00259c                __gtsf2
-                0x9d00259c                __eqsf2
-                0x9d00259c                __ltsf2
-                0x9d00259c                fpcmp
-                0x9d00259c                __gesf2
-                0x9d00259c                __lesf2
+.text.fpcmp     0x9d002624       0x9c
+ .text.fpcmp    0x9d002624       0x9c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fpcmp.o)
+                0x9d002624                __nesf2
+                0x9d002624                __gtsf2
+                0x9d002624                __eqsf2
+                0x9d002624                __ltsf2
+                0x9d002624                fpcmp
+                0x9d002624                __gesf2
+                0x9d002624                __lesf2
 
 .text._mon_getc
-                0x9d002638       0x88
+                0x9d0026c0       0x88
  .text._mon_getc
-                0x9d002638       0x88 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
-                0x9d002639                _mon_getc
+                0x9d0026c0       0x88 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_getc.o)
+                0x9d0026c1                _mon_getc
 
-.text.fptoli    0x9d0026c0       0x80
- .text.fptoli   0x9d0026c0       0x80 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fptoli.o)
-                0x9d0026c0                fptoli
-                0x9d0026c0                fptosi
-                0x9d0026c0                __fixsfsi
+.text.fptoli    0x9d002748       0x80
+ .text.fptoli   0x9d002748       0x80 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fptoli.o)
+                0x9d002748                fptoli
+                0x9d002748                fptosi
+                0x9d002748                __fixsfsi
 
-.text.fptoul    0x9d002740       0x7c
- .text.fptoul   0x9d002740       0x7c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fptoul.o)
-                0x9d002740                __fixunssfsi
-                0x9d002740                fptoul
-                0x9d002740                fptoui
+.text.fptoul    0x9d0027c8       0x7c
+ .text.fptoul   0x9d0027c8       0x7c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(fptoul.o)
+                0x9d0027c8                __fixunssfsi
+                0x9d0027c8                fptoul
+                0x9d0027c8                fptoui
 
 .text._outcnvrt
-                0x9d0027bc       0x7c
+                0x9d002844       0x7c
  .text._outcnvrt
-                0x9d0027bc       0x7c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+                0x9d002844       0x7c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
 
 .text._mon_putc
-                0x9d002838       0x78
+                0x9d0028c0       0x78
  .text._mon_putc
-                0x9d002838       0x78 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
-                0x9d002839                _mon_putc
+                0x9d0028c0       0x78 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_putc.o)
+                0x9d0028c1                _mon_putc
 
 .text._flsbuf_simple
-                0x9d0028b0       0x74
+                0x9d002938       0x74
  .text._flsbuf_simple
-                0x9d0028b0       0x74 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
-                0x9d0028b1                _flsbuf_simple
+                0x9d002938       0x74 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
+                0x9d002939                _flsbuf_simple
 
-.text.sitofp    0x9d002924       0x60
- .text.sitofp   0x9d002924       0x60 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(sitofp.o)
-                0x9d002924                __floatsisf
-                0x9d002924                litofp
-                0x9d002924                sitofp
+.text.sitofp    0x9d0029ac       0x60
+ .text.sitofp   0x9d0029ac       0x60 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libm.a(sitofp.o)
+                0x9d0029ac                __floatsisf
+                0x9d0029ac                litofp
+                0x9d0029ac                sitofp
 
 .text.main_entry
-                0x9d002984       0x54
+                0x9d002a0c       0x54
  .text.main_entry
-                0x9d002984       0x54 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/./proc/32MX130F064B/crt0_mips32r2.o
-                0x9d0029b8                __crt0_exit
+                0x9d002a0c       0x54 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/./proc/32MX130F064B/crt0_mips32r2.o
+                0x9d002a40                __crt0_exit
 
-.text.fputc     0x9d0029d8       0x4c
- .text.fputc    0x9d0029d8       0x4c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
-                0x9d0029d9                fputc
+.text.fputc     0x9d002a60       0x4c
+ .text.fputc    0x9d002a60       0x4c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
+                0x9d002a61                fputc
 
 .text._bootstrap_exception_handler
-                0x9d002a24       0x48
+                0x9d002aac       0x48
  .text._bootstrap_exception_handler
-                0x9d002a24       0x48 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
-                0x9d002a24                _bootstrap_exception_handler
+                0x9d002aac       0x48 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-bootstrap-exception-handler.o)
+                0x9d002aac                _bootstrap_exception_handler
 
 .text._general_exception_handler
-                0x9d002a6c       0x48
+                0x9d002af4       0x48
  .text._general_exception_handler
-                0x9d002a6c       0x48 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
-                0x9d002a6c                _general_exception_handler
+                0x9d002af4       0x48 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-general-exception-handler.o)
+                0x9d002af4                _general_exception_handler
 
 .vector_default
-                0x9d002ab4       0x48
+                0x9d002b3c       0x48
  .vector_default
-                0x9d002ab4       0x48 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
-                0x9d002ab4                _DefaultInterrupt
+                0x9d002b3c       0x48 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(defaultinterrupt.o)
+                0x9d002b3c                _DefaultInterrupt
 
-.rodata         0x9d002afc       0x48
- .rodata        0x9d002afc       0x48 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+.rodata         0x9d002b84       0x48
+ .rodata        0x9d002b84       0x48 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
 
-.text           0x9d002b44       0x44
- .text          0x9d002b44       0x44 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\pic32_software_reset.o
-                0x9d002b44                __pic32_software_reset
+.text           0x9d002bcc       0x44
+ .text          0x9d002bcc       0x44 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\pic32_software_reset.o
+                0x9d002bcc                __pic32_software_reset
 
-.text.strlen    0x9d002b88       0x40
- .text.strlen   0x9d002b88       0x40 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(strlen.o)
-                0x9d002b89                strlen
+.text.strlen    0x9d002c10       0x40
+ .text.strlen   0x9d002c10       0x40 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(strlen.o)
+                0x9d002c11                strlen
 
 .text._fflush_simple
-                0x9d002bc8       0x3c
+                0x9d002c50       0x3c
  .text._fflush_simple
-                0x9d002bc8       0x3c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
-                0x9d002bc9                _fflush_simple
+                0x9d002c50       0x3c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
+                0x9d002c51                _fflush_simple
 
 .text._fwrite_simple
-                0x9d002c04       0x3c
+                0x9d002c8c       0x3c
  .text._fwrite_simple
-                0x9d002c04       0x3c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
-                0x9d002c05                _fwrite_simple
+                0x9d002c8c       0x3c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
+                0x9d002c8d                _fwrite_simple
 
-.text.repl      0x9d002c40       0x2c
- .text.repl     0x9d002c40       0x2c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+.text.repl      0x9d002cc8       0x2c
+ .text.repl     0x9d002cc8       0x2c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
 
-.text.__sputn   0x9d002c6c       0x24
- .text.__sputn  0x9d002c6c       0x24 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+.text.__sputn   0x9d002cf4       0x24
+ .text.__sputn  0x9d002cf4       0x24 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
 
-.rodata         0x9d002c90       0x20
- .rodata        0x9d002c90       0x20 Project2.o
+.rodata         0x9d002d18       0x20
+ .rodata        0x9d002d18       0x20 Project2.o
 
 .text._filbuf_simple
-                0x9d002cb0       0x20
+                0x9d002d38       0x20
  .text._filbuf_simple
-                0x9d002cb0       0x20 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
-                0x9d002cb1                _filbuf_simple
+                0x9d002d38       0x20 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
+                0x9d002d39                _filbuf_simple
 
 .text._printf_fF
-                0x9d002cd0       0x1c
+                0x9d002d58       0x1c
  .text._printf_fF
-                0x9d002cd0       0x1c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(printf_fF.eo)
-                0x9d002cd1                _printf_fF
+                0x9d002d58       0x1c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(printf_fF.eo)
+                0x9d002d59                _printf_fF
 
 .text._fsync_simple
-                0x9d002cec       0x1c
+                0x9d002d74       0x1c
  .text._fsync_simple
-                0x9d002cec       0x1c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
-                0x9d002ced                _fsync_simple
+                0x9d002d74       0x1c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
+                0x9d002d75                _fsync_simple
 
 .text._mon_write
-                0x9d002d08       0x1c
+                0x9d002d90       0x1c
  .text._mon_write
-                0x9d002d08       0x1c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
-                0x9d002d09                _mon_write
+                0x9d002d90       0x1c c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(_mon_write.o)
+                0x9d002d91                _mon_write
 
-.text           0x9d002d24       0x18
- .text          0x9d002d24       0x18 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-nmi-handler.o)
-                0x9d002d24                _nmi_handler
+.text           0x9d002dac       0x18
+ .text          0x9d002dac       0x18 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-nmi-handler.o)
+                0x9d002dac                _nmi_handler
 
-.rodata         0x9d002d3c       0x14
- .rodata        0x9d002d3c       0x14 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
-                0x9d002d3c                _io_funcs
+.rodata         0x9d002dc4       0x14
+ .rodata        0x9d002dc4       0x14 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobdata.o)
+                0x9d002dc4                _io_funcs
 
-.text.putchar   0x9d002d50       0x14
- .text.putchar  0x9d002d50       0x14 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
-                0x9d002d51                putchar
+.text.putchar   0x9d002dd8       0x14
+ .text.putchar  0x9d002dd8       0x14 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
+                0x9d002dd9                putchar
 
-.text._io_exit  0x9d002d64       0x20
+.text._io_exit  0x9d002dec       0x20
  .text._io_exit
-                0x9d002d64       0x10 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
-                0x9d002d65                _io_exit
+                0x9d002dec       0x10 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+                0x9d002ded                _io_exit
  .text._io_exit
-                0x9d002d74       0x10 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
+                0x9d002dfc       0x10 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_iobfuncs.o)
 
 .text._vfprintf_fF
-                0x9d002d84        0xc
+                0x9d002e0c        0xc
  .text._vfprintf_fF
-                0x9d002d84        0xc c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
-                0x9d002d85                _vfprintf_fF
+                0x9d002e0c        0xc c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(_doprnt_fF.eo)
+                0x9d002e0d                _vfprintf_fF
 
-.text.putc      0x9d002d90        0xc
- .text.putc     0x9d002d90        0xc c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
-                0x9d002d91                putc
+.text.putc      0x9d002e18        0xc
+ .text.putc     0x9d002e18        0xc c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\liblega-c.a(fputc.o)
+                0x9d002e19                putc
 
 .text._on_reset
-                0x9d002d9c        0x4
+                0x9d002e24        0x4
  .text._on_reset
-                0x9d002d9c        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
-                0x9d002d9d                _on_reset
+                0x9d002e24        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-reset.o)
+                0x9d002e25                _on_reset
 
 .text._on_bootstrap
-                0x9d002da0        0x4
+                0x9d002e28        0x4
  .text._on_bootstrap
-                0x9d002da0        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
-                0x9d002da1                _on_bootstrap
+                0x9d002e28        0x4 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/../../../../pic32mx/lib/mips16\libpic32.a(default-on-bootstrap.o)
+                0x9d002e29                _on_bootstrap
 
 .text           0x00000000        0x0
  .text          0x00000000        0x0 c:/x32/xc32/v1.42/bin/bin/../../lib/gcc/pic32mx/4.8.3/mips16\libgcc.a(_clz.o)

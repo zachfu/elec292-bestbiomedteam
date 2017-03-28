@@ -22,6 +22,7 @@
 
 
 volatile unsigned char pwm_count;
+volatile unsigned char direction=0;
 volatile unsigned char base_duty = 50, duty1 = 50, duty2 = 50;
 volatile int 	an1;
 volatile int 	an2;
@@ -60,34 +61,40 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 	LATBbits.LATB0 = !LATBbits.LATB0;
 	
 	pwm_count++;
+	
 	if(pwm_count==100)
 		pwm_count = 0;
 	
 	if(pwm_count < duty1) {
-		//if(direction==0){
+		if(direction==0)
+		{ 
 			H11_PIN = 1;
 			H12_PIN = 0;
-	}
-		/*else {
-			H_1_PIN = 0;
-			H_2_PIN = 1;
 		}
-	}*/
+		else 
+		{
+			H11_PIN = 0;
+			H12_PIN = 1;
+		}
+	}
 	else
 		H11_PIN = H12_PIN;
 	
-	if(pwm_count < duty2) {
-		//if(direction==0){
+	if(pwm_count < duty2){
+		if(direction==0)
+		{
 		H21_PIN = 0;
 		H22_PIN = 1;
+		}
+		else
+		{
+		H21_PIN = 0;
+		H22_PIN = 1;
+		}
 	}
-	/*else {
-		H_1_PIN = 0;
-		H_2_PIN = 1;
-	}
-	}*/
 	else 
 		H21_PIN = H22_PIN;
+		
 	IFS0bits.T2IF = 0;      // Clear timer2 interrupt status flag
 }
 
