@@ -18,7 +18,7 @@
 
 volatile unsigned char pwm_count;
 volatile unsigned char direction=0;
-volatile unsigned char base_duty = 50;
+volatile unsigned char base_duty = 30;
 volatile unsigned char duty1;
 volatile unsigned char duty2;
 volatile int 	an1;
@@ -71,8 +71,8 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 	if(pwm_count < duty2){
 		if(direction==0)
 		{
-		H21_PIN = 0;
-		H22_PIN = 1;
+		H21_PIN = 1;
+		H22_PIN = 0;
 		}
 		else
 		{
@@ -189,12 +189,12 @@ void AlignPathDynamic(void)
   // 0V difference, speed adjust = 100% (nothing happens) 
   speed_adjust = (1-((1/Max_Misalignment)*fabs(Misalignment)));
     
-  if( Misalignment-0.01 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
+  if( Misalignment-0.02 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
   {
     duty1 = base_duty*speed_adjust;
     duty2 = base_duty;
   }
-  else if (Misalignment+0.01 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
+  else if (Misalignment+0.02 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
   {
     duty2 = base_duty*speed_adjust;
     duty1 = base_duty;
@@ -211,8 +211,8 @@ void PinConfigure(void)
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
 	
-	TRISBbits.TRISB0 = 0;		// DEBUG PIN
-	LATBbits.LATB0 = 0;
+//	TRISBbits.TRISB0 = 0;		// DEBUG PIN
+//	LATBbits.LATB0 = 0;
 }
 
 void main(void)
@@ -243,5 +243,6 @@ void main(void)
 		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
 		AlignPathDynamic();
 		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, (voltage1-voltage2));
+		printf("%2d, %2d\r\n", duty1, duty2);
 	}
 }
