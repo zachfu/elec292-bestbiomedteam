@@ -20,7 +20,7 @@ char _c51_external_startup (void)
 	OSCICN |= 0x03; // Configure internal oscillator for its maximum frequency
 	
 	P0MDOUT|=0x10; // Enable Uart TX as push-pull output
-	P1MDOUT|=0b_0011_1111; // Push Button Inputs
+	P1MDOUT|=0b_1111_1111; // Push Button Inputs
 	P2MDOUT|=0b_1111_1111; // P2-7 for LCD.  P2_0 Guid Signal, P2_1 Command Signal
 
 	XBR0=0x01; // Enable UART on P0.4(TX) and P0.5(RX)                     

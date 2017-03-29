@@ -14,11 +14,12 @@
 
 #define R_TURN   		P1_0
 #define L_TURN   		P1_1
-#define STOP	 		P1_2
-#define GO		  	 	P1_3
-#define REVERSE	 		P1_4
-
-#define TEST_PIN		P1_5
+#define STOP	 		P1_2	//Complete stop
+#define CONTINUE		P1_3	//Continue with Previous speed
+#define TURN_180	 	P1_4	//180 degrees turn
+#define SPEED_UP		P1_5
+#define SPEED_DOWN		P1_6
+#define TEST_PIN		P1_7
 
 
 #define PUSH_SFRPAGE _asm push _SFRPAGE _endasm

@@ -49,8 +49,11 @@ void main (void)
 		  	TransmitChar(R_TURN, 'R')	//Right turn command
 	  		TransmitChar(L_TURN, 'L')	//Left turn command
 	  		TransmitChar(STOP  , 'S')	//STOP command
-	  		TransmitChar(GO    , 'G')	//forward Command
-			TransmitChar(REVERSE, 'B')	//180 degrees return
+	  		TransmitChar(CONTINUE, 'C')	//forward Command
+			TransmitChar(TURN_180, 'O')	//180 degrees return
+			TransmitChar(SPEED_UP, 'U')	//Increase the speed
+			TransmitChar(SPEED_DOWN, 'D')	//Decrease the speed
+			
 	  	}
 	}
 }
