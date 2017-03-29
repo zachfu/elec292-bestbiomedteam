@@ -1,0 +1,25 @@
+#define SYSCLK    48000000L // SYSCLK frequency in Hz
+#define BAUDRATE    115200L // Baud rate of UART in bps
+
+#define TIMER_0_FREQ 1000L 	// for Command signal (1KHz for 100 Baud rate)
+#define TIMER_2_FREQ 16000L	// for Guid Signal (16KHz)
+
+
+
+/********** pin configuration *********/
+
+#define GUID_SIG 		P2_0// output pin for guid signal
+#define COMMAND_SIG 	P2_1// output pin for command signal
+							/* P2_2 to 7 is for LCD */
+
+#define R_TURN   		P1_0
+#define L_TURN   		P1_1
+#define STOP	 		P1_2
+#define GO		  	 	P1_3
+#define REVERSE	 		P1_4
+
+#define TEST_PIN		P1_5
+
+
+#define PUSH_SFRPAGE _asm push _SFRPAGE _endasm
+#define POP_SFRPAGE _asm pop _SFRPAGE _endasm

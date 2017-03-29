@@ -1,0 +1,390 @@
+<MODULE>
+main
+</MODULE>
+
+<OPTC51>
+--model-small
+</OPTC51>
+
+<SEGMENTS>
+R_GSINIT,code,0000,NO
+R_BSEG,bit,0002,NO
+R_XSEG,xdata,0000,NO
+BIT_BANK,data,0000,OV
+R_CONST,code,003B,NO
+rbank0,data,0000,OV
+R_PSEG,xdata,0000,NO
+R_DINIT,code,000C,NO
+R_DSEG,data,0004,NO
+R_OSEG,data,0000,OV
+R_IXSEG,xdata,0000,NO
+R_ISEG,idata,0000,NO
+R_HOME,code,0000,NO
+R_XINIT,code,0000,NO
+R_CSEG,code,0221,NO
+</SEGMENTS>
+
+<LOCALS>
+L002004?,R_CSEG,0056,0000
+L003009?,R_CSEG,01D7,0000
+L003008?,R_CSEG,01CE,0000
+L003007?,R_CSEG,01C5,0000
+L003006?,R_CSEG,01BC,0000
+L003005?,R_CSEG,01B3,0000
+L003004?,R_CSEG,01AA,0000
+L003003?,R_CSEG,01A1,0000
+L003002?,R_CSEG,0198,0000
+L003001?,R_CSEG,0194,0000
+L004003?,R_CSEG,021C,0000
+L004002?,R_CSEG,021A,0000
+L002050?,R_CSEG,0104,0000
+L002016?,R_CSEG,00F2,0000
+__str_0,R_CONST,0000,0000
+__str_1,R_CONST,0010,0000
+__str_2,R_CONST,001E,0000
+L002012?,R_CSEG,00BE,0000
+L002024?,R_CSEG,001F,0000
+L003016?,R_CSEG,01F6,0000
+L003014?,R_CSEG,01F2,0000
+L003013?,R_CSEG,01F0,0000
+L003011?,R_CSEG,01E2,0000
+L003010?,R_CSEG,01E0,0000
+L002049?,R_CSEG,00F8,0000
+L003025?,R_CSEG,0176,0000
+L003024?,R_CSEG,016F,0000
+L003023?,R_CSEG,0160,0000
+L003022?,R_CSEG,015D,0000
+L002008?,R_CSEG,008A,0000
+</LOCALS>
+
+<PUBLICS>
+_main,R_CSEG,0000,0000
+_wave_on,R_BSEG,0000,0001
+_Timer0_ISR,R_CSEG,012F,0000
+_bit_count,R_DSEG,0002,0001
+_Timer2_ISR,R_CSEG,0203,0000
+_transmitting,R_BSEG,0001,0001
+_overflow_count,R_DSEG,0000,0002
+_command_char,R_DSEG,0003,0001
+</PUBLICS>
+
+<EXTERNALS>
+_LCDprint,any,0000,0000
+_LCD_4BIT,any,0000,0000
+_printf,any,0000,0000
+_LCDprint_PARM_2,any,0000,0000
+_LCDprint_PARM_3,any,0000,0000
+_crt0,any,0000,0000
+_waitms,any,0000,0000
+</EXTERNALS>
+
+<CODE AT 0000>
+</CODE>
+
+<CODE R_HOME>
+</CODE>
+
+<CODE R_GSINIT>
+</CODE>
+
+<CODE R_CSEG>
+</CODE>
+
+<CODE AT 0000>
+02 addr16(_crt0;)  
+</CODE>
+
+<CODE AT 000B>
+02 addr16(_Timer0_ISR;)  
+</CODE>
+
+<CODE AT 002B>
+02 addr16(_Timer2_ISR;)  
+</CODE>
+
+<CODE R_HOME>
+</CODE>
+
+<CODE R_GSINIT>
+</CODE>
+
+<CODE R_GSINIT>
+</CODE>
+
+<CODE R_DINIT>
+E4
+F5 data8(_overflow_count;)
+F5 data8(_overflow_count;0x0001;+;)
+75 data8(_bit_count;) 00
+D2 bit(_wave_on;)
+C2 bit(_transmitting;)
+</CODE>
+
+<CODE R_CSEG>
+12 addr16(_LCD_4BIT;)  
+75 data8(_LCDprint_PARM_2;) 01
+D2 bit(_LCDprint_PARM_3;)
+90 data16(__str_0;)  
+75 F0 80
+12 addr16(_LCDprint;)  
+75 data8(_LCDprint_PARM_2;) 02
+D2 bit(_LCDprint_PARM_3;)
+90 data16(__str_1;)  
+75 F0 80
+12 addr16(_LCDprint;)  
+20 bit(_transmitting;) rel3(L002024?;)
+20 90 rel3(L002004?;)
+90 00 32
+12 addr16(_waitms;)  
+20 90 rel3(L002004?;)
+D2 bit(_transmitting;)
+75 data8(_command_char;) 52
+AA data8(_command_char;)
+E5 data8(_command_char;)
+33
+95 E0
+FB
+C0 02
+C0 03
+74 data8(__str_2;)
+C0 E0
+74 data8(__str_2;0x0008;>>;)
+C0 E0
+74 80
+C0 E0
+12 addr16(_printf;)  
+E5 81
+24 FB
+F5 81
+D2 8C
+20 91 rel3(L002008?;)
+90 00 32
+12 addr16(_waitms;)  
+20 91 rel3(L002008?;)
+D2 bit(_transmitting;)
+75 data8(_command_char;) 4C
+AA data8(_command_char;)
+E5 data8(_command_char;)
+33
+95 E0
+FB
+C0 02
+C0 03
+74 data8(__str_2;)
+C0 E0
+74 data8(__str_2;0x0008;>>;)
+C0 E0
+74 80
+C0 E0
+12 addr16(_printf;)  
+E5 81
+24 FB
+F5 81
+D2 8C
+20 92 rel3(L002012?;)
+90 00 32
+12 addr16(_waitms;)  
+20 92 rel3(L002012?;)
+D2 bit(_transmitting;)
+75 data8(_command_char;) 53
+AA data8(_command_char;)
+E5 data8(_command_char;)
+33
+95 E0
+FB
+C0 02
+C0 03
+74 data8(__str_2;)
+C0 E0
+74 data8(__str_2;0x0008;>>;)
+C0 E0
+74 80
+C0 E0
+12 addr16(_printf;)  
+E5 81
+24 FB
+F5 81
+D2 8C
+20 93 rel3(L002016?;)
+90 00 32
+12 addr16(_waitms;)  
+20 93 rel3(L002016?;)
+D2 bit(_transmitting;)
+75 data8(_command_char;) 47
+AA data8(_command_char;)
+E5 data8(_command_char;)
+33
+95 E0
+FB
+C0 02
+C0 03
+74 data8(__str_2;)
+C0 E0
+74 data8(__str_2;0x0008;>>;)
+C0 E0
+74 80
+C0 E0
+12 addr16(_printf;)  
+E5 81
+24 FB
+F5 81
+D2 8C
+30 94 rel3(L002049?;)
+02 addr16(L002024?;)  
+90 00 32
+12 addr16(_waitms;)  
+30 94 rel3(L002050?;)
+02 addr16(L002024?;)  
+D2 bit(_transmitting;)
+75 data8(_command_char;) 42
+AA data8(_command_char;)
+E5 data8(_command_char;)
+33
+95 E0
+FB
+C0 02
+C0 03
+74 data8(__str_2;)
+C0 E0
+74 data8(__str_2;0x0008;>>;)
+C0 E0
+74 80
+C0 E0
+12 addr16(_printf;)  
+E5 81
+24 FB
+F5 81
+D2 8C
+02 addr16(L002024?;)  
+C0 E0
+C0 82
+C0 83
+C0 02
+C0 D0
+75 D0 00
+C0 BF
+75 BF 00
+75 8C A2
+75 8A 40
+74 01
+25 data8(_overflow_count;)
+F5 data8(_overflow_count;)
+E4
+35 data8(_overflow_count;0x0001;+;)
+F5 data8(_overflow_count;0x0001;+;)
+74 0A
+B5 data8(_overflow_count;) rel3(L003022?;)
+E4
+B5 data8(_overflow_count;0x0001;+;) rel3(L003022?;)
+80 rel2(L003023?;)
+02 addr16(L003016?;)  
+E4
+F5 data8(_overflow_count;)
+F5 data8(_overflow_count;0x0001;+;)
+E5 data8(_bit_count;)
+FA
+24 F6
+50 rel2(L003024?;)
+02 addr16(L003011?;)  
+EA
+2A
+2A
+90 data16(L003025?;)  
+73
+02 addr16(L003001?;)  
+02 addr16(L003002?;)  
+02 addr16(L003003?;)  
+02 addr16(L003004?;)  
+02 addr16(L003005?;)  
+02 addr16(L003006?;)  
+02 addr16(L003007?;)  
+02 addr16(L003008?;)  
+02 addr16(L003009?;)  
+02 addr16(L003010?;)  
+C2 bit(_wave_on;)
+80 rel2(L003011?;)
+85 data8(_command_char;) E0
+A2 E0
+92 data8(_wave_on;)
+80 rel2(L003011?;)
+85 data8(_command_char;) E0
+A2 E1
+92 data8(_wave_on;)
+80 rel2(L003011?;)
+85 data8(_command_char;) E0
+A2 E2
+92 data8(_wave_on;)
+80 rel2(L003011?;)
+85 data8(_command_char;) E0
+A2 E3
+92 data8(_wave_on;)
+80 rel2(L003011?;)
+85 data8(_command_char;) E0
+A2 E4
+92 data8(_wave_on;)
+80 rel2(L003011?;)
+85 data8(_command_char;) E0
+A2 E5
+92 data8(_wave_on;)
+80 rel2(L003011?;)
+85 data8(_command_char;) E0
+A2 E6
+92 data8(_wave_on;)
+80 rel2(L003011?;)
+85 data8(_command_char;) E0
+A2 E7
+92 data8(_wave_on;)
+80 rel2(L003011?;)
+D2 bit(_wave_on;)
+74 09
+B5 data8(_bit_count;) rel3(L003013?;)
+75 data8(_bit_count;) 00
+C2 8C
+C2 bit(_transmitting;)
+80 rel2(L003014?;)
+05 data8(_bit_count;)
+A2 bit(_wave_on;)
+92 95
+D0 BF
+D0 D0
+D0 02
+D0 83
+D0 82
+D0 E0
+32
+C0 D0
+75 D0 00
+C0 BF
+75 BF 00
+C2 CF
+B2 A0
+30 bit(_wave_on;) rel3(L004002?;)
+A2 A0
+92 A1
+80 rel2(L004003?;)
+C2 A1
+D0 BF
+D0 D0
+32
+</CODE>
+
+<CODE R_CSEG>
+</CODE>
+
+<CODE R_XINIT>
+</CODE>
+
+<CODE R_CONST>
+4C 43 44 20 34 2D 62 69 74 20 74 65 73 74 3A 
+00
+48 65 6C 6C 6F 2C 20 57 6F 72 6C 64 21 
+00
+54 72 61 6E 73 6D 69 74 74 69 6E 67 20 63 6F 6D 6D
+61 6E 64 20 3A 20 25 63 20 
+0A
+0D
+00
+</CODE>
+
+<CODE AT 002E>
+</CODE>
