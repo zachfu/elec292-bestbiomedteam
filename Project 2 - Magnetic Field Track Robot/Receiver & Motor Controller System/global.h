@@ -6,6 +6,7 @@
 
 #define Max_Misalignment 3.265
 #define Turn_Scaling_Factor (1.0/3.0)
+#define IntersectCrossVoltage 1.7
 // Pin assignment defines
 #define H11_PIN LATBbits.LATB15
 #define H12_PIN LATBbits.LATB14
@@ -13,3 +14,10 @@
 #define H22_PIN LATBbits.LATB12
 
 // Miscellaneous 'bits'/flags
+
+// Receive Commands
+#define StopCommand 's'
+#define	TurnLeft 'l'
+#define TurnRight 'r'
+#define Turn180Command 'o'
+#define NullCommand 'n'

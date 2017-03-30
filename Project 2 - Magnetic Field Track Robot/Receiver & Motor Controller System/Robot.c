@@ -21,6 +21,7 @@ volatile unsigned char direction=0;
 volatile unsigned char base_duty = 30;
 volatile unsigned char duty1;
 volatile unsigned char duty2;
+volatile char Command=NullCommand;
 volatile int 	an1;
 volatile int 	an2;
 volatile int 	an3;
@@ -211,6 +212,82 @@ void AlignPathDynamic(void)
   	duty2 = base_duty;
   }
 }
+
+// Checks for intersections in the track and depending on any commands from the transmitter system
+// either ignores the intersection, turns left or turns right. Priority is higher than generic
+// realignment function. Checks voltage of inductor 3 to see if there is some form of intersection.
+// Check if voltage3>threshold (threshold determined through testing to see what constitutes an arbitrarily
+// large intersection. Then pivots on the wheel corresponding to the turn direction until
+// the wheels align with the new path 
+void DetectIntersection( void )
+{
+  	// Check if vehicle has arrived at 'center' of the intersection
+  	if( !StartTurn)
+    {
+  		if( voltage3 == IntersectCrossVoltage) // IntersectCrossVoltage = TBD (To be determined)
+    		StartTurn = 1;
+    }
+  	// Once vehicle has reached centre of intersection, begin turning
+  	else
+    {
+      if( Command == TurnLeft )	
+      	duty1 = 0;
+      else
+      	duty2 = 0;
+      
+      // Check if vehicle has aligned with new path, once it has clear all turn commands and proceed forward
+      // NEEDS TESTING 
+      if( 0 < (Misalignment+0.01) < 0.02)	
+  	  {
+    	duty1 = base_duty;				// Set wheel speeds back to default values
+  		duty2 = base_duty;			
+  		StartTurn = 0;					// Turn off the StartTurn 'flag' for future function calls
+     	Command = NullCommand;			// Clear command, resume default function
+      }
+    }
+}
+
+// If the stop command has been transmitted, sets the duty cycle of both wheels to 0, then pauses until a new command has been issued
+void StopMovement (void)
+{
+  	duty1 = 0;
+  	duty2 = 0;
+}
+
+// Pivots 180 degrees (until it realigns itself with the path in the other direction)
+void Turn180 (void)
+{
+  	if( !StartTurn)
+ 	{
+	  	duty1 = 0;
+  		waitms(250);
+    	StartTurn = 1;
+ 	}
+  
+  	if( 0 < (Misalignment+0.01) < 0.02)	
+  	{
+    	duty1 = base_duty;				// Set wheel speeds back to default values			
+    	Command = NullCommand;		// Clear command, resume default function
+   		StartTurn = 0; // Clear 'flag'
+  	}
+}
+
+void MovementController(void)
+{
+  	if( Command == NullCommand)
+  		AlignPathDynamic();
+  	else
+	{
+  		if( Command == StopCommand)
+    		StopMovement();
+  		else if( Command == TurnLeft || Command == TurnRight)
+     	 	DetectIntersection();
+   		else if( Command == Turn180Command)
+      		Turn180();
+    	else 
+      		return;
+    }
+}   
 void PinConfigure(void)
 {
 	TRISBbits.TRISB12 = 0;
@@ -248,7 +325,7 @@ void main(void)
 		voltage2=an2*VREF/1023.0;
 		voltage3=an3*VREF/1023.0;
 		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
-		AlignPathDynamic();
+		MovementController();
 		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, (voltage1-voltage2));
 		printf("%2d, %2d\r\n", duty1, duty2);
 
