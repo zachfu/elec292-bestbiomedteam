@@ -197,12 +197,12 @@ void AlignPathDynamic(void)
   if( speed_adjust < 0)
   	speed_adjust = 0;
     
-  if( Misalignment-0.02 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
+  if( Misalignment-0.005 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
   {
     duty1 = base_duty*speed_adjust;
     duty2 = base_duty;
   }
-  else if (Misalignment+0.02 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
+  else if (Misalignment+0.005 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
   {
     duty2 = base_duty*speed_adjust;
     duty1 = base_duty;
@@ -226,6 +226,7 @@ void DetectIntersection( void )
     {
   		if( voltage3 == IntersectCrossVoltage) // IntersectCrossVoltage = TBD (To be determined)
     		StartTurn = 1;
+    	AlignPathDynamic();		// Continue to follow the path until we've reached the intersection cross
     }
   	// Once vehicle has reached centre of intersection, begin turning
   	else
@@ -272,6 +273,7 @@ void Turn180 (void)
   	}
 }
 
+// NEEDS FIXING
 void MovementController(void)
 {
   	if( Command == NullCommand)
@@ -284,6 +286,8 @@ void MovementController(void)
      	 	DetectIntersection();
    		else if( Command == Turn180Command)
       		Turn180();
+      	else if( 0 <= Command <= 100)
+      		base_duty = Command;
     	else 
       		return;
     }
@@ -328,6 +332,9 @@ void main(void)
 		MovementController();
 		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, (voltage1-voltage2));
 		printf("%2d, %2d\r\n", duty1, duty2);
-
+		sprintf(LCDstring, "Duty L: %d", duty1);
+		LCDprint(LCDstring,1,1);
+		sprintf(LCDstring, "Duty R: %d", duty2);
+		LCDprint(LCDstring,2,1);
 	}
 }
