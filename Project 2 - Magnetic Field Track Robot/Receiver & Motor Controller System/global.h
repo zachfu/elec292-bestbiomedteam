@@ -4,8 +4,8 @@
 #define VREF 	3.265		// ADC reference voltage
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 
-#define Max_Misalignment 1.3
-
+#define Max_Misalignment 3.265
+#define Turn_Scaling_Factor (1.0/3.0)
 // Pin assignment defines
 #define H11_PIN LATBbits.LATB15
 #define H12_PIN LATBbits.LATB14

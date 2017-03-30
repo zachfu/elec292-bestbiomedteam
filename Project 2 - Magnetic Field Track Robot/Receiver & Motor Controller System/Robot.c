@@ -187,7 +187,14 @@ void AlignPathDynamic(void)
   // Scale speed adjust depending on the difference in amplitude. An absolute difference of 2V indicates maximum turn
   // In that case the car should simply rotate (one wheel completely turned off). 2V difference, speed adjust = 0%
   // 0V difference, speed adjust = 100% (nothing happens) 
-  speed_adjust = (1-((1/Max_Misalignment)*fabs(Misalignment)));
+  speed_adjust = (1-((pow((fabs(Misalignment)/Max_Misalignment), Turn_Scaling_Factor))));
+
+  // In case that max_misalignment is incorrect, add a conditional statement that prevents speed_adjust
+  // from being greater than 1 or less than 0
+  if( speed_adjust > 1 )
+  	speed_adjust = 1;
+  if( speed_adjust < 0)
+  	speed_adjust = 0;
     
   if( Misalignment-0.02 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
   {
@@ -244,5 +251,6 @@ void main(void)
 		AlignPathDynamic();
 		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, (voltage1-voltage2));
 		printf("%2d, %2d\r\n", duty1, duty2);
+
 	}
 }
