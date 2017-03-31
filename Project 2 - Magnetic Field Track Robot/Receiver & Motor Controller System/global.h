@@ -7,6 +7,7 @@
 #define Max_Misalignment 1.6
 #define Turn_Scaling_Factor (1.0/4.0)
 #define IntersectCrossVoltage 1.33
+#define CornerDetectVoltageMax 0.3
 // Pin assignment defines
 #define H11_PIN LATBbits.LATB15
 #define H12_PIN LATBbits.LATB14

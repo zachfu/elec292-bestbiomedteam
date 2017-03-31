@@ -16,20 +16,25 @@
 #pragma config FPBDIV = DIV_1       // PBCLK = SYCLK
 
 
-volatile unsigned char pwm_count;
-volatile unsigned char direction=0;
-volatile unsigned char base_duty = 30;
-volatile unsigned char duty1;
-volatile unsigned char duty2;
-volatile char Command=NullCommand;
-volatile int 	an1;
-volatile int 	an2;
-volatile int 	an3;
-volatile int	StartTurn = 0;
-volatile float  voltage1;
-volatile float  voltage2;
-volatile float	voltage3;
-volatile float 	Misalignment;
+volatile unsigned char 	pwm_count;
+volatile unsigned char 	direction=0;
+volatile unsigned char 	base_duty = 70;
+volatile unsigned char 	duty1;
+volatile unsigned char 	duty2;
+volatile char 			Command=NullCommand;
+volatile int 			an1;
+volatile int 			an2;
+volatile int 			an3;
+volatile int			StartTurn = 0;
+volatile int 			CornerAdjustFlag = 0;
+volatile float 			voltage1;
+volatile float  		voltage2;
+volatile float			voltage3;
+volatile float 			Misalignment;
+volatile float  		speed_adjust;
+volatile float			base_duty_corner;
+volatile float			corner_adjust;
+
 
 void UART2Configure(int baud_rate)
 {
@@ -126,7 +131,7 @@ void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
 }
 
 // Configuration for ADC in Auto-Scan Mode
-// Code from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
+// Code modiefied from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
 void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 {
     AD1CON1 = 0x0000; // disable ADC
@@ -152,17 +157,35 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
  
     // select which pins to use for scan mode
     AD1CSSL = adcPINS;
-	IPC5bits.AD1IP = 6; // Priority 6
-	IPC5bits.AD1IS = 0;
+	IPC5bits.AD1IP = 6; // Set Priority 6
+	IPC5bits.AD1IS = 0; 
 	IFS0bits.AD1IF = 0; // Clear interrupt flag
 	IEC0bits.AD1IE = 1; // Enable ADC interrupt
 }
 
+// Uses the changes in voltage of inductor 3 to detect when a sharp corner is upcoming
+// Then tries to slow the duty cycles of the vehicle to account for the corner
+// Voltage3 approach approximately 0.3V as it reaches the closest point to the corner
+
+void CornerSteering( void )
+{
+	// Applies a linear scaling up to a max of 0.5 to base_duty the closer 
+	// The vehicle is to the corner
+	base_duty_corner = (1-(voltage3/(CornerDetectVoltageMax*2)));
+	
+	// If we are nearing the corner, apply a scaling 
+	if( voltage3 >= 0.2 )
+		corner_adjust = 1.2;
+	else
+		corner_adjust = 1;
+}
 
 // Function to adjust duty cycles in order to realign the cart to drive 'straight'
 // The voltages from the inductors are read from main and determines the misalignmnet of the wheels (the degree of turn in the track)
-// The speed of the wheels are adjusted dynamically to correct the misalignment, speed adjustment is currently a linear function
-// of the misalignment.
+// The speed of the wheels are adjusted dynamically to correct the misalignment, speed adjustment is currently 
+// modelled as a 1 - x^(1/n) function, such that a small difference detected in the voltages
+// will respond with a larger steering response, and small differences at max misalignment
+// are not drastically different (since a duty of 5%-15% doesn't make much of a difference)
 // Duty1 controls the pwm of the wheels on the left side of the car, duty2 controls right side
 /*                  __..-======-------..__
               . '    ______    ___________`.
@@ -183,11 +206,11 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 // vroom 
 void AlignPathDynamic(void)
 {
-  float speed_adjust;
-  
-  // Scale speed adjust depending on the difference in amplitude. An absolute difference of 2V indicates maximum turn
-  // In that case the car should simply rotate (one wheel completely turned off). 2V difference, speed adjust = 0%
+  // Scale speed adjust depending on the difference in amplitude. An absolute difference of 1.6V indicates maximum turn
+  // In that case the car should simply rotate (one wheel completely turned off). 1.6V difference, speed adjust = 0%
   // 0V difference, speed adjust = 100% (nothing happens) 
+  // Turn_Scaling_Factor adjusts the degree of curve which controls the steering, with a higher
+  // scaling factor increasing the initial slope
   speed_adjust = (1-((pow((fabs(Misalignment)/Max_Misalignment), Turn_Scaling_Factor))));
 
   // In case that max_misalignment is incorrect, add a conditional statement that prevents speed_adjust
@@ -196,23 +219,23 @@ void AlignPathDynamic(void)
   	speed_adjust = 1;
   if( speed_adjust < 0)
   	speed_adjust = 0;
-    
+  
   if( Misalignment-0.005 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
   {
-    duty1 = base_duty*speed_adjust;
-    duty2 = base_duty;
+    duty1 = base_duty*base_duty_corner*speed_adjust;
+    duty2 = base_duty*base_duty_corner*corner_adjust;
   }
   else if (Misalignment+0.005 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
   {
-    duty2 = base_duty*speed_adjust;
-    duty1 = base_duty;
+    duty2 = base_duty*base_duty_corner*speed_adjust;
+    duty1 = base_duty*base_duty_corner*corner_adjust;
   }
   else {										// More or less alignment, keep duty cycles the same
     duty1 = base_duty;
   	duty2 = base_duty;
   }
 }
-
+		
 // Checks for intersections in the track and depending on any commands from the transmitter system
 // either ignores the intersection, turns left or turns right. Priority is higher than generic
 // realignment function. Checks voltage of inductor 3 to see if there is some form of intersection.
@@ -277,7 +300,10 @@ void Turn180 (void)
 void MovementController(void)
 {
   	if( Command == NullCommand)
+  	{
+  		CornerSteering();
   		AlignPathDynamic();
+  	}
   	else
 	{
   		if( Command == StopCommand)
@@ -330,7 +356,7 @@ void main(void)
 		voltage3=an3*VREF/1023.0;
 		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
 		MovementController();
-		printf("Voltages: %.3f, %.3f, %.3f\r\n", voltage1, voltage2, (voltage1-voltage2));
+		printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
 		printf("%2d, %2d\r\n", duty1, duty2);
 		sprintf(LCDstring, "Duty L: %d", duty1);
 		LCDprint(LCDstring,1,1);
