@@ -4,10 +4,13 @@
 #define VREF 	3.265		// ADC reference voltage
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 
+// Constants
 #define Max_Misalignment 1.6
-#define Turn_Scaling_Factor (1.0/4.0)
-#define IntersectCrossVoltage 1.33
-#define CornerDetectVoltageMax 0.3
+#define Turn_Scaling_Factor (1.0/2.0)
+#define IntersectCrossVoltage 1.25
+#define IntersectDetectVoltageMax 1.25
+#define AlignTolerance 0.03
+#define IntersectDetectVoltageLow 0.1
 // Pin assignment defines
 #define H11_PIN LATBbits.LATB15
 #define H12_PIN LATBbits.LATB14

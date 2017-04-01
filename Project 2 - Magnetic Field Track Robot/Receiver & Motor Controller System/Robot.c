@@ -32,8 +32,7 @@ volatile float  		voltage2;
 volatile float			voltage3;
 volatile float 			Misalignment;
 volatile float  		speed_adjust;
-volatile float			base_duty_corner;
-volatile float			corner_adjust;
+volatile float			intersect_adjust;
 
 
 void UART2Configure(int baud_rate)
@@ -167,17 +166,20 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 // Then tries to slow the duty cycles of the vehicle to account for the corner
 // Voltage3 approach approximately 0.3V as it reaches the closest point to the corner
 
-void CornerSteering( void )
+void IntersectHandler( void )
 {
-	// Applies a linear scaling up to a max of 0.5 to base_duty the closer 
-	// The vehicle is to the corner
-	base_duty_corner = (1-(voltage3/(CornerDetectVoltageMax*2)));
-	
-	// If we are nearing the corner, apply a scaling 
-	if( voltage3 >= 0.2 )
-		corner_adjust = 1.2;
+	// Applies a linear scaling up to a min of 0.5 to base_duty the closer 
+	// the vehicle is to the corner, if a turn command has been issued, scale this
+	// slowing up to a max of 0.3
+	if( Command != TurnLeft || Command != TurnRight)
+		intersect_adjust = (1-(voltage3/(IntersectDetectVoltageMax*2)));
 	else
-		corner_adjust = 1;
+		intersect_adjust = (1-(voltage3/(IntersectDetectVoltageMax*1.5)));
+ 
+ 	// If there's an intersect, then just go straight 
+ 	if( voltage3 > IntersectDetectVoltageLow)
+ 		speed_adjust = 1;
+
 }
 
 // Function to adjust duty cycles in order to realign the cart to drive 'straight'
@@ -212,7 +214,8 @@ void AlignPathDynamic(void)
   // Turn_Scaling_Factor adjusts the degree of curve which controls the steering, with a higher
   // scaling factor increasing the initial slope
   speed_adjust = (1-((pow((fabs(Misalignment)/Max_Misalignment), Turn_Scaling_Factor))));
-
+  IntersectHandler();
+  
   // In case that max_misalignment is incorrect, add a conditional statement that prevents speed_adjust
   // from being greater than 1 or less than 0
   if( speed_adjust > 1 )
@@ -220,17 +223,17 @@ void AlignPathDynamic(void)
   if( speed_adjust < 0)
   	speed_adjust = 0;
   
-  if( Misalignment-0.005 > 0) // Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
+  if( Misalignment-AlignTolerance > 0) 		// Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
   {
-    duty1 = base_duty*base_duty_corner*speed_adjust;
-    duty2 = base_duty*base_duty_corner*corner_adjust;
+    duty1 = base_duty*intersect_adjust*speed_adjust;
+    duty2 = base_duty*intersect_adjust;
   }
-  else if (Misalignment+0.005 < 0) // Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
+  else if (Misalignment+AlignTolerance < 0)	// Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
   {
-    duty2 = base_duty*base_duty_corner*speed_adjust;
-    duty1 = base_duty*base_duty_corner*corner_adjust;
+    duty2 = base_duty*intersect_adjust*speed_adjust;
+    duty1 = base_duty*intersect_adjust;
   }
-  else {										// More or less alignment, keep duty cycles the same
+  else {							// More or less alignment, keep duty cycles the same
     duty1 = base_duty;
   	duty2 = base_duty;
   }
@@ -244,6 +247,9 @@ void AlignPathDynamic(void)
 // the wheels align with the new path 
 void DetectIntersection( void )
 {
+	// Needs more work to better detect an intersection (especially if we want to distinguish it
+	// from a corner. For example voltages 1 and 2 will change enough from the intersection wire
+	// to cause it to steer off course
   	// Check if vehicle has arrived at 'center' of the intersection
   	if( !StartTurn)
     {
@@ -301,7 +307,6 @@ void MovementController(void)
 {
   	if( Command == NullCommand)
   	{
-  		CornerSteering();
   		AlignPathDynamic();
   	}
   	else
