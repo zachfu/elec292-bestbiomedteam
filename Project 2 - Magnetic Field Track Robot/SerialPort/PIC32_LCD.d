@@ -1,0 +1,1 @@
+PIC32_LCD.o: PIC32_LCD.c global.h PIC32_LCD.h

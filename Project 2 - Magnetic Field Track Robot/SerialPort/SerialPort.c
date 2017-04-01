@@ -1,7 +1,10 @@
 #include <XC.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include "global.h"
 #include <sys/attribs.h>
+#include "PIC32_LCD.h"
  
 #pragma config FNOSC = FRCPLL       // Internal Fast RC oscillator (8 MHz) w/ PLL
 #pragma config FPLLIDIV = DIV_2     // Divide FRC before PLL (now 4 MHz)
@@ -13,12 +16,8 @@
                                    // see figure 8.1 in datasheet for more info
 
 
-// Defines
-#define SYSCLK 40000000L
-#define Baud2BRG(desired_baud)      ( (SYSCLK / (16*desired_baud))-1)
 
-
-volatile char c;
+volatile char c = 'k';
 volatile char flag=0;
  
 // Function Prototypes
@@ -30,11 +29,10 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
   	flag=1;
   	if (IFS1bits.U2RXIF)
   	{
-  		c = U2RXREG;
-  		LATBbits.LATB0 = !LATBbits.LATB0;
-  	}
-  	IFS1CLR=_IFS1_U2RXIF_MASK;
-  	IFS1bits.U2RXIF = 0;
+		while(!U2STAbits.URXDA);
+		c = U2RXREG;
+		IFS1CLR=_IFS1_U2RXIF_MASK;
+	}
     if ( IFS1bits.U2TXIF)
       {
         IFS1bits.U2TXIF = 0;
@@ -43,24 +41,24 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
 
 void main(void)
 {	
-
+	char LCDstring[17];
 	CFGCON = 0;
  
     // Peripheral Pin Select
     U2RXRbits.U2RXR = 4;    //SET RX to RB8
     RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
  	
- 	TRISBbits.TRISB0 = 0;
-	LATBbits.LATB0 = 1;
  	
-    UART2Configure(110);  // Configure UART2 for a baud rate of 100
-
+    UART2Configure(100);  // Configure UART2 for a baud rate of 100
+	LCD_4BIT();
+	LCDprint("Hello!!!!",2,1);
     while(1)
     {	
-    	printf("hello\r\n");
+    	
     	if ( flag==1)
     	{
-    		printf("this char is :%c\r\n", c);
+			sprintf(LCDstring,"Char is %c", c);
+			LCDprint(LCDstring, 1,1);
     		flag=0;
     	}   
     }
