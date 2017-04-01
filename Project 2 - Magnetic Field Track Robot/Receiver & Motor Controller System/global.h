@@ -6,18 +6,18 @@
 
 // Constants
 #define Max_Misalignment 1.6
-#define Turn_Scaling_Factor (1.0/2.0)
+#define Turn_Scaling_Factor (1.0/4.0)
 #define IntersectCrossVoltage 1.25
 #define IntersectDetectVoltageMax 1.25
-#define AlignTolerance 0.03
+#define AlignTolerance 0.015
 #define IntersectDetectVoltageLow 0.1
+
 // Pin assignment defines
 #define H11_PIN LATBbits.LATB15
 #define H12_PIN LATBbits.LATB14
 #define H21_PIN LATBbits.LATB13
 #define H22_PIN LATBbits.LATB12
 
-// Miscellaneous 'bits'/flags
 
 // Receive Commands
 #define StopCommand 's'

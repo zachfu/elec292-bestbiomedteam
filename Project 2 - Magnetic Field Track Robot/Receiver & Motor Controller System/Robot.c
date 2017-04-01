@@ -21,12 +21,15 @@ volatile unsigned char 	direction=0;
 volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
-volatile char 			Command=NullCommand;
+
+volatile char 			Command=TurnLeft;
+
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
 volatile int			StartTurn = 0;
-volatile int 			CornerAdjustFlag = 0;
+volatile int			TurnFirstPassFlag = 0;
+
 volatile float 			voltage1;
 volatile float  		voltage2;
 volatile float			voltage3;
@@ -102,7 +105,7 @@ void Timer2Configure (void)
 	T2CONbits.TCS = 0; // Clock source
 	T2CONbits.ON = 1;
 	IPC2bits.T2IP = 7;	// Top priority
-	IPC2bits.T2IS = 0;
+	IPC2bits.T2IS = 0; 
 	IFS0bits.T2IF = 0;
 	IEC0bits.T2IE = 1;
 }
@@ -253,7 +256,7 @@ void DetectIntersection( void )
   	// Check if vehicle has arrived at 'center' of the intersection
   	if( !StartTurn)
     {
-  		if( voltage3 == IntersectCrossVoltage) // IntersectCrossVoltage = TBD (To be determined)
+  		if( voltage3 > IntersectCrossVoltage-0.25) // IntersectCrossVoltage = TBD (To be determined)
     		StartTurn = 1;
     	AlignPathDynamic();		// Continue to follow the path until we've reached the intersection cross
     }
@@ -264,15 +267,23 @@ void DetectIntersection( void )
       	duty1 = 0;
       else
       	duty2 = 0;
-      
       // Check if vehicle has aligned with new path, once it has clear all turn commands and proceed forward
       // NEEDS TESTING 
-      if( 0 < (Misalignment+0.01) < 0.02)	
+      if( 0 < (Misalignment+AlignTolerance) < 0.02)	
   	  {
-    	duty1 = base_duty;				// Set wheel speeds back to default values
-  		duty2 = base_duty;			
-  		StartTurn = 0;					// Turn off the StartTurn 'flag' for future function calls
-     	Command = NullCommand;			// Clear command, resume default function
+  	  	if( TurnFirstPassFlag)
+  	  	{
+  	  		TurnFirstPassFlag = 1;
+  	  		waitms(500);
+  	  	}
+  	  	else
+  	  	{
+    		duty1 = base_duty;				// Set wheel speeds back to default values
+  			duty2 = base_duty;			
+  			StartTurn = 0;					// Turn off the StartTurn 'flag' for future function calls
+     		Command = NullCommand;			// Clear command, resume default function
+     		TurnFirstPassFlag = 0;
+     	}
       }
     }
 }
@@ -294,7 +305,7 @@ void Turn180 (void)
     	StartTurn = 1;
  	}
   
-  	if( 0 < (Misalignment+0.01) < 0.02)	
+  	if( 0 < (Misalignment+AlignTolerance) < 0.02)	
   	{
     	duty1 = base_duty;				// Set wheel speeds back to default values			
     	Command = NullCommand;		// Clear command, resume default function
