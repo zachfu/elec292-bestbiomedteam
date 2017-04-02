@@ -22,7 +22,7 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 
-volatile char 			Command=TurnLeft;
+volatile char 			Command=NullCommand;
 
 volatile int 			an1;
 volatile int 			an2;
@@ -79,13 +79,13 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 	if(pwm_count < duty2){
 		if(direction==0)
 		{
-		H21_PIN = 1;
-		H22_PIN = 0;
+			H21_PIN = 1;
+			H22_PIN = 0;
 		}
 		else
 		{
-		H21_PIN = 0;
-		H22_PIN = 1;
+			H21_PIN = 0;
+			H22_PIN = 1;
 		}
 	}
 	else 
@@ -127,6 +127,7 @@ void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
 		an2 = ADC1BUF9;
 		an3 = ADC1BUFA;
 	}
+	
 	AD1CON1bits.ASAM = 1;           // restart automatic sampling
 	IFS0CLR = 0x10000000;           // clear ADC interrupt flag	
       
@@ -167,31 +168,36 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 
 // Uses the changes in voltage of inductor 3 to detect when a sharp corner is upcoming
 // Then tries to slow the duty cycles of the vehicle to account for the corner
-// Voltage3 approach approximately 0.3V as it reaches the closest point to the corner
+// Voltage3 approach approximately 1.25V (needs more testing) as it reaches the closest point 
+// to the corner
 
 void IntersectHandler( void )
 {
-	// Applies a linear scaling up to a min of 0.5 to base_duty the closer 
-	// the vehicle is to the corner, if a turn command has been issued, scale this
-	// slowing up to a max of 0.3
+	// Linear scaling of speed when approaching an intersection down to a min of 50% duty
 	if( Command != TurnLeft || Command != TurnRight)
 		intersect_adjust = (1-(voltage3/(IntersectDetectVoltageMax*2)));
+	// If turn command has been issued apply a exponential scaling down to a min of 20% duty
 	else
-		intersect_adjust = (1-(voltage3/(IntersectDetectVoltageMax*1.5)));
+		intersect_adjust = (1-pow((voltage3/(IntersectDetectVoltageMax*1.75)),0.5));
  
  	// If there's an intersect, then just go straight 
  	if( voltage3 > IntersectDetectVoltageLow)
  		speed_adjust = 1;
-
 }
 
-// Function to adjust duty cycles in order to realign the cart to drive 'straight'
-// The voltages from the inductors are read from main and determines the misalignmnet of the wheels (the degree of turn in the track)
-// The speed of the wheels are adjusted dynamically to correct the misalignment, speed adjustment is currently 
-// modelled as a 1 - x^(1/n) function, such that a small difference detected in the voltages
-// will respond with a larger steering response, and small differences at max misalignment
-// are not drastically different (since a duty of 5%-15% doesn't make much of a difference)
-// Duty1 controls the pwm of the wheels on the left side of the car, duty2 controls right side
+// If there is no signal in the path, then stop the motors
+void NoSignalPath( void )
+{
+	if( voltage1<0.001 && voltage2< 0.001)
+	{
+		duty1 = 0;
+		duty2 = 0;
+	}
+}	
+// Adjusts duty cycles to realign vehicle with the path. 
+// Takes the voltage difference in inductors 1 and 2 then scales down the speed of the wheel
+// closest to the wire to steer in that direction. Models the scaling after 1-x^(1/n)
+// where n is the scaling factor.
 /*                  __..-======-------..__
               . '    ______    ___________`.
             .' .--. '.-----.`. `.-----.-----`.
@@ -212,11 +218,12 @@ void IntersectHandler( void )
 void AlignPathDynamic(void)
 {
   // Scale speed adjust depending on the difference in amplitude. An absolute difference of 1.6V indicates maximum turn
-  // In that case the car should simply rotate (one wheel completely turned off). 1.6V difference, speed adjust = 0%
+  // In that case the car pivots (one wheel completely turned off). 1.6V difference, speed adjust = 0%
   // 0V difference, speed adjust = 100% (nothing happens) 
   // Turn_Scaling_Factor adjusts the degree of curve which controls the steering, with a higher
   // scaling factor increasing the initial slope
   speed_adjust = (1-((pow((fabs(Misalignment)/Max_Misalignment), Turn_Scaling_Factor))));
+  NoSignalPath();
   IntersectHandler();
   
   // In case that max_misalignment is incorrect, add a conditional statement that prevents speed_adjust
@@ -236,7 +243,7 @@ void AlignPathDynamic(void)
     duty2 = base_duty*intersect_adjust*speed_adjust;
     duty1 = base_duty*intersect_adjust;
   }
-  else {							// More or less alignment, keep duty cycles the same
+  else {									// Else aligned, drive straight
     duty1 = base_duty;
   	duty2 = base_duty;
   }
@@ -256,7 +263,7 @@ void DetectIntersection( void )
   	// Check if vehicle has arrived at 'center' of the intersection
   	if( !StartTurn)
     {
-  		if( voltage3 > IntersectCrossVoltage-0.25) // IntersectCrossVoltage = TBD (To be determined)
+  		if( voltage3 > IntersectCrossVoltage*0.8) // IntersectCrossVoltage = TBD (To be determined)
     		StartTurn = 1;
     	AlignPathDynamic();		// Continue to follow the path until we've reached the intersection cross
     }
@@ -267,9 +274,10 @@ void DetectIntersection( void )
       	duty1 = 0;
       else
       	duty2 = 0;
-      // Check if vehicle has aligned with new path, once it has clear all turn commands and proceed forward
-      // NEEDS TESTING 
-      if( 0 < (Misalignment+AlignTolerance) < 0.02)	
+      	
+      // Check if vehicle has aligned with new path,
+      // once it has clear all turn commands and proceed forward
+      if( 0 < (Misalignment+AlignTolerance) < (AlignTolerance*2))	
   	  {
   	  	if( TurnFirstPassFlag)
   	  	{
@@ -301,19 +309,28 @@ void Turn180 (void)
   	if( !StartTurn)
  	{
 	  	duty1 = 0;
-  		waitms(250);
     	StartTurn = 1;
  	}
   
-  	if( 0 < (Misalignment+AlignTolerance) < 0.02)	
+  	if( 0 < (Misalignment+AlignTolerance) < (AlignTolerance*2))	
   	{
-    	duty1 = base_duty;				// Set wheel speeds back to default values			
-    	Command = NullCommand;		// Clear command, resume default function
-   		StartTurn = 0; // Clear 'flag'
+  	  	if( TurnFirstPassFlag)
+  	  	{
+  	  		TurnFirstPassFlag = 1;
+  	  		waitms(500);
+  	  	}
+  	  	else
+  	  	{
+  	  		TurnFirstPassFlag = 0;
+    		duty1 = base_duty;			// Set wheel speeds back to default values			
+    		Command = NullCommand;		// Clear command, resume default function
+   			StartTurn = 0; 				// Clear 'flag'
+   		}
   	}
 }
 
-// NEEDS FIXING
+// Hierarchy to control movement of the vehicle. The received movement command from the UART
+// determines what is executed
 void MovementController(void)
 {
   	if( Command == NullCommand)
@@ -331,7 +348,7 @@ void MovementController(void)
       	else if( 0 <= Command <= 100)
       		base_duty = Command;
     	else 
-      		return;
+    		Command = NullCommand;
     }
 }   
 void PinConfigure(void)
