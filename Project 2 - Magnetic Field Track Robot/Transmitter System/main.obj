@@ -314,8 +314,8 @@ C0 D0
 75 D0 00
 C0 BF
 75 BF 00
-75 8C A2
-75 8A 40
+75 8C 44
+75 8A 80
 74 01
 25 data8(_overflow_count;)
 F5 data8(_overflow_count;)

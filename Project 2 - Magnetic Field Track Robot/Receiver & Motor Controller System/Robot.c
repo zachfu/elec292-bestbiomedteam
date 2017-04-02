@@ -22,13 +22,14 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 
-volatile char 			Command=TurnLeft;
-
+volatile char 			Command=NullCommand;
+volatile char			c;
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
 volatile int			StartTurn = 0;
 volatile int			TurnFirstPassFlag = 0;
+volatile unsigned char	flag = 0;
 
 volatile float 			voltage1;
 volatile float  		voltage2;
@@ -37,19 +38,53 @@ volatile float 			Misalignment;
 volatile float  		speed_adjust;
 volatile float			intersect_adjust;
 
-
-void UART2Configure(int baud_rate)
+/* UART2Configure() sets up the UART2 for the most standard and minimal operation
+ *  Enable TX and RX lines, 8 data bits, no parity, 1 stop bit, idle when HIGH
+ *
+ * Input: Desired Baud Rate
+ * Output: Actual Baud Rate from baud control register U2BRG after assignment*/
+int UART2Configure( int desired_baud)
 {
-    // Peripheral Pin Select
-    U2RXRbits.U2RXR = 4;    //SET RX to RB8
+	
+	
+	U2RXRbits.U2RXR = 4;    //SET RX to RB8
     RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
 
-    U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
+	U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
     U2STA = 0x1400;     // enable TX and RX
-    U2BRG = Baud2BRG(baud_rate); // U2BRG = (FPb / (16*baud)) - 1
+    U2BRG = Baud2BRG(desired_baud); // U2BRG = (FPb / (16*baud)) - 1
     
+    //UART Rx INTERRUPT CONFIGURATION
+    IFS1bits.U2RXIF = 0; //clear the receiving interrupt Flag
+    IFS1bits.U2TXIF = 0; //clear the transmitting interrupt flag
+	
+    IEC1bits.U2RXIE = 1;  //enable Rx interrupt
+  	//IEC1bits.U2TXIE = 1;  //Enable Tx interrupt	-- theoretically we dont need this?
+    IEC1bits.U2EIE = 1;
+    IPC9bits.U2IP = 2; //priority level
+    IPC9bits.U2IS = 0; //sub priority level
+    INTCONbits.MVEC = 1;
+    __builtin_enable_interrupts();
     U2MODESET = 0x8000;     // enable UART2
+    // Calculate actual baud rate
+    int actual_baud = SYSCLK / (16 * (U2BRG+1));
+    return actual_baud;
 }
+
+void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
+  {
+  	flag=1;
+  	if (IFS1bits.U2RXIF)
+  	{
+		while(!U2STAbits.URXDA);
+		c = U2RXREG;
+		IFS1CLR=_IFS1_U2RXIF_MASK;
+	}
+    if ( IFS1bits.U2TXIF)
+      {
+        IFS1bits.U2TXIF = 0;
+      }
+  }
 
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
@@ -79,13 +114,13 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 	if(pwm_count < duty2){
 		if(direction==0)
 		{
-		H21_PIN = 1;
-		H22_PIN = 0;
+			H21_PIN = 1;
+			H22_PIN = 0;
 		}
 		else
 		{
-		H21_PIN = 0;
-		H22_PIN = 1;
+			H21_PIN = 0;
+			H22_PIN = 1;
 		}
 	}
 	else 
@@ -127,10 +162,12 @@ void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
 		an2 = ADC1BUF9;
 		an3 = ADC1BUFA;
 	}
+	
 	AD1CON1bits.ASAM = 1;           // restart automatic sampling
 	IFS0CLR = 0x10000000;           // clear ADC interrupt flag	
       
 }
+
 
 // Configuration for ADC in Auto-Scan Mode
 // Code modiefied from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
@@ -167,31 +204,36 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 
 // Uses the changes in voltage of inductor 3 to detect when a sharp corner is upcoming
 // Then tries to slow the duty cycles of the vehicle to account for the corner
-// Voltage3 approach approximately 0.3V as it reaches the closest point to the corner
+// Voltage3 approach approximately 1.25V (needs more testing) as it reaches the closest point 
+// to the corner
 
 void IntersectHandler( void )
 {
-	// Applies a linear scaling up to a min of 0.5 to base_duty the closer 
-	// the vehicle is to the corner, if a turn command has been issued, scale this
-	// slowing up to a max of 0.3
+	// Linear scaling of speed when approaching an intersection down to a min of 50% duty
 	if( Command != TurnLeft || Command != TurnRight)
 		intersect_adjust = (1-(voltage3/(IntersectDetectVoltageMax*2)));
+	// If turn command has been issued apply a exponential scaling down to a min of 20% duty
 	else
-		intersect_adjust = (1-(voltage3/(IntersectDetectVoltageMax*1.5)));
+		intersect_adjust = (1-pow((voltage3/(IntersectDetectVoltageMax*1.75)),0.5));
  
  	// If there's an intersect, then just go straight 
  	if( voltage3 > IntersectDetectVoltageLow)
  		speed_adjust = 1;
-
 }
 
-// Function to adjust duty cycles in order to realign the cart to drive 'straight'
-// The voltages from the inductors are read from main and determines the misalignmnet of the wheels (the degree of turn in the track)
-// The speed of the wheels are adjusted dynamically to correct the misalignment, speed adjustment is currently 
-// modelled as a 1 - x^(1/n) function, such that a small difference detected in the voltages
-// will respond with a larger steering response, and small differences at max misalignment
-// are not drastically different (since a duty of 5%-15% doesn't make much of a difference)
-// Duty1 controls the pwm of the wheels on the left side of the car, duty2 controls right side
+// If there is no signal in the path, then stop the motors
+void NoSignalPath( void )
+{
+	if( voltage1<0.001 && voltage2< 0.001)
+	{
+		duty1 = 0;
+		duty2 = 0;
+	}
+}	
+// Adjusts duty cycles to realign vehicle with the path. 
+// Takes the voltage difference in inductors 1 and 2 then scales down the speed of the wheel
+// closest to the wire to steer in that direction. Models the scaling after 1-x^(1/n)
+// where n is the scaling factor.
 /*                  __..-======-------..__
               . '    ______    ___________`.
             .' .--. '.-----.`. `.-----.-----`.
@@ -212,11 +254,12 @@ void IntersectHandler( void )
 void AlignPathDynamic(void)
 {
   // Scale speed adjust depending on the difference in amplitude. An absolute difference of 1.6V indicates maximum turn
-  // In that case the car should simply rotate (one wheel completely turned off). 1.6V difference, speed adjust = 0%
+  // In that case the car pivots (one wheel completely turned off). 1.6V difference, speed adjust = 0%
   // 0V difference, speed adjust = 100% (nothing happens) 
   // Turn_Scaling_Factor adjusts the degree of curve which controls the steering, with a higher
   // scaling factor increasing the initial slope
   speed_adjust = (1-((pow((fabs(Misalignment)/Max_Misalignment), Turn_Scaling_Factor))));
+  NoSignalPath();
   IntersectHandler();
   
   // In case that max_misalignment is incorrect, add a conditional statement that prevents speed_adjust
@@ -236,7 +279,7 @@ void AlignPathDynamic(void)
     duty2 = base_duty*intersect_adjust*speed_adjust;
     duty1 = base_duty*intersect_adjust;
   }
-  else {							// More or less alignment, keep duty cycles the same
+  else {									// Else aligned, drive straight
     duty1 = base_duty;
   	duty2 = base_duty;
   }
@@ -256,7 +299,7 @@ void DetectIntersection( void )
   	// Check if vehicle has arrived at 'center' of the intersection
   	if( !StartTurn)
     {
-  		if( voltage3 > IntersectCrossVoltage-0.25) // IntersectCrossVoltage = TBD (To be determined)
+  		if( voltage3 > IntersectCrossVoltage*0.8) // IntersectCrossVoltage = TBD (To be determined)
     		StartTurn = 1;
     	AlignPathDynamic();		// Continue to follow the path until we've reached the intersection cross
     }
@@ -267,9 +310,10 @@ void DetectIntersection( void )
       	duty1 = 0;
       else
       	duty2 = 0;
-      // Check if vehicle has aligned with new path, once it has clear all turn commands and proceed forward
-      // NEEDS TESTING 
-      if( 0 < (Misalignment+AlignTolerance) < 0.02)	
+      	
+      // Check if vehicle has aligned with new path,
+      // once it has clear all turn commands and proceed forward
+      if( 0 < (Misalignment+AlignTolerance) < (AlignTolerance*2))	
   	  {
   	  	if( TurnFirstPassFlag)
   	  	{
@@ -301,19 +345,28 @@ void Turn180 (void)
   	if( !StartTurn)
  	{
 	  	duty1 = 0;
-  		waitms(250);
     	StartTurn = 1;
  	}
   
-  	if( 0 < (Misalignment+AlignTolerance) < 0.02)	
+  	if( 0 < (Misalignment+AlignTolerance) < (AlignTolerance*2))	
   	{
-    	duty1 = base_duty;				// Set wheel speeds back to default values			
-    	Command = NullCommand;		// Clear command, resume default function
-   		StartTurn = 0; // Clear 'flag'
+  	  	if( TurnFirstPassFlag)
+  	  	{
+  	  		TurnFirstPassFlag = 1;
+  	  		waitms(500);
+  	  	}
+  	  	else
+  	  	{
+  	  		TurnFirstPassFlag = 0;
+    		duty1 = base_duty;			// Set wheel speeds back to default values			
+    		Command = NullCommand;		// Clear command, resume default function
+   			StartTurn = 0; 				// Clear 'flag'
+   		}
   	}
 }
 
-// NEEDS FIXING
+// Hierarchy to control movement of the vehicle. The received movement command from the UART
+// determines what is executed
 void MovementController(void)
 {
   	if( Command == NullCommand)
@@ -331,9 +384,9 @@ void MovementController(void)
       	else if( 0 <= Command <= 100)
       		base_duty = Command;
     	else 
-      		return;
+    		Command = NullCommand;
     }
-}   
+}  
 void PinConfigure(void)
 {
 	TRISBbits.TRISB12 = 0;
@@ -355,8 +408,8 @@ void main(void)
 	
 	CFGCON = 0;
 	PinConfigure();
-    UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
-
+    UART2Configure(100);  // Configure UART2 for a baud rate of 110
+ 	
     
 	INTCONbits.MVEC = 1;
   	__builtin_enable_interrupts();
@@ -372,11 +425,16 @@ void main(void)
 		voltage3=an3*VREF/1023.0;
 		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
 		MovementController();
-		printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
-		printf("%2d, %2d\r\n", duty1, duty2);
-		sprintf(LCDstring, "Duty L: %d", duty1);
+		//printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
+		//printf("%2d, %2d\r\n", duty1, duty2);
+		
+		sprintf(LCDstring, "Voltage1: %.3f", voltage1);
 		LCDprint(LCDstring,1,1);
-		sprintf(LCDstring, "Duty R: %d", duty2);
+		if(flag==1) {
+		sprintf(LCDstring, "Char is %c", c);
 		LCDprint(LCDstring,2,1);
+		flag=0;
+		}
+
 	}
 }
