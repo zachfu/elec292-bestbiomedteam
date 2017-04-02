@@ -313,7 +313,7 @@ void DetectIntersection( void )
       	
       // Check if vehicle has aligned with new path,
       // once it has clear all turn commands and proceed forward
-      if( 0 < (Misalignment+AlignTolerance) < (AlignTolerance*2))	
+      if( 0 < (Misalignment+AlignTolerance) && (Misalignment+AlignTolerance) < (AlignTolerance*2))	
   	  {
   	  	if( TurnFirstPassFlag)
   	  	{
@@ -354,7 +354,7 @@ void Turn180 (void)
     	StartTurn = 1;
  	}
   
-  	if( 0 < (Misalignment+AlignTolerance) < (AlignTolerance*2))	
+  	if( 0 < (Misalignment+AlignTolerance) && (Misalignment+AlignTolerance)< (AlignTolerance*2))	
   	{
   	  	if( TurnFirstPassFlag)
   	  	{
@@ -375,6 +375,8 @@ void Turn180 (void)
 // determines what is executed
 void MovementController(void)
 {
+	char LCDString[17];
+	
   	if( Command == NullCommand)
   	{
   		AlignPathDynamic();
@@ -397,10 +399,11 @@ void MovementController(void)
       		Turn180();
       		LCDprint("Spin",2,1);
       	}
-      	else if( 0 <= Command <= 100)
+      	else if( 0 <= Command && Command <= 100)
       	{
       		base_duty = Command;
-      		LCDprint("Speed adjusted",2,1);
+     		sprintf(LCDString,"Speed = %d", Command);
+      		LCDprint(LCDString,2,1);
       	}
       	else if( Command == Reverse)
       	{
