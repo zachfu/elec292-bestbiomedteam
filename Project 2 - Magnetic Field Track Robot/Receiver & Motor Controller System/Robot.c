@@ -25,10 +25,14 @@ volatile char 			Command=NullCommand;
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
+
 volatile int			StartTurn = 0;
 volatile int			TurnFirstPassFlag = 0;
 volatile int			StoppedFlag = 0;
 volatile int			ReverseFlag = 0;
+
+volatile int			TurnCmdFlag = 0;
+volatile int			Turn180CmdFlag = 0;		
 
 volatile float 			voltage1;
 volatile float  		voltage2;
@@ -71,6 +75,7 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
   {
   	if (IFS1bits.U2RXIF)
   	{
+  		
 		while(!U2STAbits.URXDA);
 		Command = U2RXREG;
 		IFS1CLR=_IFS1_U2RXIF_MASK;
@@ -146,14 +151,14 @@ void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
 	LATBbits.LATB0 = !LATBbits.LATB0;
 	AD1CON1bits.ASAM = 0;           // stop automatic sampling (essentially shut down ADC in this mode) while reading from buffers
  			
-	if( AD1CON2bits.BUFS == 1)	 // check which buffers are being written to and read from the other set
+	if( AD1CON2bits.BUFS == 1)	 	// check which buffers are being written to and read from the other set
 	{    
-		an1 = ADC1BUF0;								// AD1CON2bits.BUFS==1 corresponds to ADC1BUF0-7
+		an1 = ADC1BUF0;				// AD1CON2bits.BUFS==1 corresponds to ADC1BUF0-7
 		an2 = ADC1BUF1;
 		an3 = ADC1BUF2;
 	}
 	else
-	{														// AD1CON2bits.BUFS==0 corresponds to ADC1BUF8-F
+	{								// AD1CON2bits.BUFS==0 corresponds to ADC1BUF8-F
    		an1 = ADC1BUF8;	
 		an2 = ADC1BUF9;
 		an3 = ADC1BUFA;
@@ -200,7 +205,7 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 
 // Uses the changes in voltage of inductor 3 to detect when a sharp corner is upcoming
 // Then tries to slow the duty cycles of the vehicle to account for the corner
-// Voltage3 approach approximately 1.25V (needs more testing) as it reaches the closest point 
+// Voltage3 approach approximately 1.25V as it reaches the closest point 
 // to the corner
 
 void IntersectHandler( void )
@@ -212,7 +217,7 @@ void IntersectHandler( void )
 	else
 		intersect_adjust = (1-pow((voltage3/(IntersectDetectVoltageMax*1.75)),0.5));
  
- 	// If there's an intersect, then just go straight 
+ 	// If there's an intersect approaching, drive straight 
  	if( voltage3 > IntersectDetectVoltageLow)
  		speed_adjust = 1;
 }
@@ -258,8 +263,7 @@ void AlignPathDynamic(void)
   NoSignalPath();
   IntersectHandler();
   
-  // In case that max_misalignment is incorrect, add a conditional statement that prevents speed_adjust
-  // from being greater than 1 or less than 0
+  // Prevent speed_adjust from being greater than 1 or less than 0
   if( speed_adjust > 1 )
   	speed_adjust = 1;
   if( speed_adjust < 0)
@@ -289,13 +293,10 @@ void AlignPathDynamic(void)
 // the wheels align with the new path 
 void DetectIntersection( void )
 {
-	// Needs more work to better detect an intersection (especially if we want to distinguish it
-	// from a corner. For example voltages 1 and 2 will change enough from the intersection wire
-	// to cause it to steer off course
-  	// Check if vehicle has arrived at 'center' of the intersection
+  	// Check if vehicle has arrived near 'center' of the intersection
   	if( !StartTurn)
     {
-  		if( voltage3 > (IntersectCrossVoltage*0.8)) // IntersectCrossVoltage = TBD (To be determined)
+  		if( voltage3 > (IntersectCrossVoltage*0.8)) // Slightly prior to intersect cross (with some error margin)
     		StartTurn = 1;
     	AlignPathDynamic();		// Continue to follow the path until we've reached the intersection cross
     }
@@ -311,7 +312,7 @@ void DetectIntersection( void )
       // once it has clear all turn commands and proceed forward
       if( (0 < (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance) < (AlignTolerance*2)))	
   	  {
-  	  	if( TurnFirstPassFlag)
+  	  	if( TurnFirstPassFlag)	
   	  	{
   	  		TurnFirstPassFlag = 1;
   	  		waitms(500);
@@ -322,13 +323,14 @@ void DetectIntersection( void )
   			duty2 = base_duty;			
   			StartTurn = 0;					// Turn off the StartTurn 'flag' for future function calls
      		Command = NullCommand;			// Clear command, resume default function
-     		TurnFirstPassFlag = 0;
+     		TurnFirstPassFlag = 0;			// Clear flag
+     		TurnCmdFlag = 0;				// Clear flag
      	}
       }
     }
 }
 
-// If the stop command has been transmitted, sets the duty cycle of both wheels to 0, then pauses until a new command has been issued
+// If the stop command has been transmitted, sets the duty cycle of both wheels to 0, then pauses until stop has been issued again
 void StopMovement (void)
 {
 	if( !StoppedFlag)
@@ -338,7 +340,11 @@ void StopMovement (void)
   		StoppedFlag = 1;
   	}
   	else
+  	{
   		StoppedFlag = 0;
+  		duty1 = base_duty;
+  		duty2 = base_duty;
+  	}
 }
 
 // Pivots 180 degrees (until it realigns itself with the path in the other direction)
@@ -348,6 +354,7 @@ void Turn180 (void)
  	{
 	  	duty1 = 0;
     	StartTurn = 1;
+    	Turn180CmdFlag = 1; // Hold the command until it has been completed
  	}
   	else
   	{
@@ -364,6 +371,7 @@ void Turn180 (void)
     			duty1 = base_duty;			// Set wheel speeds back to default values			
     			Command = NullCommand;		// Clear command, resume default function
    				StartTurn = 0; 				// Clear 'flag'
+   				Turn180CmdFlag = 0;			
    			}
   		}
   	}
@@ -388,12 +396,14 @@ void MovementController(void)
     		if( StoppedFlag)
     			LCDprint("Stopped",2,1);
     	}
-  		else if( Command == TurnLeft || Command == TurnRight)
+  		else if( Command == TurnLeft || Command == TurnRight || TurnCmdFlag)
   		{
+  			if(!TurnCmdFlag)
+  				TurnCmdFlag = 1;
      	 	DetectIntersection();
      	 	LCDprint("Turn Intersect",2,1);
      	}
-   		else if( Command == Turn180Command)
+   		else if( Command == Turn180Command || Turn180CmdFlag)
    		{
       		Turn180();
       		LCDprint("Spinning...",2,1);
@@ -401,10 +411,10 @@ void MovementController(void)
       	else if( (0 <= Command) && (Command <= 100))
       	{
       		base_duty = Command;
-     		sprintf(LCDString,"Speed = %d", Command);
+     		sprintf(LCDString,"Speed Set To %d", Command);
       		LCDprint(LCDString,2,1);
       	}
-      	else if( Command == Reverse)
+      	else if( Command == Reverse )
       	{
       		ReverseFlag != ReverseFlag;
       		LCDprint("Reverse CMD",2,1);
@@ -427,7 +437,6 @@ void PinConfigure(void)
 void main(void)
 {
 	char LCDstring[17];
-
 	
 	CFGCON = 0;
 	PinConfigure();
@@ -448,13 +457,8 @@ void main(void)
 		voltage3=an3*VREF/1023.0;
 		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
 		MovementController();
-		//printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
-		//printf("%2d, %2d\r\n", duty1, duty2);
 		
 		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);
 		LCDprint(LCDstring,1,1);
-
-		
-
 	}
 }
