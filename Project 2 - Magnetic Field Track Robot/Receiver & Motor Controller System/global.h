@@ -10,7 +10,7 @@
 #define IntersectCrossVoltage 1.25
 #define IntersectDetectVoltageMax 1.25
 #define AlignTolerance 0.015
-#define IntersectDetectVoltageLow 0.1
+#define IntersectDetectVoltageLow 0.25
 
 // Pin assignment defines
 #define H11_PIN LATBbits.LATB15

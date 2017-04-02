@@ -17,7 +17,6 @@
 
 
 volatile unsigned char 	pwm_count;
-volatile unsigned char 	direction=0;
 volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
@@ -43,7 +42,7 @@ volatile float			intersect_adjust;
  *
  * Input: Desired Baud Rate
  * Output: Actual Baud Rate from baud control register U2BRG after assignment*/
-int UART2Configure( int desired_baud)
+void UART2Configure( int desired_baud)
 {
 	
 	
@@ -66,9 +65,6 @@ int UART2Configure( int desired_baud)
     INTCONbits.MVEC = 1;
     __builtin_enable_interrupts();
     U2MODESET = 0x8000;     // enable UART2
-    // Calculate actual baud rate
-    int actual_baud = SYSCLK / (16 * (U2BRG+1));
-    return actual_baud;
 }
 
 void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
@@ -223,7 +219,7 @@ void IntersectHandler( void )
 
 // If there is no signal in the path, then stop the motors
 void NoSignalPath( void )
-{
+{ 
 	if( voltage1<0.001 && voltage2< 0.001)
 	{
 		duty1 = 0;
@@ -299,7 +295,7 @@ void DetectIntersection( void )
   	// Check if vehicle has arrived at 'center' of the intersection
   	if( !StartTurn)
     {
-  		if( voltage3 > IntersectCrossVoltage*0.8) // IntersectCrossVoltage = TBD (To be determined)
+  		if( voltage3 > (IntersectCrossVoltage*0.8)) // IntersectCrossVoltage = TBD (To be determined)
     		StartTurn = 1;
     	AlignPathDynamic();		// Continue to follow the path until we've reached the intersection cross
     }
@@ -313,7 +309,7 @@ void DetectIntersection( void )
       	
       // Check if vehicle has aligned with new path,
       // once it has clear all turn commands and proceed forward
-      if( 0 < (Misalignment+AlignTolerance) && (Misalignment+AlignTolerance) < (AlignTolerance*2))	
+      if( (0 < (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance) < (AlignTolerance*2)))	
   	  {
   	  	if( TurnFirstPassFlag)
   	  	{
@@ -353,21 +349,23 @@ void Turn180 (void)
 	  	duty1 = 0;
     	StartTurn = 1;
  	}
-  
-  	if( 0 < (Misalignment+AlignTolerance) && (Misalignment+AlignTolerance)< (AlignTolerance*2))	
+  	else
   	{
-  	  	if( TurnFirstPassFlag)
-  	  	{
-  	  		TurnFirstPassFlag = 1;
-  	  		waitms(500);
-  	  	}
-  	  	else
-  	  	{
-  	  		TurnFirstPassFlag = 0;
-    		duty1 = base_duty;			// Set wheel speeds back to default values			
-    		Command = NullCommand;		// Clear command, resume default function
-   			StartTurn = 0; 				// Clear 'flag'
-   		}
+  		if( (0 < (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance)< (AlignTolerance*2)))	
+  		{
+  	  		if( !TurnFirstPassFlag)
+  	  		{
+  	  			TurnFirstPassFlag = 1;
+  	  			waitms(750); //????????????????
+  	  		}
+  	  		else
+  	  		{
+  	  			TurnFirstPassFlag = 0;
+    			duty1 = base_duty;			// Set wheel speeds back to default values			
+    			Command = NullCommand;		// Clear command, resume default function
+   				StartTurn = 0; 				// Clear 'flag'
+   			}
+  		}
   	}
 }
 
@@ -377,17 +375,18 @@ void MovementController(void)
 {
 	char LCDString[17];
 	
-  	if( Command == NullCommand)
+  	if( Command == NullCommand && !StoppedFlag)
   	{
   		AlignPathDynamic();
-  		LCDprint("Vroom!",2,1);
+  		LCDprint("Steering...",2,1);
   	}
   	else
 	{
   		if( Command == StopCommand)
   		{
     		StopMovement();
-    		LCDprint("Stop Command",2,1);
+    		if( StoppedFlag)
+    			LCDprint("Stopped",2,1);
     	}
   		else if( Command == TurnLeft || Command == TurnRight)
   		{
@@ -397,9 +396,9 @@ void MovementController(void)
    		else if( Command == Turn180Command)
    		{
       		Turn180();
-      		LCDprint("Spin",2,1);
+      		LCDprint("Spinning...",2,1);
       	}
-      	else if( 0 <= Command && Command <= 100)
+      	else if( (0 <= Command) && (Command <= 100))
       	{
       		base_duty = Command;
      		sprintf(LCDString,"Speed = %d", Command);
@@ -427,9 +426,6 @@ void PinConfigure(void)
 
 void main(void)
 {
-	volatile unsigned long t=0;
-    int adcval;
-    float voltage;
 	char LCDstring[17];
 
 	
@@ -455,7 +451,7 @@ void main(void)
 		//printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
 		//printf("%2d, %2d\r\n", duty1, duty2);
 		
-		sprintf(LCDstring, "Voltage1: %.3f", voltage1);
+		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);
 		LCDprint(LCDstring,1,1);
 
 		
