@@ -4,7 +4,7 @@
 	TIMERS:
 		Timer 0 => Command Signal
 		Timer 1 => putty
-		Timer 2 => Guid Signal
+		Timer 2 => Guide Signal
 		Timer 3 => waitms
 */
 
@@ -64,11 +64,11 @@ void Timer0_ISR (void) interrupt INTERRUPT_TIMER0
 	PUSH_SFRPAGE;
 	SFRPAGE=0x0;
 	// Timer 0 in 16-bit mode doesn't have auto reload
-	TH0=(0x10000L-(SYSCLK/(2*TIMER_0_FREQ)))/0x100;
-	TL0=(0x10000L-(SYSCLK/(2*TIMER_0_FREQ)))%0x100;
+	TH0=(0x10000L-(SYSCLK/(1*TIMER_0_FREQ)))/0x100;
+	TL0=(0x10000L-(SYSCLK/(1*TIMER_0_FREQ)))%0x100;
 	
     overflow_count++; //1ms has passed
-    if(overflow_count==10)// if 10ms has passed (for baudrate 100)
+    if(overflow_count==10)// if 50 ms has passed (20 baud)
     { 
   	
     	overflow_count=0; //reset counter

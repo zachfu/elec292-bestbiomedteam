@@ -21,8 +21,10 @@ volatile unsigned char 	direction=0;
 volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
+volatile unsigned char 	flag = 0;
 
-volatile char 			Command=TurnLeft;
+volatile char 			Command=NullCommand;
+volatile char 			c = '.';
 
 volatile int 			an1;
 volatile int 			an2;
@@ -38,19 +40,43 @@ volatile float  		speed_adjust;
 volatile float			intersect_adjust;
 
 
-void UART2Configure(int baud_rate)
+int UART2Configure( int desired_baud)
 {
-    // Peripheral Pin Select
-    U2RXRbits.U2RXR = 4;    //SET RX to RB8
-    RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
-
-    U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
+	U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
     U2STA = 0x1400;     // enable TX and RX
-    U2BRG = Baud2BRG(baud_rate); // U2BRG = (FPb / (16*baud)) - 1
+    U2BRG = Baud2BRG(desired_baud); // U2BRG = (FPb / (16*baud)) - 1
     
+    //UART Rx INTERRUPT CONFIGURATION
+    IFS1bits.U2RXIF = 0; //clear the receiving interrupt Flag
+    IFS1bits.U2TXIF = 0; //clear the transmitting interrupt flag
+	
+    IEC1bits.U2RXIE = 1;  //enable Rx interrupt
+  	//IEC1bits.U2TXIE = 1;  //Enable Tx interrupt	-- theoretically we dont need this?
+    IEC1bits.U2EIE = 1;
+    IPC9bits.U2IP = 2; //priority level
+    IPC9bits.U2IS = 0; //sub priority level
+    INTCONbits.MVEC = 1;
+    __builtin_enable_interrupts();
     U2MODESET = 0x8000;     // enable UART2
+    // Calculate actual baud rate
+    int actual_baud = SYSCLK / (16 * (U2BRG+1));
+    return actual_baud;
 }
 
+void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
+  {
+  	if (IFS1bits.U2RXIF)
+  	{
+		flag=1;
+		while(!U2STAbits.URXDA);
+		c = U2RXREG;
+		IFS1CLR=_IFS1_U2RXIF_MASK;
+	}
+    if ( IFS1bits.U2TXIF)
+      {
+        IFS1bits.U2TXIF = 0;
+      }
+  }
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 {
@@ -355,8 +381,11 @@ void main(void)
 	
 	CFGCON = 0;
 	PinConfigure();
-    UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
+    UART2Configure(100);  // Configure UART2 for a baud rate of 110
 
+	U2RXRbits.U2RXR = 4;    //SET RX to RB8
+    RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
+ 	
     
 	INTCONbits.MVEC = 1;
   	__builtin_enable_interrupts();
@@ -372,11 +401,16 @@ void main(void)
 		voltage3=an3*VREF/1023.0;
 		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
 		MovementController();
-		printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
-		printf("%2d, %2d\r\n", duty1, duty2);
-		sprintf(LCDstring, "Duty L: %d", duty1);
+		//printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
+		//printf("%2d, %2d\r\n", duty1, duty2);
+		
+		sprintf(LCDstring, "Voltage1: %.3f", voltage1);
 		LCDprint(LCDstring,1,1);
-		sprintf(LCDstring, "Duty R: %d", duty2);
+		if(flag==1) {
+		sprintf(LCDstring, "Char is %c", c);
 		LCDprint(LCDstring,2,1);
+		flag=0;
+		}
+
 	}
 }
