@@ -29,6 +29,8 @@ volatile int 			an2;
 volatile int 			an3;
 volatile int			StartTurn = 0;
 volatile int			TurnFirstPassFlag = 0;
+volatile int			StoppedFlag = 0;
+volatile int			ReverseFlag = 0;
 volatile unsigned char	flag = 0;
 
 volatile float 			voltage1;
@@ -97,7 +99,7 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 		pwm_count = 0;
 	
 	if(pwm_count < duty1) {
-		if(direction==0) // change later to char corresponding to a direction change command
+		if(!ReverseFlag) // change later to char corresponding to a direction change command
 		{ 
 			H11_PIN = 1;
 			H12_PIN = 0;
@@ -106,13 +108,14 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 		{
 			H11_PIN = 0;
 			H12_PIN = 1;
+			
 		}
 	}
 	else
 		H11_PIN = H12_PIN;
 	
 	if(pwm_count < duty2){
-		if(direction==0)
+		if(!ReverseFlag)
 		{
 			H21_PIN = 1;
 			H22_PIN = 0;
@@ -335,8 +338,14 @@ void DetectIntersection( void )
 // If the stop command has been transmitted, sets the duty cycle of both wheels to 0, then pauses until a new command has been issued
 void StopMovement (void)
 {
-  	duty1 = 0;
-  	duty2 = 0;
+	if( !StoppedFlag)
+	{
+  		duty1 = 0;
+  		duty2 = 0;
+  		StoppedFlag = 1;
+  	}
+  	else
+  		StoppedFlag = 0;
 }
 
 // Pivots 180 degrees (until it realigns itself with the path in the other direction)
@@ -383,6 +392,8 @@ void MovementController(void)
       		Turn180();
       	else if( 0 <= Command <= 100)
       		base_duty = Command;
+      	else if( Command == Reverse)
+      		ReverseFlag != ReverseFlag;
     	else 
     		Command = NullCommand;
     }

@@ -24,4 +24,5 @@
 #define	TurnLeft 'l'
 #define TurnRight 'r'
 #define Turn180Command 'o'
+#define Reverse 'v'
 #define NullCommand 'n'
