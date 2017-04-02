@@ -71,11 +71,11 @@ void UART2Configure( int desired_baud)
     U2MODESET = 0x8000;     // enable UART2
 }
 
+
 void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
   {
   	if (IFS1bits.U2RXIF)
   	{
-  		
 		while(!U2STAbits.URXDA);
 		Command = U2RXREG;
 		IFS1CLR=_IFS1_U2RXIF_MASK;
@@ -88,9 +88,7 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
 
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
-{
-	LATBbits.LATB0 = !LATBbits.LATB0; // Debug purposes
-	
+{	
 	pwm_count++;
 	
 	if(pwm_count==100)
@@ -425,11 +423,12 @@ void MovementController(void)
 }  
 void PinConfigure(void)
 {
-	TRISBbits.TRISB12 = 0;
+	TRISBbits.TRISB12 = 0; // Outputs to drive H-bridges
   	TRISBbits.TRISB13 = 0;
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
 	
+	TRISBbits.TRISB2 = 1;  // Select RPB2 as input
 //	TRISBbits.TRISB0 = 0;		// DEBUG PIN
 //	LATBbits.LATB0 = 0;
 }
@@ -440,7 +439,7 @@ void main(void)
 	
 	CFGCON = 0;
 	PinConfigure();
-    UART2Configure(100);  // Configure UART2 for a baud rate of 110
+    UART2Configure(100);  // Configure UART2 for a baud rate of 100
  	
     
 	INTCONbits.MVEC = 1;
