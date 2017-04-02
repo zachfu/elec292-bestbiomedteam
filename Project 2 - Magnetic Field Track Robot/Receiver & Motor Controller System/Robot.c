@@ -23,7 +23,6 @@ volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 
 volatile char 			Command=NullCommand;
-volatile char			c;
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
@@ -31,7 +30,6 @@ volatile int			StartTurn = 0;
 volatile int			TurnFirstPassFlag = 0;
 volatile int			StoppedFlag = 0;
 volatile int			ReverseFlag = 0;
-volatile unsigned char	flag = 0;
 
 volatile float 			voltage1;
 volatile float  		voltage2;
@@ -75,11 +73,10 @@ int UART2Configure( int desired_baud)
 
 void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
   {
-  	flag=1;
   	if (IFS1bits.U2RXIF)
   	{
 		while(!U2STAbits.URXDA);
-		c = U2RXREG;
+		Command = U2RXREG;
 		IFS1CLR=_IFS1_U2RXIF_MASK;
 	}
     if ( IFS1bits.U2TXIF)
@@ -381,19 +378,35 @@ void MovementController(void)
   	if( Command == NullCommand)
   	{
   		AlignPathDynamic();
+  		LCDprint("Vroom!",2,1);
   	}
   	else
 	{
   		if( Command == StopCommand)
+  		{
     		StopMovement();
+    		LCDprint("Stop Command",2,1);
+    	}
   		else if( Command == TurnLeft || Command == TurnRight)
+  		{
      	 	DetectIntersection();
+     	 	LCDprint("Turn Intersect",2,1);
+     	}
    		else if( Command == Turn180Command)
+   		{
       		Turn180();
+      		LCDprint("Spin",2,1);
+      	}
       	else if( 0 <= Command <= 100)
+      	{
       		base_duty = Command;
+      		LCDprint("Speed adjusted",2,1);
+      	}
       	else if( Command == Reverse)
+      	{
       		ReverseFlag != ReverseFlag;
+      		LCDprint("Reverse CMD",2,1);
+      	}
     	else 
     		Command = NullCommand;
     }
@@ -441,11 +454,8 @@ void main(void)
 		
 		sprintf(LCDstring, "Voltage1: %.3f", voltage1);
 		LCDprint(LCDstring,1,1);
-		if(flag==1) {
-		sprintf(LCDstring, "Char is %c", c);
-		LCDprint(LCDstring,2,1);
-		flag=0;
-		}
+
+		
 
 	}
 }
