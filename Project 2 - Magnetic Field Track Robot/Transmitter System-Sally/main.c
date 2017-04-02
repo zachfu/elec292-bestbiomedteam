@@ -4,7 +4,7 @@
 	TIMERS:
 		Timer 0 => Command Signal
 		Timer 1 => putty
-		Timer 2 => Guide Signal
+		Timer 2 => Guid Signal
 		Timer 3 => waitms
 */
 
@@ -32,17 +32,123 @@ volatile char command_char;
 												command_char = Char;\
 												printf("Transmitting command : %c \n\r", command_char ); \
 												TR0=1;} } }
+
 void main (void)
 {
-	// Configure the LCD
+	volatile int state=0;
+	char speed=0;
+	char speed_str[9];
+	// Configure the LCD;
 	LCD_4BIT();
 	
+   
    	// Display something in the LCD
 	LCDprint("LCD 4-bit test:", 1, 1);
-	LCDprint("Hello, World!", 2, 1);
-	
+
 	while(1)
 	{
+	
+		if (state==0)
+		{
+			LCDprint("Set speed",1,1);
+			sprintf(speed_str,"%d", (int)speed);
+			LCDprint(speed_str,2,1);
+			
+			if(SPEED_UP==0){
+				waitms(50);
+				if (SPEED_UP == 0){
+					if(speed>=100)speed=0;
+					else speed++;
+					sprintf(speed_str,"%d",(int) speed);
+					LCDprint(speed_str,2,1);
+					printf("speed=%d",(int)speed);
+				}
+			}
+			
+			else if(SPEED_DOWN==0){
+				waitms(50);
+				if (SPEED_DOWN == 0){
+					if(speed>=100)speed=0;
+					else speed--;
+					sprintf(speed_str,"%d", (int)speed);
+					LCDprint(speed_str,2,1);
+				}
+			}
+			
+			if(SEND==0){
+				waitms(50);
+				if (SEND==0){
+					while(SEND==0);
+					command_char= speed;
+					printf("%x",command_char);
+					LCDprint("Sent!",2,1);
+					TR0=1;
+				}
+			}
+		}	
+	
+	
+		if(state==1)
+		{
+			LCDprint("Select Turn",1,1);
+			
+			if(SPEED_UP==0){
+				waitms(50);
+				if (SPEED_UP==0){
+					command_char='r'; //right turn
+					LCDprint("Turning right",2,1);
+					printf("%d", command_char);
+					TR0=1;
+				}
+			}
+			
+			if(SPEED_DOWN==0){
+				waitms(50);
+				if (SPEED_DOWN==0){
+					command_char='l'; //left turn
+					LCDprint("Turning left",2,1);
+					TR0=1;	
+				}
+			}
+			
+		}
+		
+		if(state==2)
+		{
+			LCDprint("stop or go",1,1);
+			
+			if(STOP==0){
+				waitms(50);
+				if (STOP==0){
+					while(STOP==0);
+					command_char='s'; //stop
+					LCDprint("Stopped",2,1);
+					TR0=1;	
+				}
+			}
+			
+			if(CONTINUE==0){
+				waitms(50);
+				if (CONTINUE==0){
+					command_char='g'; //left turn
+					LCDprint("Going",2,1);
+					TR0=1;	
+				}
+			}
+	
+		}
+	 
+	 	if(NEXT==0)
+	 	{
+	 		waitms(50);
+			if (NEXT==0){
+				if(state>=3) state=0;
+				else state++;
+			}
+	 	}
+		
+	  	
+	  	/*
 	  	//Transmitting signals if not busy
 	  	if( transmitting == 0 )
 	  	{
@@ -55,6 +161,8 @@ void main (void)
 			TransmitChar(SPEED_DOWN, 'D')	//Decrease the speed
 			
 	  	}
+	  	
+	  	*/
 	}
 }
 
@@ -68,7 +176,7 @@ void Timer0_ISR (void) interrupt INTERRUPT_TIMER0
 	TL0=(0x10000L-(SYSCLK/(1*TIMER_0_FREQ)))%0x100;
 	
     overflow_count++; //1ms has passed
-    if(overflow_count==10)// if 50 ms has passed (20 baud)
+    if(overflow_count==10)// if 10ms has passed (for baudrate 100)
     { 
   	
     	overflow_count=0; //reset counter

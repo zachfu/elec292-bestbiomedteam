@@ -23,12 +23,13 @@ volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 
 volatile char 			Command=NullCommand;
-
+volatile char			c;
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
 volatile int			StartTurn = 0;
 volatile int			TurnFirstPassFlag = 0;
+volatile unsigned char	flag = 0;
 
 volatile float 			voltage1;
 volatile float  		voltage2;
@@ -132,6 +133,7 @@ void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
 	IFS0CLR = 0x10000000;           // clear ADC interrupt flag	
       
 }
+
 
 // Configuration for ADC in Auto-Scan Mode
 // Code modiefied from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
@@ -350,7 +352,7 @@ void MovementController(void)
     	else 
     		Command = NullCommand;
     }
-}   
+}  
 void PinConfigure(void)
 {
 	TRISBbits.TRISB12 = 0;
@@ -372,8 +374,11 @@ void main(void)
 	
 	CFGCON = 0;
 	PinConfigure();
-    UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
+    UART2Configure(100);  // Configure UART2 for a baud rate of 110
 
+	U2RXRbits.U2RXR = 4;    //SET RX to RB8
+    RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
+ 	
     
 	INTCONbits.MVEC = 1;
   	__builtin_enable_interrupts();
@@ -389,11 +394,16 @@ void main(void)
 		voltage3=an3*VREF/1023.0;
 		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
 		MovementController();
-		printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
-		printf("%2d, %2d\r\n", duty1, duty2);
-		sprintf(LCDstring, "Duty L: %d", duty1);
+		//printf("Voltages: %.3f, %.3f, %.3f, %.3f\r\n", voltage1, voltage2, voltage3,Misalignment);
+		//printf("%2d, %2d\r\n", duty1, duty2);
+		
+		sprintf(LCDstring, "Voltage1: %.3f", voltage1);
 		LCDprint(LCDstring,1,1);
-		sprintf(LCDstring, "Duty R: %d", duty2);
+		if(flag==1) {
+		sprintf(LCDstring, "Char is %c", c);
 		LCDprint(LCDstring,2,1);
+		flag=0;
+		}
+
 	}
 }
