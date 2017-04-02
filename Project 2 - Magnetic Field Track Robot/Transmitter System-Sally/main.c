@@ -95,7 +95,7 @@ void main (void)
 			LCDprint("Stop/Go",1,1);
 			command_char='s';
 		}
-		
+		 
 		if(state==4)
 		{
 			LCDprint("Reverse",1,1);
