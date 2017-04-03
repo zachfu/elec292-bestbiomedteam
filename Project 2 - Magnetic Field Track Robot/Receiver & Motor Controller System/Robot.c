@@ -21,19 +21,22 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 
-
-volatile char 			Command=NullCommand;
+volatile char 			Command;
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
 
-volatile int			StartTurn = 0;
-volatile int			TurnFirstPassFlag = 0;
-volatile int			StoppedFlag = 0;
-volatile int			ReverseFlag = 0;
-
-volatile int			TurnCmdFlag = 0;
-volatile int			Turn180CmdFlag = 0;		
+volatile int 			StartTurnFlag=0;
+volatile int 			Turn180_Flag=0;
+volatile int 			Turn_L_Flag=0;
+volatile int 			Turn_R_Flag=0;
+volatile int 			Turn180FirstCall=0;
+volatile int 			Stop_Flag = 0;
+volatile int 			FirstAligned = 0;
+volatile int 			DirectionL = 0;
+volatile int 			DirectionLPrev = 0;
+volatile int 			DirectionR = 0;
+volatile int 			DirectionRPrev = 0;	
 
 volatile float 			voltage1;
 volatile float  		voltage2;
@@ -42,6 +45,8 @@ volatile float 			Misalignment;
 volatile float  		speed_adjust;
 volatile float			intersect_adjust;
 
+unsigned int counter=0;
+
 /* UART2Configure() sets up the UART2 for the most standard and minimal operation
  *  Enable TX and RX lines, 8 data bits, no parity, 1 stop bit, idle when HIGH
  *
@@ -49,6 +54,7 @@ volatile float			intersect_adjust;
  * Output: Actual Baud Rate from baud control register U2BRG after assignment*/
 void UART2Configure( int desired_baud)
 {
+	
 	
 	U2RXRbits.U2RXR = 4;    //SET RX to RB8
     RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
@@ -71,76 +77,24 @@ void UART2Configure( int desired_baud)
     U2MODESET = 0x8000;     // enable UART2
 }
 
-void UART1Configure ( int desired_baud )
-{
-	U1RXRbits.U1RXR = 0;	// Set RX as RPA2
-	
-	U1MODE = 0;			// disable autobaud, TX and RX enabled only, 8N1, idle = HIGH
-	U1STA = 0x1400;
-	U1BRG = Baud2BRG(desired_baud);
-	
-    //UART Rx INTERRUPT CONFIGURATION
-    IFS1bits.U1RXIF = 0; //clear the receiving interrupt Flag
-    IFS1bits.U1TXIF = 0; //clear the transmitting interrupt flag
-	
-    IEC1bits.U1RXIE = 1;  //enable Rx interrupt
-  	//IEC1bits.U2TXIE = 1;  //Enable Tx interrupt	-- theoretically we dont need this?
-    IEC1bits.U1EIE = 1;
-    IPC8bits.U1IP = 3; //priority level
-    IPC8bits.U1IS = 0; //sub priority level
-    INTCONbits.MVEC = 1;
-    __builtin_enable_interrupts();
-    U1MODESET = 0x8000;     // enable UART1
-	
-}
-void __ISR(_UART_1_VECTOR, IPL3AUTO) IntUart1Handler(void)
-  {
-  unsigned char t;
-  char dummy;
-  
-  	if (IFS1bits.U1RXIF)
-  	{
-  		t = 0;
-		while(!U1STAbits.URXDA)
-		{
-			waitms(1);
-			t++;
-			if(t > 110)
-			{
-				dummy = U1RXREG;
-				IFS1CLR=_IFS1_U1RXIF_MASK;
-				return;
-			}
-		}
-		
-		Command = U1RXREG;
-		IFS1CLR=_IFS1_U1RXIF_MASK;
-	}
-    if ( IFS1bits.U1TXIF)
-      {
-        IFS1bits.U1TXIF = 0;
-      }
-  }
+
 void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
   {
-  unsigned char t;
-  char dummy;
-  
   	if (IFS1bits.U2RXIF)
   	{
-  		t = 0;
 		while(!U2STAbits.URXDA)
 		{
-			waitms(1);
-			t++;
-			if(t > 110)
+			counter++;
+			if (counter > 1000)
 			{
-				dummy = U2RXREG;
-				IFS1CLR=_IFS1_U2RXIF_MASK;
-				return;
+				LATBbits.LATB10=0;
+				IEC1bits.U2RXIE=0;
+				Command = U2RXREG;
+				IFS1bits.U2RXIF = 0;
+				
+				
 			}
 		}
-		
 		Command = U2RXREG;
 		IFS1CLR=_IFS1_U2RXIF_MASK;
 	}
@@ -153,28 +107,13 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 {	
-
-	if( Misalignment > 0)
-	{
-		IFS1bits.U2RXIF = 0;  //clear the receiving interrupt Flag in UART2
-		IEC1bits.U2RXIE = 0;  //Disable Rx interrupt in UART2
-		IEC1bits.U1RXIE = 1;  //Enable Rx interrupt in UART1
-
-	}
-	else
-	{	
-		IFS1bits.U1RXIF = 0;  //clear the receiving interrupt Flag in UART1
-		IEC1bits.U2RXIE = 1;  //Enable Rx interrupt in UART2
-		IEC1bits.U1RXIE = 0;  //Disable Rx interrupt in UART1
-	}
-	
 	pwm_count++;
 	
 	if(pwm_count==100)
 		pwm_count = 0;
 	
 	if(pwm_count < duty1) {
-		if(!ReverseFlag) // change later to char corresponding to a direction change command
+		if(!DirectionL) // Direction = 0, Forward
 		{ 
 			H11_PIN = 1;
 			H12_PIN = 0;
@@ -190,7 +129,7 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 		H11_PIN = H12_PIN;
 	
 	if(pwm_count < duty2){
-		if(!ReverseFlag)
+		if(!DirectionR)
 		{
 			H21_PIN = 1;
 			H22_PIN = 0;
@@ -222,7 +161,7 @@ void Timer2Configure (void)
 	IFS0bits.T2IF = 0;
 	IEC0bits.T2IE = 1;
 }
-	
+
 void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
 {
 	LATBbits.LATB0 = !LATBbits.LATB0;
@@ -287,16 +226,16 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 
 void IntersectHandler( void )
 {
-	// Linear scaling of speed when approaching an intersection down to a min of 50% duty
-	if( Command != TurnLeft || Command != TurnRight)
-		intersect_adjust = (1-(voltage3/(IntersectDetectVoltageMax*2)));
-	// If turn command has been issued apply a exponential scaling down to a min of 20% duty
-	else
-		intersect_adjust = (1-pow((voltage3/(IntersectDetectVoltageMax*1.75)),0.5));
- 
- 	// If there's an intersect approaching, drive straight 
- 	if( voltage3 > IntersectDetectVoltageLow)
- 		speed_adjust = 1;
+	// If no turn command issued, apply linear scaling to slow car when approaching intersect
+	if( !Turn_L_Flag && !Turn_R_Flag)
+		intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*2))));
+	else 
+	// Else apply a harder exponential scaling down to a min of 20% base duty
+		intersect_adjust = (1 - (pow(((voltage3/(INTERSECT_VOLTAGE)*1.75)),INTERSECT_SCALING)));
+	
+	// As you approach the intersection, go straight
+	if( voltage3 > INTERSECT_MINVOLTAGE)
+		speed_adjust = 1;
 }
 
 // If there is no signal in the path, then stop the motors
@@ -329,37 +268,41 @@ void NoSignalPath( void )
       `._.'.'                           \ `-' / [___...----''_.'
                                          `._.'.' */
 // vroom 
-void AlignPathDynamic(void)
+void AlignPath ( void )
 {
-  // Scale speed adjust depending on the difference in amplitude. An absolute difference of 1.6V indicates maximum turn
-  // In that case the car pivots (one wheel completely turned off). 1.6V difference, speed adjust = 0%
-  // 0V difference, speed adjust = 100% (nothing happens) 
-  // Turn_Scaling_Factor adjusts the degree of curve which controls the steering, with a higher
-  // scaling factor increasing the initial slope
-  speed_adjust = (1-((pow((fabs(Misalignment)/Max_Misalignment), Turn_Scaling_Factor))));
-  NoSignalPath();
-  IntersectHandler();
-  
-  // Prevent speed_adjust from being greater than 1 or less than 0
-  if( speed_adjust > 1 )
-  	speed_adjust = 1;
-  if( speed_adjust < 0)
-  	speed_adjust = 0;
-  
-  if( Misalignment-AlignTolerance > 0) 		// Voltage1 is higher, line is closer to left side of car, turn left by slowing down the left wheel
-  {
-    duty1 = base_duty*intersect_adjust*speed_adjust;
-    duty2 = base_duty*intersect_adjust;
-  }
-  else if (Misalignment+AlignTolerance < 0)	// Voltage2 is higher, line is closer to right side of car, turn right by slowing down the right wheel
-  {
-    duty2 = base_duty*intersect_adjust*speed_adjust;
-    duty1 = base_duty*intersect_adjust;
-  }
-  else {									// Else aligned, drive straight
-    duty1 = base_duty;
-  	duty2 = base_duty;
-  }
+	float speed_adjust;
+	
+	// Apply exponential scaling to wheel closer to path, corresponding to 1 - x^(1/n)
+	speed_adjust = ( 1 - (pow((fabs(Misalignment)/MAX_MISALIGNMENT),SPEED_SCALING)));
+	
+	// Check for intersections or if the signal has disappeared
+	IntersectHandler();
+	NoSignalPath();
+	
+	// If speed_adjust overflows bounds, force within bounds
+	if( speed_adjust > 1.0)
+		speed_adjust = 1.0;
+	if( speed_adjust < 0.0)
+		speed_adjust = 0.0;
+	
+	// If Left wheel is closer to path, slow down left wheel
+	if( (Misalignment - ALIGN_TOLERANCE) > 0.0)
+	{
+		duty1 = base_duty*speed_adjust*intersect_adjust;
+		duty2 = base_duty*intersect_adjust;
+	}
+	// If Right wheel is closer to path, slow down right wheel
+	else if( (Misalignment + ALIGN_TOLERANCE) < 0.0)
+	{
+		duty1 = base_duty*intersect_adjust;
+		duty2 = base_duty*speed_adjust*intersect_adjust;
+	}
+	// Aligned, drive straight
+	else
+	{
+		duty1 = base_duty*intersect_adjust;
+		duty2 = base_duty*intersect_adjust;
+	}
 }
 		
 // Checks for intersections in the track and depending on any commands from the transmitter system
@@ -368,145 +311,140 @@ void AlignPathDynamic(void)
 // Check if voltage3>threshold (threshold determined through testing to see what constitutes an arbitrarily
 // large intersection. Then pivots on the wheel corresponding to the turn direction until
 // the wheels align with the new path 
-void DetectIntersection( void )
+void TurnIntersect( void )
 {
-  	// Check if vehicle has arrived near 'center' of the intersection
-  	if( !StartTurn)
-    {
-  		if( voltage3 > (IntersectCrossVoltage*0.8)) // Slightly prior to intersect cross (with some error margin)
-    		StartTurn = 1;
-    	AlignPathDynamic();		// Continue to follow the path until we've reached the intersection cross
-    }
-  	// Once vehicle has reached centre of intersection, begin turning
-  	else
-    {
-      if( Command == TurnLeft )	
-      	duty1 = 0;
-      else
-      	duty2 = 0;
-      	
-      // Check if vehicle has aligned with new path,
-      // once it has clear all turn commands and proceed forward
-      if( (0 <= (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance) <= (AlignTolerance*2)))	
-  	  {
-  	  	if( TurnFirstPassFlag)	
-  	  	{
-  	  		TurnFirstPassFlag = 1;
-  	  		waitms(500);
-  	  	}
-  	  	else
-  	  	{
-    		duty1 = base_duty;				// Set wheel speeds back to default values
-  			duty2 = base_duty;			
-  			StartTurn = 0;					// Turn off the StartTurn 'flag' for future function calls
-     		Command = NullCommand;			// Clear command, resume default function
-     		TurnFirstPassFlag = 0;			// Clear flag
-     		TurnCmdFlag = 0;				// Clear flag
-     	}
-      }
-    }
+	// If the interesection has not been reached, keep steering normally
+	if( !StartTurnFlag )
+	{
+		AlignPath();
+		if( voltage3 > INTERSECT_VOLTAGE)
+			StartTurnFlag = 1;
+	}
+	// Intersection detected, turn off wheel corresponding to turn direction
+	else
+	{
+		if( Turn_L_Flag)
+			duty1 = 0;
+		else
+			duty2 = 0;
+		// When left and right wheels align with path, turn is complete, only second alignment
+		// is valid, (will start the turn aligned)
+		if( fabs(Misalignment) < ALIGN_TOLERANCE*2)
+		{
+			if(!FirstAligned)
+			{
+				FirstAligned =1;
+				waitms(500);
+			}
+			else
+			{
+				// Clear all flags, reset wheels speeds
+				FirstAligned = 0;
+				StartTurnFlag = 0;
+				Turn_L_Flag = 0;
+				Turn_R_Flag = 0;
+				duty1 = base_duty;
+				duty2 = base_duty;
+			}
+		}
+	}
 }
 
-// If the stop command has been transmitted, sets the duty cycle of both wheels to 0, then pauses until stop has been issued again
-void StopMovement (void)
-{
-	if( !StoppedFlag)
-	{
-  		duty1 = 0;
-  		duty2 = 0;
-  		StoppedFlag = 1;
-  	}
-  	else
-  	{
-  		StoppedFlag = 0;
-  		duty1 = base_duty;
-  		duty2 = base_duty;
-  	}
-}
 
 // Pivots 180 degrees (until it realigns itself with the path in the other direction)
-void Turn180 (void)
-{
-  	if( !StartTurn)
- 	{
-	  	duty1 = 0;
-    	StartTurn = 1;
-    	Turn180CmdFlag = 1; // Hold the command until it has been completed
- 	}
-  	else
-  	{
-  		if( (0 <= (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance)<= (AlignTolerance*2)))	
-  		{
-  	  		if( !TurnFirstPassFlag)
-  	  		{
-  	  			TurnFirstPassFlag = 1;
-  	  			waitms(750); //????????????????
-  	  		}
-  	  		else
-  	  		{
-  	  			TurnFirstPassFlag = 0;
-    			duty1 = base_duty;			// Set wheel speeds back to default values			
-    			Command = NullCommand;		// Clear command, resume default function
-   				StartTurn = 0; 				// Clear 'flag'
-   				Turn180CmdFlag = 0;			
-   			}
-  		}
-  	}
+void Turn180 ( void )
+{	
+	// Upon first call, save movement direction prior to execution, reset wheel speed
+	// Make one wheel spin forwards and the other backwards to rotate
+	if(!Turn180FirstCall)
+	{
+		DirectionLPrev = DirectionL;
+		DirectionRPrev = DirectionR;
+		Turn180FirstCall=1;
+		DirectionL = 1;
+		DirectionR = 0;
+		duty1 = base_duty;
+		duty2 = base_duty;
+	}
+	
+	// Check if left and right wheels has aligned with path, but only the second time 
+	// will constitute a complete turn (will begin aligned)
+	if( fabs(Misalignment) < ALIGN_TOLERANCE*2)
+	{
+		if(!FirstAligned)
+		{
+			FirstAligned =1;
+			waitms(500);
+		}
+		else
+		{
+			// Clear all flags and reset directions
+			FirstAligned = 0;
+			Turn180_Flag = 0;
+			Turn180FirstCall = 0;
+			DirectionL = DirectionLPrev;
+			DirectionR = DirectionRPrev;
+		}
+	}
 }
 
-// Hierarchy to control movement of the vehicle. The received movement command from the UART
-// determines what is executed
-void MovementController(void)
-{
-	char LCDString[17];
-	
-  	if( Command == NullCommand && !StoppedFlag)
-  	{
-  		AlignPathDynamic();
-  		LCDprint("Steering...",2,1);
-  	}
-  	else
+// Hierarchy to control movement of the vehicle. Checks flags set by the UART receive
+// to call specific movement commands
+void MovementController ( void )
+{	
+	if (Stop_Flag)
 	{
-  		if( Command == StopCommand)
-  		{
-    		StopMovement();
-    		if( StoppedFlag)
-    			LCDprint("Stopped",2,1);
-    	}
-  		else if( Command == TurnLeft || Command == TurnRight || TurnCmdFlag)
-  		{
-  			if(!TurnCmdFlag)
-  				TurnCmdFlag = 1;
-     	 	DetectIntersection();
-     	 	LCDprint("Turn Intersect",2,1);
-     	}
-   		else if( Command == Turn180Command || Turn180CmdFlag)
-   		{
-      		Turn180();
-      		LCDprint("Spinning...",2,1);
-      	}
-      	else if( (0 <= Command) && (Command <= 100))
-      	{
-      		base_duty = Command;
-     		sprintf(LCDString,"Speed Set To %d", Command);
-      		LCDprint(LCDString,2,1);
-      	}
-      	else if( Command == Reverse )
-      	{
-      		ReverseFlag != ReverseFlag;
-      		LCDprint("Reverse CMD",2,1);
-      	}
-    	else 
-    		Command = NullCommand;
-    }
-}  
+		duty1=0;
+		duty2=0;
+		LCDprint("Stopped",2,1);
+	}
+	// Check Turn Flags to Issue a Turn Command, will not execute if currently in a 180 turn
+	else if( (Turn_R_Flag || Turn_L_Flag) && !Turn180_Flag)
+	{
+		TurnIntersect();
+		if(Turn_R_Flag)
+			LCDprint("Turn Right CMD",2,1);
+		else
+			LCDprint("Turn Left CMD",2,1);
+	}
+	else if( Turn180_Flag)
+	{
+		Turn180();
+		LCDprint("Turning 180 Deg",2,1);
+	}
+	else
+	{
+		AlignPath();
+		LCDprint("Following Path",2,1);
+	}
+}
+
+// Takes commands received by the UART and sets flags used by the Movement Controller
+void CommandHandler( void )
+{
+	if( Command == TurnLeft)
+		Turn_L_Flag =1;
+	else if( Command == TurnRight)
+		Turn_R_Flag =1;
+	else if( Command == StopCommand)
+		Stop_Flag != Stop_Flag;
+	else if( Command == ReverseCommand)
+	{
+		DirectionL != DirectionL;
+		DirectionR != DirectionR;
+	}
+	else
+		Command == NullCommand;
+}
+ 
 void PinConfigure(void)
 {
 	TRISBbits.TRISB12 = 0; // Outputs to drive H-bridges
   	TRISBbits.TRISB13 = 0;
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
-	
+  	TRISBbits.TRISB10 = 0;	//DEBUG PIN
+  	LATBbits.LATB10 = 1;
 }
 
 // Performs all ISR and non-ISR configurations
@@ -514,15 +452,14 @@ void ConfigureAll( void )
 {
 	CFGCON = 0;
 	PinConfigure();
-   	UART2Configure(100);  // Configure UART2 for a baud rate of 100
-    //UART1Configure(100);  // Configure UART1 for a baud rate of 100
+    UART2Configure(100);  // Configure UART2 for a baud rate of 100
  	
     
 	INTCONbits.MVEC = 1;
   	__builtin_enable_interrupts();
 	Timer2Configure();
 	LCD_4BIT();
-	adcConfigureAutoScan( 0x000B, 3); // Select A0, A1, A3 as analog inputs
+	adcConfigureAutoScan( 0x000E, 3); // Using pins RB1,RB2,RB3 as ADC inputs
 	AD1CON1SET = 0x8000;              // start ADC
 }
 
@@ -534,8 +471,6 @@ void CalculateVolts ( void )
 	voltage3=an3*VREF/1023.0;
 	
 	Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
-	
-	
 }
 
 void main(void)
@@ -547,6 +482,7 @@ void main(void)
 	while(1)
 	{	
 		CalculateVolts();
+		CommandHandler();
 		MovementController();
 		
 		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);
