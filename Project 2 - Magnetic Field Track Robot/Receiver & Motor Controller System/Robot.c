@@ -21,6 +21,7 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 
+
 volatile char 			Command=NullCommand;
 volatile int 			an1;
 volatile int 			an2;
@@ -49,9 +50,8 @@ volatile float			intersect_adjust;
 void UART2Configure( int desired_baud)
 {
 	
-	
-	//U2RXRbits.U2RXR = 4;    //SET RX to RB8
-    //RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
+	U2RXRbits.U2RXR = 4;    //SET RX to RB8
+    RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
 
 	U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
     U2STA = 0x1400;     // enable TX and RX
@@ -71,11 +71,61 @@ void UART2Configure( int desired_baud)
     U2MODESET = 0x8000;     // enable UART2
 }
 
-
+void UART1Configure ( int desired_baud )
+{
+	U1RXRbits.U1RXR = 0;	// Set RX as RPA2
+	
+	U1MODE = 0;			// disable autobaud, TX and RX enabled only, 8N1, idle = HIGH
+	U1STA = 0x1400;
+	U1BRG = Baud2BRG(desired_baud);
+	
+    //UART Rx INTERRUPT CONFIGURATION
+    IFS1bits.U1RXIF = 0; //clear the receiving interrupt Flag
+    IFS1bits.U1TXIF = 0; //clear the transmitting interrupt flag
+	
+    IEC1bits.U1RXIE = 1;  //enable Rx interrupt
+  	//IEC1bits.U2TXIE = 1;  //Enable Tx interrupt	-- theoretically we dont need this?
+    IEC1bits.U1EIE = 1;
+    IPC8bits.U1IP = 3; //priority level
+    IPC8bits.U1IS = 0; //sub priority level
+    INTCONbits.MVEC = 1;
+    __builtin_enable_interrupts();
+    U1MODESET = 0x8000;     // enable UART1
+	
+}
+void __ISR(_UART_1_VECTOR, IPL3AUTO) IntUart1Handler(void)
+  {
+  unsigned char t;
+  char dummy;
+  
+  	if (IFS1bits.U1RXIF)
+  	{
+  		t = 0;
+		while(!U1STAbits.URXDA)
+		{
+			waitms(1);
+			t++;
+			if(t > 110)
+			{
+				dummy = U1RXREG;
+				IFS1CLR=_IFS1_U1RXIF_MASK;
+				return;
+			}
+		}
+		
+		Command = U1RXREG;
+		IFS1CLR=_IFS1_U1RXIF_MASK;
+	}
+    if ( IFS1bits.U1TXIF)
+      {
+        IFS1bits.U1TXIF = 0;
+      }
+  }
 void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
   {
   unsigned char t;
-  	
+  char dummy;
+  
   	if (IFS1bits.U2RXIF)
   	{
   		t = 0;
@@ -85,6 +135,7 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
 			t++;
 			if(t > 110)
 			{
+				dummy = U2RXREG;
 				IFS1CLR=_IFS1_U2RXIF_MASK;
 				return;
 			}
@@ -102,10 +153,20 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 {	
+
 	if( Misalignment > 0)
-		U2RXRbits.U2RXR = 0;    //SET RX to RPA1 
-	else if( Misalignment < 0)
-		U2RXRbits.U2RXR = 4;    //Set RX to RPB8
+	{
+		IFS1bits.U2RXIF = 0;  //clear the receiving interrupt Flag in UART2
+		IEC1bits.U2RXIE = 0;  //Disable Rx interrupt in UART2
+		IEC1bits.U1RXIE = 1;  //Enable Rx interrupt in UART1
+
+	}
+	else
+	{	
+		IFS1bits.U1RXIF = 0;  //clear the receiving interrupt Flag in UART1
+		IEC1bits.U2RXIE = 1;  //Enable Rx interrupt in UART2
+		IEC1bits.U1RXIE = 0;  //Disable Rx interrupt in UART1
+	}
 	
 	pwm_count++;
 	
@@ -453,14 +514,15 @@ void ConfigureAll( void )
 {
 	CFGCON = 0;
 	PinConfigure();
-    UART2Configure(100);  // Configure UART2 for a baud rate of 100
+   	UART2Configure(100);  // Configure UART2 for a baud rate of 100
+    //UART1Configure(100);  // Configure UART1 for a baud rate of 100
  	
     
 	INTCONbits.MVEC = 1;
   	__builtin_enable_interrupts();
 	Timer2Configure();
 	LCD_4BIT();
-	adcConfigureAutoScan( 0x000D, 3); // Select A0, A2, A3 as analog inputs
+	adcConfigureAutoScan( 0x000B, 3); // Select A0, A1, A3 as analog inputs
 	AD1CON1SET = 0x8000;              // start ADC
 }
 
