@@ -50,8 +50,8 @@ void UART2Configure( int desired_baud)
 {
 	
 	
-	U2RXRbits.U2RXR = 4;    //SET RX to RB8
-    RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
+	//U2RXRbits.U2RXR = 4;    //SET RX to RB8
+    //RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
 
 	U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
     U2STA = 0x1400;     // enable TX and RX
@@ -89,6 +89,11 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 {	
+	if( Misalignment > 0)
+		U2RXRbits.U2RXR = 0;    //SET RX to RPA1 
+	else if( Misalignment < 0)
+		U2RXRbits.U2RXR = 4;    //Set RX to RPB8
+	
 	pwm_count++;
 	
 	if(pwm_count==100)
@@ -308,7 +313,7 @@ void DetectIntersection( void )
       	
       // Check if vehicle has aligned with new path,
       // once it has clear all turn commands and proceed forward
-      if( (0 < (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance) < (AlignTolerance*2)))	
+      if( (0 <= (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance) <= (AlignTolerance*2)))	
   	  {
   	  	if( TurnFirstPassFlag)	
   	  	{
@@ -356,7 +361,7 @@ void Turn180 (void)
  	}
   	else
   	{
-  		if( (0 < (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance)< (AlignTolerance*2)))	
+  		if( (0 <= (Misalignment+AlignTolerance)) && ((Misalignment+AlignTolerance)<= (AlignTolerance*2)))	
   		{
   	  		if( !TurnFirstPassFlag)
   	  		{
@@ -428,9 +433,6 @@ void PinConfigure(void)
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
 	
-	TRISBbits.TRISB2 = 1;  // Select RPB2 as input
-//	TRISBbits.TRISB0 = 0;		// DEBUG PIN
-//	LATBbits.LATB0 = 0;
 }
 
 // Performs all ISR and non-ISR configurations
@@ -445,7 +447,7 @@ void ConfigureAll( void )
   	__builtin_enable_interrupts();
 	Timer2Configure();
 	LCD_4BIT();
-	adcConfigureAutoScan( 0x000E, 3); // Bitwise select of which pins to use as analog input (choice of AN0-AN15, though I can't locate AN6-8 or 13-15 :/) 
+	adcConfigureAutoScan( 0x000D, 3); // Select A0, A2, A3 as analog inputs
 	AD1CON1SET = 0x8000;              // start ADC
 }
 
@@ -457,6 +459,8 @@ void CalculateVolts ( void )
 	voltage3=an3*VREF/1023.0;
 	
 	Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
+	
+	
 }
 
 void main(void)
