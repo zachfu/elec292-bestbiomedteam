@@ -74,9 +74,22 @@ void UART2Configure( int desired_baud)
 
 void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
   {
+  unsigned char t;
+  	
   	if (IFS1bits.U2RXIF)
   	{
-		while(!U2STAbits.URXDA);
+  		t = 0;
+		while(!U2STAbits.URXDA)
+		{
+			waitms(1);
+			t++;
+			if(t > 110)
+			{
+				IFS1CLR=_IFS1_U2RXIF_MASK;
+				return;
+			}
+		}
+		
 		Command = U2RXREG;
 		IFS1CLR=_IFS1_U2RXIF_MASK;
 	}
@@ -148,7 +161,7 @@ void Timer2Configure (void)
 	IFS0bits.T2IF = 0;
 	IEC0bits.T2IE = 1;
 }
-
+	
 void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
 {
 	LATBbits.LATB0 = !LATBbits.LATB0;
