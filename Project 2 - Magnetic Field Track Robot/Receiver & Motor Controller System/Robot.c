@@ -433,10 +433,9 @@ void PinConfigure(void)
 //	LATBbits.LATB0 = 0;
 }
 
-void main(void)
+// Performs all ISR and non-ISR configurations
+void ConfigureAll( void )
 {
-	char LCDstring[17];
-	
 	CFGCON = 0;
 	PinConfigure();
     UART2Configure(100);  // Configure UART2 for a baud rate of 100
@@ -448,13 +447,27 @@ void main(void)
 	LCD_4BIT();
 	adcConfigureAutoScan( 0x000E, 3); // Bitwise select of which pins to use as analog input (choice of AN0-AN15, though I can't locate AN6-8 or 13-15 :/) 
 	AD1CON1SET = 0x8000;              // start ADC
+}
+
+// Calculates voltages of each inductor and the misalignment of the left and right inductors
+void CalculateVolts ( void )
+{
+	voltage1=an1*VREF/1023.0; 			// conversions from ADC inputs to voltages
+	voltage2=an2*VREF/1023.0;
+	voltage3=an3*VREF/1023.0;
+	
+	Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
+}
+
+void main(void)
+{
+	char LCDstring[17];
+	
+	ConfigureAll();
 	
 	while(1)
 	{	
-		voltage1=an1*VREF/1023.0; 			// conversions from ADC inputs to voltages
-		voltage2=an2*VREF/1023.0;
-		voltage3=an3*VREF/1023.0;
-		Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
+		CalculateVolts();
 		MovementController();
 		
 		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);
