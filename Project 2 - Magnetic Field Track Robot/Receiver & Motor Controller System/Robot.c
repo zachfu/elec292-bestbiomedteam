@@ -26,17 +26,17 @@ volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
 
-volatile int 			StartTurnFlag=0;
-volatile int 			Turn180_Flag=0;
-volatile int 			Turn_L_Flag=0;
-volatile int 			Turn_R_Flag=0;
-volatile int 			Turn180FirstCall=0;
-volatile int 			Stop_Flag = 0;
-volatile int 			FirstAligned = 0;
-volatile int 			DirectionL = 0;
-volatile int 			DirectionLPrev = 0;
-volatile int 			DirectionR = 0;
-volatile int 			DirectionRPrev = 0;	
+volatile char 			StartTurnFlag=0;
+volatile char 			Turn180_Flag=0;
+volatile char 			Turn_L_Flag=0;
+volatile char 			Turn_R_Flag=0;
+volatile char 			Turn180FirstCall=0;
+volatile char 			Stop_Flag = 0;
+volatile char 			FirstAligned = 0;
+volatile char 			DirectionL = 0;
+volatile char 			DirectionLPrev = 0;
+volatile char 			DirectionR = 0;
+volatile char 			DirectionRPrev = 0;	
 
 volatile float 			voltage1;
 volatile float  		voltage2;
@@ -82,19 +82,7 @@ void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
   {
   	if (IFS1bits.U2RXIF)
   	{
-		while(!U2STAbits.URXDA)
-		{
-			counter++;
-			if (counter > 1000)
-			{
-				LATBbits.LATB10=0;
-				IEC1bits.U2RXIE=0;
-				Command = U2RXREG;
-				IFS1bits.U2RXIF = 0;
-				
-				
-			}
-		}
+		while(!U2STAbits.URXDA);
 		Command = U2RXREG;
 		IFS1CLR=_IFS1_U2RXIF_MASK;
 	}
@@ -121,8 +109,7 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 		else 
 		{
 			H11_PIN = 0;
-			H12_PIN = 1;
-			
+			H12_PIN = 1;		
 		}
 	}
 	else
@@ -241,11 +228,8 @@ void IntersectHandler( void )
 // If there is no signal in the path, then stop the motors
 void NoSignalPath( void )
 { 
-	if( voltage1<0.001 && voltage2< 0.001)
-	{
-		duty1 = 0;
-		duty2 = 0;
-	}
+	duty1 = 0;
+	duty2 = 0;
 }	
 // Adjusts duty cycles to realign vehicle with the path. 
 // Takes the voltage difference in inductors 1 and 2 then scales down the speed of the wheel
@@ -277,7 +261,7 @@ void AlignPath ( void )
 	
 	// Check for intersections or if the signal has disappeared
 	IntersectHandler();
-	NoSignalPath();
+
 	
 	// If speed_adjust overflows bounds, force within bounds
 	if( speed_adjust > 1.0)
@@ -286,7 +270,11 @@ void AlignPath ( void )
 		speed_adjust = 0.0;
 	
 	// If Left wheel is closer to path, slow down left wheel
-	if( (Misalignment - ALIGN_TOLERANCE) > 0.0)
+	if( voltage1<0.001 && voltage2< 0.001)
+	{
+		NoSignalPath();
+	}
+	else if( (Misalignment - ALIGN_TOLERANCE) > 0.0)
 	{
 		duty1 = base_duty*speed_adjust*intersect_adjust;
 		duty2 = base_duty*intersect_adjust;
