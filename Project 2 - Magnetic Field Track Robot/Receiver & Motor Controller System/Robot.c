@@ -313,7 +313,8 @@ void IntersectHandler( void )
 	if( voltage3 > INTERSECT_MINVOLTAGE)
 	{
 		speed_adjust = 1;
-		intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*INTERSECT_SCALING))));
+		if(Turn_L_Flag == 1 || Turn_R_Flag ==1)
+			intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*INTERSECT_SCALING))));
 	}
 		
 	if( intersect_adjust > 1)
@@ -368,7 +369,7 @@ void AlignPath ( void )
 		speed_adjust = 0.0;
 	
 	// If Left wheel is closer to path, slow down left wheel
-	if( voltage1<0.003 && voltage2< 0.003)
+	if( voltage1<0.001 && voltage2< 0.001)
 	{
 		NoSignalPath();
 	}
@@ -393,7 +394,6 @@ void AlignPath ( void )
 		LCDprint("Reversing",2,1);
 	if( duty1 != 0 && duty2 != 0 && Turn_L_Flag == 0 && Turn_R_Flag ==0)
 		LCDprint("Following Path",2,1);
-	IntersectHandler();
 }
 		
 // Checks for intersections in the track and depending on any commands from the transmitter system
@@ -408,16 +408,29 @@ void TurnIntersect( void )
 	if( StartTurnFlag == 0)
 	{
 		AlignPath();
-		if( voltage3 > (INTERSECT_VOLTAGE*0.8))
+		if( voltage3 > (INTERSECT_VOLTAGE))
+		{
 			StartTurnFlag = 1;
+			waitms(500);
+			DirectionLPrev = DirectionL;
+			DirectionRPrev = DirectionR;
+		}
 	}
 	// Intersection detected, turn off wheel corresponding to turn direction
 	else
 	{
 		if( Turn_L_Flag == 1)
-			duty1 = 0;
+		{
+			DirectionL = 1;
+			duty1 = base_duty/2;
+			duty2 = base_duty/2;
+		}
 		else
-			duty2 = 0;
+		{
+			DirectionR = 1;
+			duty2 = base_duty/2;
+			duty1 = base_duty/2;
+		}
 		// When left and right wheels align with path, turn is complete, only second alignment
 		// is valid, (will start the turn aligned)
 		if( (fabs(Misalignment) < (ALIGN_TOLERANCE*3)))
@@ -432,12 +445,14 @@ void TurnIntersect( void )
 				if((fabs(Misalignment) < (ALIGN_TOLERANCE*3)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
 				{
 				// Clear all flags, reset wheels speeds
+					DirectionL = DirectionLPrev;
+					DirectionR = DirectionRPrev;
+					duty1 = base_duty;
+					duty2 = base_duty;
 					FirstAligned = 0;
 					StartTurnFlag = 0;
 					Turn_L_Flag = 0;
 					Turn_R_Flag = 0;
-					duty1 = base_duty;
-					duty2 = base_duty;
 				}
 			}
 		}
@@ -476,10 +491,10 @@ void Turn180 ( void )
 			{
 			// Clear all flags and reset directions
 				FirstAligned = 0;
-				Turn180_Flag = 0;
-				Turn180FirstCall = 0;
 				DirectionL = DirectionLPrev;
 				DirectionR = DirectionRPrev;
+				Turn180_Flag = 0;
+				Turn180FirstCall = 0;
 			}
 		}
 	}
@@ -491,9 +506,9 @@ void MovementController ( void )
 {	
 	if (Stop_Flag)
 	{
+		LCDprint("Stopped",2,1);
 		duty1=0;
 		duty2=0;
-		LCDprint("Stopped",2,1);
 	}
 	// Check Turn Flags to Issue a Turn Command, will not execute if currently in a 180 turn
 	else if( (Turn_R_Flag==1 || Turn_L_Flag==1) && Turn180_Flag==0)
@@ -528,7 +543,11 @@ void CommandHandler( void )
 	else if( Command == TurnRight)
 		Turn_R_Flag =1;
 	else if( Command == StopCommand)
+	{
 		Stop_Flag =(Stop_Flag==1)?0:1;
+		Turn_L_Flag = 0;
+		Turn_R_Flag = 0;
+	}
 	else if( Command == ReverseCommand)
 	{
 		DirectionL = (DirectionL==1)?0:1;

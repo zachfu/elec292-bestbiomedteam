@@ -6,13 +6,13 @@
 #define BUZZER_FREQ		4000L	// Frequency of timer 2
 
 // Constants  
-#define MAX_MISALIGNMENT 1.7
+#define MAX_MISALIGNMENT 1.4
 #define SPEED_SCALING (1.0/3.0)
-#define INTERSECT_VOLTAGE 1.4
+#define INTERSECT_VOLTAGE 1.25
 #define ALIGN_TOLERANCE 0.045
-#define INTERSECT_MINVOLTAGE 0.25
-#define ALIGN_MINVOLTAGE 0.225
-#define INTERSECT_SCALING 2.75
+#define INTERSECT_MINVOLTAGE 0.7
+#define ALIGN_MINVOLTAGE 0.100
+#define INTERSECT_SCALING 3.0
 
 // Pin assignment defines
 #define H11_PIN LATBbits.LATB15
