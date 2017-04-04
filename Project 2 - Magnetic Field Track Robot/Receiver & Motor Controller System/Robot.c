@@ -466,14 +466,12 @@ void MovementController ( void )
 // Takes commands received by the UART and sets flags used by the Movement Controller
 void CommandHandler( void )
 {
-	if( buffer_valid_flag==1) {
+	if( buffer_valid_flag) {
 		Command = buffer.byte;	// Move buffer into char command
-		printf("Character is: %c\r\n", Command);
-		printf("Test\r\n");
 		buffer_valid_flag = 0;
 	}
 	else
-		Command == NullCommand;
+		Command = NullCommand;
 	
 	if( Command == TurnLeft)
 		Turn_L_Flag =1;
@@ -487,7 +485,7 @@ void CommandHandler( void )
 		DirectionR != DirectionR;
 	}
 	else
-		Command == NullCommand;
+		Command = NullCommand;
 }
  
 void PinConfigure(void)
@@ -539,7 +537,7 @@ void main(void)
 		CalculateVolts();
 		CommandHandler();
 		MovementController();
-		printf("buffer_flag = %d\r\n", buffer_valid_flag);
+		printf("Command = %c\r\n", Command);
 		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);
 		LCDprint(LCDstring,1,1);
 	}
