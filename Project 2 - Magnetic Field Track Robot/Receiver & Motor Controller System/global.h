@@ -5,11 +5,11 @@
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 #define BUZZER_FREQ		4000L	// Frequency of timer 2
 
-// Constants 
-#define MAX_MISALIGNMENT 1.6
-#define SPEED_SCALING (1.0/4.0)
+// Constants  
+#define MAX_MISALIGNMENT 1.7
+#define SPEED_SCALING (1.0/3.0)
 #define INTERSECT_VOLTAGE 1.25
-#define ALIGN_TOLERANCE 0.015
+#define ALIGN_TOLERANCE 0.03
 #define INTERSECT_MINVOLTAGE 0.25
 #define INTERSECT_SCALING (1.0/2.0)
 

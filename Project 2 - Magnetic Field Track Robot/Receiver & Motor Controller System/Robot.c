@@ -57,7 +57,7 @@ volatile float			intersect_adjust;
 
 // Configures External Interrupts
 void StartBitTriggerConfig(void)
-{
+{ 
 	IEC0bits.INT1IE = 0;	// Disable external interrupt 1
 	INTCONbits.INT1EP = 0;	// Set interrupt condition to falling-edge
 	IPC1bits.INT1IP = 7;
@@ -120,7 +120,7 @@ void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 	IFS0CLR=_IFS0_T1IF_MASK; // Clear timer 1 interrupt flag, bit 4 of IFS0	
 }		
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
-void __ISR(_TIMER_2_VECTOR, IPL5AUTO) Timer2_ISR(void)
+void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 {	
 	//Handling the turn signals flashing.
 	Light_Counter++;
@@ -187,7 +187,7 @@ void Timer1Configure (void)
 	T1CONbits.TCKPS = 0; // Pre-scaler 1:1
 	T1CONbits.TCS = 0;	// Clock source
 	T1CONbits.ON = 0;
-	IPC1bits.T1IP = 6;	// Priority 6
+	IPC1bits.T1IP = 5;	// Priority 6
 	IPC1bits.T1IS = 0; 
 	IFS0bits.T1IF = 0;	// Clear timer flag
 	IEC0bits.T1IE = 1;	// No interrupts
@@ -203,7 +203,7 @@ void Timer2Configure (void)
 	T2CONbits.TCKPS = 0; // Pre-scaler 1:1
 	T2CONbits.TCS = 0; // Clock source
 	T2CONbits.ON = 1;
-	IPC2bits.T2IP = 5;	// Priority 5
+	IPC2bits.T2IP = 7;	// Priority 5
 	IPC2bits.T2IS = 0; 
 	IFS0bits.T2IF = 0;
 	IEC0bits.T2IE = 1;
@@ -320,6 +320,11 @@ void IntersectHandler( void )
 	// As you approach the intersection, go straight
 	if( voltage3 > INTERSECT_MINVOLTAGE)
 		speed_adjust = 1;
+		
+	if( intersect_adjust > 1)
+		intersect_adjust = 1;
+	if( intersect_adjust < 0)
+		intersect_adjust = 0;
 }
 
 // If there is no signal in the path, then stop the motors
@@ -402,7 +407,7 @@ void TurnIntersect( void )
 	if( StartTurnFlag == 0)
 	{
 		AlignPath();
-		if( voltage3 > INTERSECT_VOLTAGE)
+		if( voltage3 > (INTERSECT_VOLTAGE*0.8))
 			StartTurnFlag = 1;
 	}
 	// Intersection detected, turn off wheel corresponding to turn direction
@@ -448,8 +453,8 @@ void Turn180 ( void )
 		Turn180FirstCall=1;
 		DirectionL = 1;
 		DirectionR = 0;
-		duty1 = base_duty;
-		duty2 = base_duty;
+		duty1 = (base_duty/2);
+		duty2 = (base_duty/2);
 	}
 	
 	// Check if left and right wheels has aligned with path, but only the second time 
