@@ -21,7 +21,7 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 volatile unsigned char 	count_ms = 0;
-volatile unsigned char  Light_Counter=0; 
+volatile unsigned int  Light_Counter=0; 
 volatile unsigned char  Light_Status=0;
 volatile unsigned char  Horn_Status=0;
 
@@ -124,11 +124,11 @@ void __ISR(_TIMER_2_VECTOR, IPL5AUTO) Timer2_ISR(void)
 {	
 	//Handling the turn signals flashing.
 	Light_Counter++;
-	if (Light_Counter == 255) //flashing every 255ms
+	if (Light_Counter == 4000) //flashing every 255ms
 	{
-		Light_Status = !Light_Status;
-		Horn_Status = !Horn_Status;
-//		AMBER_R = Turn_R_Flag?(Light_Status) : 1 ;	// AMBER_R
+		Light_Status =  (Light_Status==0)?1 : 0 ;
+		Horn_Status = (Horn_Status==0)?1 : 0 ;
+		AMBER_R = Turn_R_Flag?(Light_Status) : 1 ;	// AMBER_R
 		AMBER_L = Turn_L_Flag?(Light_Status) : 1 ;	// AMBER_L
 		T3CONbits.ON = (DirectionL==1 && DirectionR==1)?Horn_Status:0;
 		Light_Counter = 0;
@@ -173,7 +173,7 @@ void __ISR(_TIMER_2_VECTOR, IPL5AUTO) Timer2_ISR(void)
 }
 
 //handling the Buzzer
-void __ISR(_TIMER_3_VECTOR, IPL3AUTO) Timer3_Handler(void)//***************************************************************************************
+void __ISR(_TIMER_3_VECTOR, IPL3AUTO) Timer3_Handler(void)
 {
 	SOUND_OUT = (SOUND_OUT==1)?0:1;
 	IFS0CLR=_IFS0_T3IF_MASK; // Clear timer 3 interrupt flag, bit 4 of IFS0
@@ -551,16 +551,12 @@ void PinConfigure(void)
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
 	
-	TRISAbits.TRISA0 = 0;	// SOUND_OUT //***************************************************************************************
-//	TRISAbits.TRISA0 = 0;	// AMBER_R
+	TRISBbits.TRISB0 = 0;	// SOUND_OUT 
+	TRISAbits.TRISA0 = 0;	// AMBER_R
 	TRISAbits.TRISA1 = 0;	// AMBER_L
 	SOUND_OUT = 0;	
-//	AMBER_R = 1;   
+	AMBER_R = 1;   
 	AMBER_L = 1; 
-	
-	
-	//TRISAbits.TRISA0 = 0;  used for Zach's testing
-	//LATAbits.LATA0 = 1;
 }
 
 // Performs all ISR and non-ISR configurations

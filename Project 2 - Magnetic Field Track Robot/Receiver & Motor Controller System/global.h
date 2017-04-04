@@ -19,16 +19,16 @@
 #define H12_PIN LATBbits.LATB14
 #define H21_PIN LATBbits.LATB13
 #define H22_PIN LATBbits.LATB12
-#define SOUND_OUT   LATAbits.LATA0//***************************************************************************************
+#define SOUND_OUT   LATBbits.LATB0
 #define AMBER_R	    LATAbits.LATA0
 #define AMBER_L 	LATAbits.LATA1
 
 // Receive Commands
 #define StopCommand 's'
-#define	TurnLeft 'l'	//Left***************************************************************************************
+#define	TurnLeft 'l'	
 #define TurnRight 'r'
 #define Turn180Command 'o'
-#define ReverseCommand 'v'///REveres***************************************************************************************
+#define ReverseCommand 'v'
 #define NullCommand 'n'
 #define Speed_Up		 'u'
 #define Speed_Down		 'd'
