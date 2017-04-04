@@ -27,20 +27,21 @@ volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
 
-volatile char 			StartTurnFlag=0;
-volatile char 			Turn180_Flag=0;
-volatile char 			Turn_L_Flag=0;
-volatile char 			Turn_R_Flag=0;
-volatile char 			Turn180FirstCall=0;
-volatile char 			Stop_Flag = 0;
-volatile char 			FirstAligned = 0;
-volatile char 			DirectionL = 0;
-volatile char 			DirectionLPrev = 0;
-volatile char 			DirectionR = 0;
-volatile char 			DirectionRPrev = 0;
-volatile char			FallingEdgeBufferFlag = 0;
-volatile char			buffer_valid_flag = 0;
-volatile char			buffer_count = 0;
+volatile unsigned char 			StartTurnFlag=0;
+volatile unsigned char 			Turn180_Flag=0;
+volatile unsigned char 			Turn_L_Flag=0;
+volatile unsigned char 			Turn_R_Flag=0;
+volatile unsigned char 			Turn180FirstCall=0;
+volatile unsigned char 			Stop_Flag = 0;
+volatile unsigned char 			FirstAligned = 0;
+volatile unsigned char 			DirectionL = 0;
+volatile unsigned char 			DirectionLPrev = 0;
+volatile unsigned char 			DirectionR = 0;
+volatile unsigned char 			DirectionRPrev = 0;
+volatile unsigned char			FallingEdgeBufferFlag = 0;
+volatile unsigned char			buffer_valid_flag = 0;
+
+volatile unsigned char			buffer_count = 0;
 
 volatile union 			DISPLAY_BYTE buffer;
 
@@ -79,36 +80,36 @@ void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 	
 	if( FallingEdgeBufferFlag) {
 		if(count_ms==5) {
-			LATAbits.LATA0 = !LATAbits.LATA0; 
 			FallingEdgeBufferFlag = 0;
+			LATAbits.LATA0 = !LATAbits.LATA0; 
 			count_ms = 0;
 		}
 	}
 	else
 	{	
 		if(count_ms==10) {
-			switch(buffer_count) //transmit the correct bit of the character based on bit_count
+			switch(buffer_count) //receive the correct bit of the character based on bit_count
 			{
-				case 0: {buffer.bit0 = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};
-				case 1: {buffer.bit1 = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};	
-				case 2: {buffer.bit2 = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};
-				case 3: {buffer.bit3 = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};
-				case 4: {buffer.bit4 = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};
-				case 5: {buffer.bit5 = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};
-				case 6: {buffer.bit6 = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};
-				case 7: {buffer.bit7 = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};
-				case 8: {buffer_valid_flag = PORTBbits.RB0; LATAbits.LATA0 = !LATAbits.LATA0; break;};
+				case 0: {buffer.bit0 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
+				case 1: {buffer.bit1 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};	
+				case 2: {buffer.bit2 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
+				case 3: {buffer.bit3 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
+				case 4: {buffer.bit4 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
+				case 5: {buffer.bit5 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
+				case 6: {buffer.bit6 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
+				case 7: {buffer.bit7 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
+				case 8: {buffer_valid_flag = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
 			 }
 		
 			if (buffer_count == 8) // If receive completed
 			{
 				buffer_count=0;    				//reset bit counter
-				
-				IFS0CLR=_IFS0_T1IF_MASK; 		// Clear timer 1 interrupt flag, bit 4 of IFS0	
+				IFS0bits.INT1IF = 0;			// Clear interrupt flag	for INT1
 				IEC0bits.INT1IE = 1;			// Renable external interrupt 1
 				T1CONbits.ON = 0;				// Disable Timer 1 
 			}
-			else buffer_count++;
+			else
+				buffer_count++;
 			
 			count_ms = 0;
 		}
@@ -214,28 +215,16 @@ void __ISR(_ADC_VECTOR, IPL4AUTO) ADC_ISR(void)
  *
  * Input: Desired Baud Rate
  * Output: Actual Baud Rate from baud control register U2BRG after assignment*/
-void UART2Configure( int desired_baud)
+void UART2Configure(int baud_rate)
 {
-	
-	
-	U2RXRbits.U2RXR = 4;    //SET RX to RB8
+    // Peripheral Pin Select
+    U2RXRbits.U2RXR = 4;    //SET RX to RB8
     RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
 
-	U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
+    U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
     U2STA = 0x1400;     // enable TX and RX
-    U2BRG = Baud2BRG(desired_baud); // U2BRG = (FPb / (16*baud)) - 1
+    U2BRG = Baud2BRG(baud_rate); // U2BRG = (FPb / (16*baud)) - 1
     
-    //UART Rx INTERRUPT CONFIGURATION
-    IFS1bits.U2RXIF = 0; //clear the receiving interrupt Flag
-    IFS1bits.U2TXIF = 0; //clear the transmitting interrupt flag
-	
-    IEC1bits.U2RXIE = 1;  //enable Rx interrupt
-  	//IEC1bits.U2TXIE = 1;  //Enable Tx interrupt	-- theoretically we dont need this?
-    IEC1bits.U2EIE = 1;
-    IPC9bits.U2IP = 2; //priority level
-    IPC9bits.U2IS = 0; //sub priority level
-    INTCONbits.MVEC = 1;
-    __builtin_enable_interrupts();
     U2MODESET = 0x8000;     // enable UART2
 }
 
@@ -244,7 +233,8 @@ void UART2Configure( int desired_baud)
 void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 {
     AD1CON1 = 0x0000; // disable ADC
- 
+	ANSELA = 0; // Don't use AN0, AN1
+	ANSELB = 0x000e;	// Use AN3, AN4, AN5
     // AD1CON1<2>, ASAM    : Sampling begins immediately after last conversion completes
     // AD1CON1<7:5>, SSRC  : Internal counter ends sampling and starts conversion (auto convert)
     AD1CON1SET = 0x00e4;
@@ -476,9 +466,11 @@ void MovementController ( void )
 // Takes commands received by the UART and sets flags used by the Movement Controller
 void CommandHandler( void )
 {
-	if( buffer_valid_flag) {
-		//Command = (unsigned char)(buffer.byte);	// Move buffer into char command
-		//printf("Character is: %c\r\n", Command);
+	if( buffer_valid_flag==1) {
+		Command = buffer.byte;	// Move buffer into char command
+		printf("Character is: %c\r\n", Command);
+		printf("Test\r\n");
+		buffer_valid_flag = 0;
 	}
 	else
 		Command == NullCommand;
@@ -514,7 +506,7 @@ void ConfigureAll( void )
 {
 	CFGCON = 0;
 	PinConfigure();
-    UART2Configure(115200);  // Configure UART2 for a baud rate of 100
+    UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
  	
     StartBitTriggerConfig();
 	INTCONbits.MVEC = 1;
@@ -541,13 +533,13 @@ void main(void)
 	char LCDstring[17];
 	
 	ConfigureAll();
-	
+	printf("HELLO, TEST\r\n");
 	while(1)
 	{	
 		CalculateVolts();
 		CommandHandler();
 		MovementController();
-		
+		printf("buffer_flag = %d\r\n", buffer_valid_flag);
 		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);
 		LCDprint(LCDstring,1,1);
 	}
