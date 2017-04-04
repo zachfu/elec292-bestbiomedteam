@@ -16,7 +16,7 @@
 
 #define CHARS_PER_LINE 16
 
-union DISPLAY_BYTE {
+union BYTE {
     unsigned char byte;
     struct {
         unsigned char bit0    :1;

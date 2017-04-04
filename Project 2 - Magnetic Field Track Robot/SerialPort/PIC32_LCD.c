@@ -53,7 +53,7 @@ void LCD_pulse(void)
 
 void LCD_byte(unsigned char x)
 {
-	union DISPLAY_BYTE a = (union DISPLAY_BYTE)x;
+	union BYTE a = (union BYTE)x;
 	LCD_D7 = a.bit7;
 	LCD_D6 = a.bit6;
 	LCD_D5 = a.bit5;

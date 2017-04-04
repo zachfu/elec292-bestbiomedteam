@@ -45,55 +45,26 @@ volatile float 			Misalignment;
 volatile float  		speed_adjust;
 volatile float			intersect_adjust;
 
-unsigned int counter=0;
-
-/* UART2Configure() sets up the UART2 for the most standard and minimal operation
- *  Enable TX and RX lines, 8 data bits, no parity, 1 stop bit, idle when HIGH
- *
- * Input: Desired Baud Rate
- * Output: Actual Baud Rate from baud control register U2BRG after assignment*/
-void UART2Configure( int desired_baud)
+void StartBitTriggerConfig(void)
 {
-	
-	
-	U2RXRbits.U2RXR = 4;    //SET RX to RB8
-    RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
-
-	U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
-    U2STA = 0x1400;     // enable TX and RX
-    U2BRG = Baud2BRG(desired_baud); // U2BRG = (FPb / (16*baud)) - 1
-    
-    //UART Rx INTERRUPT CONFIGURATION
-    IFS1bits.U2RXIF = 0; //clear the receiving interrupt Flag
-    IFS1bits.U2TXIF = 0; //clear the transmitting interrupt flag
-	
-    IEC1bits.U2RXIE = 1;  //enable Rx interrupt
-  	//IEC1bits.U2TXIE = 1;  //Enable Tx interrupt	-- theoretically we dont need this?
-    IEC1bits.U2EIE = 1;
-    IPC9bits.U2IP = 2; //priority level
-    IPC9bits.U2IS = 0; //sub priority level
-    INTCONbits.MVEC = 1;
-    __builtin_enable_interrupts();
-    U2MODESET = 0x8000;     // enable UART2
+	IEC0bits.INT1IE = 0;	// Disable external interrupt 1
+	INTCONbits.INT1EP = 0;	// Set interrupt condition to falling-edge
+	IPC1bits.INT1IP = 7;
+	IPC1bits.INT1IS = 0;
+	IFS0bits.INT1IF = 0;	// Clear interrupt flag
+	IEC0bits.INT1IE = 1;	// Enable external interrupt 1
+	INT1R = 3;				// Use Pin A0 for interrupt
+	TRISBbits.TRISB10 = 1;
 }
 
-
-void __ISR(_UART_2_VECTOR, IPL2AUTO) IntUart2Handler(void)
-  {
-  	if (IFS1bits.U2RXIF)
-  	{
-		while(!U2STAbits.URXDA);
-		Command = U2RXREG;
-		IFS1CLR=_IFS1_U2RXIF_MASK;
-	}
-    if ( IFS1bits.U2TXIF)
-      {
-        IFS1bits.U2TXIF = 0;
-      }
-  }
+void __ISR(_EXTERNAL_1_VECTOR, IPL7AUTO) StartBitTrigger(void)
+{
+	LATAbits.LATA1 = !LATAbits.LATA1;
+	IFS0bits.INT1IF = 0;
+}
 
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
-void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
+void __ISR(_TIMER_2_VECTOR, IPL6AUTO) Timer2_ISR(void)
 {	
 	pwm_count++;
 	
@@ -133,6 +104,18 @@ void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
 	IFS0bits.T2IF = 0;      // Clear timer2 interrupt status flag
 }
 
+// Configures Timer 1 for use in receiving character bits
+void Timer1Configure (void)
+{
+	PR1 = (SYSCLK/(FREQ))-1;
+	TMR1 = 0;
+	T1CONbits.TCKPS = 0; // Pre-scaler 1:1
+	T1CONbits.TCS = 0;	// Clock source
+	IPC1bits.T1IP = 7;	// Top priority
+	IPC1bits.T1IS = 0; 
+	IFS0bits.T1IF = 0;	// Clear timer flag
+	IEC0bits.T1IE = 0;	// No interrupts
+}
 // Enables 16bit Timer2 Interrupts, loads Timer2 Period Register and Starts the Timer
 // When Timer2 Interrupts occur, the software must clear the interrupt status flag
 void Timer2Configure (void)
@@ -143,15 +126,14 @@ void Timer2Configure (void)
 	T2CONbits.TCKPS = 0; // Pre-scaler 1:1
 	T2CONbits.TCS = 0; // Clock source
 	T2CONbits.ON = 1;
-	IPC2bits.T2IP = 7;	// Top priority
+	IPC2bits.T2IP = 5;	// Second priority
 	IPC2bits.T2IS = 0; 
 	IFS0bits.T2IF = 0;
 	IEC0bits.T2IE = 1;
 }
 
-void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
+void __ISR(_ADC_VECTOR, IPL5AUTO) ADC_ISR(void)
 {
-	LATBbits.LATB0 = !LATBbits.LATB0;
 	AD1CON1bits.ASAM = 0;           // stop automatic sampling (essentially shut down ADC in this mode) while reading from buffers
  			
 	if( AD1CON2bits.BUFS == 1)	 	// check which buffers are being written to and read from the other set
@@ -172,6 +154,35 @@ void __ISR(_ADC_VECTOR, IPL6AUTO) ADC_ISR(void)
       
 }
 
+/* UART2Configure() sets up the UART2 for the most standard and minimal operation
+ *  Enable TX and RX lines, 8 data bits, no parity, 1 stop bit, idle when HIGH
+ *
+ * Input: Desired Baud Rate
+ * Output: Actual Baud Rate from baud control register U2BRG after assignment*/
+void UART2Configure( int desired_baud)
+{
+	
+	
+	U2RXRbits.U2RXR = 4;    //SET RX to RB8
+    RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
+
+	U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
+    U2STA = 0x1400;     // enable TX and RX
+    U2BRG = Baud2BRG(desired_baud); // U2BRG = (FPb / (16*baud)) - 1
+    
+    //UART Rx INTERRUPT CONFIGURATION
+    IFS1bits.U2RXIF = 0; //clear the receiving interrupt Flag
+    IFS1bits.U2TXIF = 0; //clear the transmitting interrupt flag
+	
+    IEC1bits.U2RXIE = 1;  //enable Rx interrupt
+  	//IEC1bits.U2TXIE = 1;  //Enable Tx interrupt	-- theoretically we dont need this?
+    IEC1bits.U2EIE = 1;
+    IPC9bits.U2IP = 2; //priority level
+    IPC9bits.U2IS = 0; //sub priority level
+    INTCONbits.MVEC = 1;
+    __builtin_enable_interrupts();
+    U2MODESET = 0x8000;     // enable UART2
+}
 
 // Configuration for ADC in Auto-Scan Mode
 // Code modiefied from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
@@ -200,7 +211,7 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
  
     // select which pins to use for scan mode
     AD1CSSL = adcPINS;
-	IPC5bits.AD1IP = 6; // Set Priority 6
+	IPC5bits.AD1IP = 5; // Set Priority 5
 	IPC5bits.AD1IS = 0; 
 	IFS0bits.AD1IF = 0; // Clear interrupt flag
 	IEC0bits.AD1IE = 1; // Enable ADC interrupt
@@ -431,8 +442,8 @@ void PinConfigure(void)
   	TRISBbits.TRISB13 = 0;
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
-  	TRISBbits.TRISB10 = 0;	//DEBUG PIN
-  	LATBbits.LATB10 = 1;
+	TRISAbits.TRISA1 = 0;
+	LATAbits.LATA1 = 1;
 }
 
 // Performs all ISR and non-ISR configurations
@@ -440,14 +451,15 @@ void ConfigureAll( void )
 {
 	CFGCON = 0;
 	PinConfigure();
-    UART2Configure(100);  // Configure UART2 for a baud rate of 100
+    UART2Configure(115200);  // Configure UART2 for a baud rate of 100
  	
-    
+    StartBitTriggerConfig();
 	INTCONbits.MVEC = 1;
   	__builtin_enable_interrupts();
+	Timer1Configure();
 	Timer2Configure();
 	LCD_4BIT();
-	adcConfigureAutoScan( 0x000E, 3); // Using pins RB1,RB2,RB3 as ADC inputs
+	adcConfigureAutoScan( 0x0038, 3); // Using pins RB1,RB2,RB3 as ADC inputs
 	AD1CON1SET = 0x8000;              // start ADC
 }
 
