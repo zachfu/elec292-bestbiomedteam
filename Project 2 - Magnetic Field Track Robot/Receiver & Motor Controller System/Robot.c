@@ -327,6 +327,7 @@ void NoSignalPath( void )
 { 
 	duty1 = 0;
 	duty2 = 0;
+	LCDprint("No Signal",2,1);
 }	
 // Adjusts duty cycles to realign vehicle with the path. 
 // Takes the voltage difference in inductors 1 and 2 then scales down the speed of the wheel
@@ -388,6 +389,11 @@ void AlignPath ( void )
 		duty1 = base_duty*intersect_adjust;
 		duty2 = base_duty*intersect_adjust;
 	}
+	if( DirectionL == 1 && DirectionR == 1)
+		LCDprint("Reversing",2,1);
+	if( duty1 != 0 && duty2 != 0 && Turn_L_Flag == 0 && Turn_R_Flag ==0)
+		LCDprint("Following Path",2,1);
+	
 }
 		
 // Checks for intersections in the track and depending on any commands from the transmitter system
@@ -498,10 +504,7 @@ void MovementController ( void )
 		LCDprint("Turning 180 Deg",2,1);
 	}
 	else
-	{
 		AlignPath();
-		LCDprint("Following Path",2,1);
-	}
 }
 
 // Takes commands received by the UART and sets flags used by the Movement Controller
