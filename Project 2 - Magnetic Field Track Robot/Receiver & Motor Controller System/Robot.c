@@ -175,7 +175,7 @@ void __ISR(_TIMER_2_VECTOR, IPL5AUTO) Timer2_ISR(void)
 //handling the Buzzer
 void __ISR(_TIMER_3_VECTOR, IPL3AUTO) Timer3_Handler(void)//***************************************************************************************
 {
-	SOUND_OUT = !SOUND_OUT;
+	SOUND_OUT = (SOUND_OUT==1)?0:1;
 	IFS0CLR=_IFS0_T3IF_MASK; // Clear timer 3 interrupt flag, bit 4 of IFS0
 }
 
@@ -519,12 +519,14 @@ void CommandHandler( void )
 	else if( Command == TurnRight)
 		Turn_R_Flag =1;
 	else if( Command == StopCommand)
-		Stop_Flag != Stop_Flag;
+		Stop_Flag =(Stop_Flag==1)?0:1;
 	else if( Command == ReverseCommand)
 	{
-		DirectionL != DirectionL;
-		DirectionR != DirectionR;
+		DirectionL = (DirectionL==1)?0:1;
+		DirectionR = (DirectionR==1)?0:1;
 	}
+	else if( Command == Turn180Command)
+		Turn180_Flag = 1;
 	else
 		Command = NullCommand;
 }
@@ -592,6 +594,7 @@ void main(void)
 		MovementController();
 		printf("Command = %c\r\n", Command);
 		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);
+		printf("V1:%.3f V2:%.3f V3:%.3f Duty1:%d Duty2: %d\r\n", voltage1, voltage2, voltage3, duty1,duty2);
 		LCDprint(LCDstring,1,1);
 	}
 }

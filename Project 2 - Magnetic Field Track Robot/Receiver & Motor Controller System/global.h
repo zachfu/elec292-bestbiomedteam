@@ -24,8 +24,8 @@
 
 // Receive Commands
 #define StopCommand 's'
-#define	TurnLeft 'L'	//Left***************************************************************************************
+#define	TurnLeft 'l'	//Left***************************************************************************************
 #define TurnRight 'r'
 #define Turn180Command 'o'
-#define ReverseCommand 'R'///REveres***************************************************************************************
+#define ReverseCommand 'v'///REveres***************************************************************************************
 #define NullCommand 'n'
