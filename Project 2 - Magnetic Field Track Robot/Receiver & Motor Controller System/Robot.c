@@ -445,7 +445,9 @@ void AlignPath ( void )
 		LCDprint("Following Path",2,1);
 		
 	IntersectHandler();
-	Inductor4Adjust();
+	
+	if( DirectionL == 1 && DirectionR == 1)
+		Inductor4Adjust();
 }
 
 // Checks for intersections in the track and depending on any commands from the transmitter system
