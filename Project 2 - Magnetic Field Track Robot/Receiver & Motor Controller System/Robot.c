@@ -92,15 +92,15 @@ void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 		if(count_ms==10) {
 			switch(buffer_count) //receive the correct bit of the character based on bit_count
 			{
-				case 0: {buffer.bit0 = PORTBbits.RB0; break;};
-				case 1: {buffer.bit1 = PORTBbits.RB0; break;};	
-				case 2: {buffer.bit2 = PORTBbits.RB0; break;};
-				case 3: {buffer.bit3 = PORTBbits.RB0; break;};
-				case 4: {buffer.bit4 = PORTBbits.RB0; break;};
-				case 5: {buffer.bit5 = PORTBbits.RB0; break;};
-				case 6: {buffer.bit6 = PORTBbits.RB0; break;};
-				case 7: {buffer.bit7 = PORTBbits.RB0; break;};
-				case 8: {buffer_valid_flag = PORTBbits.RB0; break;};
+				case 0: {buffer.bit0 = PORTBbits.RB10; break;};
+				case 1: {buffer.bit1 = PORTBbits.RB10; break;};	
+				case 2: {buffer.bit2 = PORTBbits.RB10; break;};
+				case 3: {buffer.bit3 = PORTBbits.RB10; break;};
+				case 4: {buffer.bit4 = PORTBbits.RB10; break;};
+				case 5: {buffer.bit5 = PORTBbits.RB10; break;};
+				case 6: {buffer.bit6 = PORTBbits.RB10; break;};
+				case 7: {buffer.bit7 = PORTBbits.RB10; break;};
+				case 8: {buffer_valid_flag = PORTBbits.RB10; break;};
 			 }
 		
 			if (buffer_count == 8) // If receive completed
@@ -313,7 +313,7 @@ void IntersectHandler( void )
 	if( voltage3 > INTERSECT_MINVOLTAGE)
 	{
 		speed_adjust = 1;
-		intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*2))));
+		intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*INTERSECT_SCALING))));
 	}
 		
 	if( intersect_adjust > 1)
@@ -393,7 +393,7 @@ void AlignPath ( void )
 		LCDprint("Reversing",2,1);
 	if( duty1 != 0 && duty2 != 0 && Turn_L_Flag == 0 && Turn_R_Flag ==0)
 		LCDprint("Following Path",2,1);
-	
+	IntersectHandler();
 }
 		
 // Checks for intersections in the track and depending on any commands from the transmitter system
@@ -420,22 +420,25 @@ void TurnIntersect( void )
 			duty2 = 0;
 		// When left and right wheels align with path, turn is complete, only second alignment
 		// is valid, (will start the turn aligned)
-		if( (fabs(Misalignment) < (ALIGN_TOLERANCE*2)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
+		if( (fabs(Misalignment) < (ALIGN_TOLERANCE*3)))
 		{
 			if(FirstAligned==0)
 			{
 				FirstAligned =1;
-				waitms(500);
+				waitms(750);
 			}
 			else
 			{
+				if((fabs(Misalignment) < (ALIGN_TOLERANCE*3)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
+				{
 				// Clear all flags, reset wheels speeds
-				FirstAligned = 0;
-				StartTurnFlag = 0;
-				Turn_L_Flag = 0;
-				Turn_R_Flag = 0;
-				duty1 = base_duty;
-				duty2 = base_duty;
+					FirstAligned = 0;
+					StartTurnFlag = 0;
+					Turn_L_Flag = 0;
+					Turn_R_Flag = 0;
+					duty1 = base_duty;
+					duty2 = base_duty;
+				}
 			}
 		}
 	}
@@ -460,21 +463,24 @@ void Turn180 ( void )
 	
 	// Check if left and right wheels has aligned with path, but only the second time 
 	// will constitute a complete turn (will begin aligned)
-	if( (fabs(Misalignment) < (ALIGN_TOLERANCE*2)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
+	if( (fabs(Misalignment) < (ALIGN_TOLERANCE*3)))
 	{
 		if(FirstAligned==0)
 		{
 			FirstAligned =1;
-			waitms(500);
+			waitms(750);
 		}
 		else
 		{
+			if((fabs(Misalignment) < (ALIGN_TOLERANCE*3)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
+			{
 			// Clear all flags and reset directions
-			FirstAligned = 0;
-			Turn180_Flag = 0;
-			Turn180FirstCall = 0;
-			DirectionL = DirectionLPrev;
-			DirectionR = DirectionRPrev;
+				FirstAligned = 0;
+				Turn180_Flag = 0;
+				Turn180FirstCall = 0;
+				DirectionL = DirectionLPrev;
+				DirectionR = DirectionRPrev;
+			}
 		}
 	}
 }
@@ -530,6 +536,10 @@ void CommandHandler( void )
 	}
 	else if( Command == Turn180Command)
 		Turn180_Flag = 1;
+	else if  (Command == Speed_Up)
+		base_duty = ((base_duty==100)?100:(base_duty+10));
+	else if (Command==Speed_Down)
+		base_duty = ((base_duty==0)?0:(base_duty-10));
 	else
 		Command = NullCommand;
 }
@@ -540,7 +550,6 @@ void PinConfigure(void)
   	TRISBbits.TRISB13 = 0;
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
-	TRISBbits.TRISB0 = 1;  // B0 as digital input
 	
 	TRISAbits.TRISA0 = 0;	// SOUND_OUT //***************************************************************************************
 //	TRISAbits.TRISA0 = 0;	// AMBER_R
@@ -600,3 +609,5 @@ void main(void)
 		LCDprint(LCDstring,1,1);
 	}
 }
+
+    

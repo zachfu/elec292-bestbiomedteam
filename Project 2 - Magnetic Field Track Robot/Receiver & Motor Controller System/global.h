@@ -8,11 +8,11 @@
 // Constants  
 #define MAX_MISALIGNMENT 1.7
 #define SPEED_SCALING (1.0/3.0)
-#define INTERSECT_VOLTAGE 0.45
-#define ALIGN_TOLERANCE 0.03
-#define INTERSECT_MINVOLTAGE 0.1
-#define ALIGN_MINVOLTAGE 0.275
-#define INTERSECT_SCALING (1.0/2.0)
+#define INTERSECT_VOLTAGE 1.4
+#define ALIGN_TOLERANCE 0.045
+#define INTERSECT_MINVOLTAGE 0.25
+#define ALIGN_MINVOLTAGE 0.225
+#define INTERSECT_SCALING 2.75
 
 // Pin assignment defines
 #define H11_PIN LATBbits.LATB15
@@ -30,3 +30,5 @@
 #define Turn180Command 'o'
 #define ReverseCommand 'v'///REveres***************************************************************************************
 #define NullCommand 'n'
+#define Speed_Up		 'u'
+#define Speed_Down		 'd'
