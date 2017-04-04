@@ -21,7 +21,7 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 
-volatile char 			Command;
+volatile unsigned char 	Command;
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
@@ -36,7 +36,12 @@ volatile char 			FirstAligned = 0;
 volatile char 			DirectionL = 0;
 volatile char 			DirectionLPrev = 0;
 volatile char 			DirectionR = 0;
-volatile char 			DirectionRPrev = 0;	
+volatile char 			DirectionRPrev = 0;
+volatile char			FallingEdgeBufferFlag = 0;
+volatile char			buffer_valid_flag = 0;
+volatile char			buffer_count = 0;
+
+volatile union 			DISPLAY_BYTE buffer;
 
 volatile float 			voltage1;
 volatile float  		voltage2;
@@ -45,6 +50,7 @@ volatile float 			Misalignment;
 volatile float  		speed_adjust;
 volatile float			intersect_adjust;
 
+// Configures External Interrupts
 void StartBitTriggerConfig(void)
 {
 	IEC0bits.INT1IE = 0;	// Disable external interrupt 1
@@ -53,16 +59,54 @@ void StartBitTriggerConfig(void)
 	IPC1bits.INT1IS = 0;
 	IFS0bits.INT1IF = 0;	// Clear interrupt flag
 	IEC0bits.INT1IE = 1;	// Enable external interrupt 1
-	INT1R = 3;				// Use Pin A0 for interrupt
+	INT1R = 3;				// Use Pin RB10 for interrupt
 	TRISBbits.TRISB10 = 1;
 }
 
 void __ISR(_EXTERNAL_1_VECTOR, IPL7AUTO) StartBitTrigger(void)
 {
-	LATAbits.LATA1 = !LATAbits.LATA1;
-	IFS0bits.INT1IF = 0;
+	//LATAbits.LATA1 = !LATAbits.LATA1;
+	IFS0bits.INT1IF = 0;	// Clear interrupt flag
+	IEC0bits.T1IE = 1; 		// Enable Timer 1 to Read Transmitted Commands
+	FallingEdgeBufferFlag = 1; // Set a flag to cause a 5ms delay in timer0
+	IEC0bits.INT1IE = 0;	// Disable external interrupt 1
 }
 
+// Briefly halts function to read command sigal detected in wire
+void __ISR(_TIMER_1_VECTOR, IPL7AUTO) CommandReceive(void)
+{
+	if( FallingEdgeBufferFlag)
+		PR1 = (10*((SYSCLK/(FREQ))-1));	// Ignore first 5ms, set sampling to 10ms
+	else
+	{
+		switch(buffer_count) //transmit the correct bit of the character based on bit_count
+   		{
+    		case 0: {buffer.bit0 = LATAbits.LATA1; break;};
+      		case 1: {buffer.bit1 = LATAbits.LATA1; break;};	
+      		case 2: {buffer.bit2 = LATAbits.LATA1; break;};
+      		case 3: {buffer.bit3 = LATAbits.LATA1; break;};
+      		case 4: {buffer.bit4 = LATAbits.LATA1; break;};
+      		case 5: {buffer.bit5 = LATAbits.LATA1; break;};
+      		case 6: {buffer.bit6 = LATAbits.LATA1; break;};
+      		case 7: {buffer.bit7 = LATAbits.LATA1; break;};
+      		case 8: {buffer_valid_flag = LATAbits.LATA1; break;};
+   		 }
+    
+		if (buffer_count == 8) // If receive completed
+		{
+	    	buffer_count=0;    				//reset bit counter
+			PR1 = (5*((SYSCLK/(FREQ))-1));	// Set delay to 5ms for first call of next timer interrupt
+			FallingEdgeBufferFlag = 0;
+			
+			IFS0CLR=_IFS0_T1IF_MASK; 		// Clear timer 1 interrupt flag, bit 4 of IFS0	
+			IEC0bits.INT1IE = 1;			// Renable external interrupt 1
+			IEC0bits.T1IE = 0; 				// Disable Timer 1 to Read Transmitted Commands
+		}
+		else buffer_count++;
+	}
+	
+	IFS0CLR=_IFS0_T1IF_MASK; // Clear timer 1 interrupt flag, bit 4 of IFS0	
+}		
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL6AUTO) Timer2_ISR(void)
 {	
@@ -107,7 +151,7 @@ void __ISR(_TIMER_2_VECTOR, IPL6AUTO) Timer2_ISR(void)
 // Configures Timer 1 for use in receiving character bits
 void Timer1Configure (void)
 {
-	PR1 = (SYSCLK/(FREQ))-1;
+	PR1 = (5*((SYSCLK/(FREQ))-1));	// Trigger time
 	TMR1 = 0;
 	T1CONbits.TCKPS = 0; // Pre-scaler 1:1
 	T1CONbits.TCS = 0;	// Clock source
@@ -116,6 +160,7 @@ void Timer1Configure (void)
 	IFS0bits.T1IF = 0;	// Clear timer flag
 	IEC0bits.T1IE = 0;	// No interrupts
 }
+
 // Enables 16bit Timer2 Interrupts, loads Timer2 Period Register and Starts the Timer
 // When Timer2 Interrupts occur, the software must clear the interrupt status flag
 void Timer2Configure (void)
@@ -421,6 +466,11 @@ void MovementController ( void )
 // Takes commands received by the UART and sets flags used by the Movement Controller
 void CommandHandler( void )
 {
+	if( buffer_valid_flag)
+		Command == buffer.byte;	// Move buffer into char command
+	else
+		Command == NullCommand;
+	
 	if( Command == TurnLeft)
 		Turn_L_Flag =1;
 	else if( Command == TurnRight)
@@ -442,8 +492,7 @@ void PinConfigure(void)
   	TRISBbits.TRISB13 = 0;
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
-	TRISAbits.TRISA1 = 0;
-	LATAbits.LATA1 = 1;
+	TRISAbits.TRISA1 = 1;  // A1 as digital input
 }
 
 // Performs all ISR and non-ISR configurations
