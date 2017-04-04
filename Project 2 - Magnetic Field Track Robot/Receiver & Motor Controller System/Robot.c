@@ -120,7 +120,7 @@ void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 	IFS0CLR=_IFS0_T1IF_MASK; // Clear timer 1 interrupt flag, bit 4 of IFS0	
 }		
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
-void __ISR(_TIMER_2_VECTOR, IPL7AUTO) Timer2_ISR(void)
+void __ISR(_TIMER_2_VECTOR, IPL5AUTO) Timer2_ISR(void)
 {	
 	//Handling the turn signals flashing.
 	Light_Counter++;
@@ -187,7 +187,7 @@ void Timer1Configure (void)
 	T1CONbits.TCKPS = 0; // Pre-scaler 1:1
 	T1CONbits.TCS = 0;	// Clock source
 	T1CONbits.ON = 0;
-	IPC1bits.T1IP = 5;	// Priority 6
+	IPC1bits.T1IP = 6;	// Priority 6
 	IPC1bits.T1IS = 0; 
 	IFS0bits.T1IF = 0;	// Clear timer flag
 	IEC0bits.T1IE = 1;	// No interrupts
@@ -203,7 +203,7 @@ void Timer2Configure (void)
 	T2CONbits.TCKPS = 0; // Pre-scaler 1:1
 	T2CONbits.TCS = 0; // Clock source
 	T2CONbits.ON = 1;
-	IPC2bits.T2IP = 7;	// Priority 5
+	IPC2bits.T2IP = 5;	// Priority 5
 	IPC2bits.T2IS = 0; 
 	IFS0bits.T2IF = 0;
 	IEC0bits.T2IE = 1;
@@ -563,7 +563,7 @@ void ConfigureAll( void )
 	PinConfigure();
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
  	
-    StartBitTriggerConfig();
+	StartBitTriggerConfig();
 	INTCONbits.MVEC = 1;
 	
 	Timer1Configure();
@@ -591,7 +591,6 @@ void main(void)
 	char LCDstring[17];
 	
 	ConfigureAll();
-	printf("HELLO, TEST\r\n");
 	while(1)
 	{	
 		CalculateVolts();

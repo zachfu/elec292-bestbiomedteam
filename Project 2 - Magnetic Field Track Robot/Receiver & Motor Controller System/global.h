@@ -1,6 +1,6 @@
 // Defines
 #define SYSCLK 40000000L
-#define FREQ		1000L	// Frequency of timer 2
+#define FREQ		100L	// Frequency of timer 2
 #define VREF 	3.265		// ADC reference voltage
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 #define BUZZER_FREQ		4000L	// Frequency of timer 2
