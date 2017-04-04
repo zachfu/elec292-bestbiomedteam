@@ -21,7 +21,7 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 volatile unsigned char 	count_ms = 0;
-volatile unsigned int  Light_Counter=0; 
+volatile unsigned int  	Light_Counter=0; 
 volatile unsigned char  Light_Status=0;
 volatile unsigned char  Horn_Status=0;
 
@@ -29,6 +29,7 @@ volatile char 			Command=NullCommand;
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
+volatile int			an4;
 
 volatile unsigned char 			StartTurnFlag=0;
 volatile unsigned char 			Turn180_Flag=0;
@@ -43,7 +44,8 @@ volatile unsigned char 			DirectionR = 0;
 volatile unsigned char 			DirectionRPrev = 0;
 volatile unsigned char			FallingEdgeBufferFlag = 0;
 volatile unsigned char			buffer_valid_flag = 0;
-
+volatile unsigned char			LeftAdjusted = 0;
+volatile unsigned char			RightAdjusted = 0;
 volatile unsigned char			buffer_count = 0;
 
 volatile union 			DISPLAY_BYTE buffer;
@@ -51,6 +53,8 @@ volatile union 			DISPLAY_BYTE buffer;
 volatile float 			voltage1;
 volatile float  		voltage2;
 volatile float			voltage3;
+volatile float			voltage4;
+volatile float			voltage4_prev=0.0;
 volatile float 			Misalignment;
 volatile float  		speed_adjust;
 volatile float			intersect_adjust;
@@ -234,16 +238,18 @@ void __ISR(_ADC_VECTOR, IPL4AUTO) ADC_ISR(void)
 	AD1CON1bits.ASAM = 0;           // stop automatic sampling (essentially shut down ADC in this mode) while reading from buffers
  			
 	if( AD1CON2bits.BUFS == 1)	 	// check which buffers are being written to and read from the other set
-	{    
-		an1 = ADC1BUF0;				// AD1CON2bits.BUFS==1 corresponds to ADC1BUF0-7
-		an2 = ADC1BUF1;
-		an3 = ADC1BUF2;
+	{   
+		an4 = ADC1BUF0;
+		an1 = ADC1BUF1;				// AD1CON2bits.BUFS==1 corresponds to ADC1BUF0-7
+		an2 = ADC1BUF2;
+		an3 = ADC1BUF3;
 	}
 	else
 	{								// AD1CON2bits.BUFS==0 corresponds to ADC1BUF8-F
-   		an1 = ADC1BUF8;	
-		an2 = ADC1BUF9;
-		an3 = ADC1BUFA;
+		an4 = ADC1BUF8;
+   		an1 = ADC1BUF9;	
+		an2 = ADC1BUFA;
+		an3 = ADC1BUFB;
 	}
 	
 	AD1CON1bits.ASAM = 1;           // restart automatic sampling
@@ -328,7 +334,51 @@ void NoSignalPath( void )
 	duty1 = 0;
 	duty2 = 0;
 	LCDprint("No Signal",2,1);
-}	
+}
+
+void Inductor4Adjust( void )
+{
+	if( (voltage4 - voltage4_prev) >= 0)	// Path going further off course
+	{
+		if( LeftAdjusted == 1)
+		{								// If prev adjustment was to turn left
+			duty2 *= 0.8;				// Adjust opposite wheel instead
+			RightAdjusted = 1;				
+			LeftAdjusted = 0;
+		}
+		else if( RightAdjusted == 1)
+		{
+			duty1 *= 0.8;				// Prev adjustmen was to steer right, now steer left
+			LeftAdjusted = 1;			
+			RightAdjusted = 0;
+		}
+		else							// Somehow no adjustments made, try adjusting one side
+		{
+			duty1 *= 0.8;
+			LeftAdjusted = 1;
+		}
+	}
+	else 
+	{									// Path is getting closer
+		if( LeftAdjusted == 1)
+		{								// If prev adjustment was to turn left
+			duty1 *= 0.8;				// Keep adjusting left
+			RightAdjusted = 0;				
+		}
+		else if( RightAdjusted == 1)
+		{
+			duty2 *= 0.8;				// Prev adjustmen was to steer right
+			LeftAdjusted = 0;			// Continue
+		}
+		else							// Somehow no adjustments made, try adjusting one side
+		{
+			duty1 *= 0.8;
+			LeftAdjusted = 1;
+		}
+	}		
+				
+	voltage4_prev = voltage4;		
+}		
 // Adjusts duty cycles to realign vehicle with the path. 
 // Takes the voltage difference in inductors 1 and 2 then scales down the speed of the wheel
 // closest to the wire to steer in that direction. Models the scaling after 1-x^(1/n)
@@ -393,9 +443,11 @@ void AlignPath ( void )
 		LCDprint("Reversing",2,1);
 	if( duty1 != 0 && duty2 != 0 && Turn_L_Flag == 0 && Turn_R_Flag ==0)
 		LCDprint("Following Path",2,1);
-	IntersectHandler();
-}
 		
+	IntersectHandler();
+	Inductor4Adjust();
+}
+
 // Checks for intersections in the track and depending on any commands from the transmitter system
 // either ignores the intersection, turns left or turns right. Priority is higher than generic
 // realignment function. Checks voltage of inductor 3 to see if there is some form of intersection.
@@ -574,7 +626,7 @@ void ConfigureAll( void )
 	Timer3Configure();	//For Buzzer
 	
 	LCD_4BIT();
-	adcConfigureAutoScan( 0x0038, 3); // Using pins RB1,RB2,RB3 as ADC inputs
+	adcConfigureAutoScan( 0x003C, 4); // Using pins RB1,RB2,RB3 as ADC inputs
 	AD1CON1SET = 0x8000;              // start ADC
 	__builtin_enable_interrupts();
 }
@@ -585,6 +637,7 @@ void CalculateVolts ( void )
 	voltage1=an1*VREF/1023.0; 			// conversions from ADC inputs to voltages
 	voltage2=an2*VREF/1023.0;
 	voltage3=an3*VREF/1023.0;
+	voltage4=an4*VREF/1023.0;			// 4th inductor voltage
 	
 	Misalignment=(voltage1-voltage2);	// Used for alignment and turn calculations
 }
