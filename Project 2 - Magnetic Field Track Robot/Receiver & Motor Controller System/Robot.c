@@ -310,16 +310,11 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 
 void IntersectHandler( void )
 {
-	// If no turn command issued, apply linear scaling to slow car when approaching intersect
-	if( Turn_L_Flag==0 && Turn_R_Flag==0)
-		intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*2))));
-	else 
-	// Else apply a harder exponential scaling down to a min of 20% base duty
-		intersect_adjust = (1 - (pow(((voltage3/(INTERSECT_VOLTAGE)*1.75)),INTERSECT_SCALING)));
-	
-	// As you approach the intersection, go straight
 	if( voltage3 > INTERSECT_MINVOLTAGE)
+	{
 		speed_adjust = 1;
+		intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*2))));
+	}
 		
 	if( intersect_adjust > 1)
 		intersect_adjust = 1;
