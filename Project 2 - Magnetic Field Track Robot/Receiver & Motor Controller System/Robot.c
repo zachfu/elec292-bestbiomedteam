@@ -22,7 +22,7 @@ volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 volatile unsigned char 	count_ms = 0;
 
-volatile char 			Command;
+volatile char 			Command=NullCommand;
 volatile int 			an1;
 volatile int 			an2;
 volatile int 			an3;
@@ -81,7 +81,6 @@ void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 	if( FallingEdgeBufferFlag) {
 		if(count_ms==5) {
 			FallingEdgeBufferFlag = 0;
-			LATAbits.LATA0 = !LATAbits.LATA0; 
 			count_ms = 0;
 		}
 	}
@@ -90,15 +89,15 @@ void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 		if(count_ms==10) {
 			switch(buffer_count) //receive the correct bit of the character based on bit_count
 			{
-				case 0: {buffer.bit0 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
-				case 1: {buffer.bit1 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};	
-				case 2: {buffer.bit2 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
-				case 3: {buffer.bit3 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
-				case 4: {buffer.bit4 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
-				case 5: {buffer.bit5 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
-				case 6: {buffer.bit6 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
-				case 7: {buffer.bit7 = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
-				case 8: {buffer_valid_flag = PORTBbits.RB0; LATAbits.LATA0 = PORTBbits.RB0; break;};
+				case 0: {buffer.bit0 = PORTBbits.RB0; break;};
+				case 1: {buffer.bit1 = PORTBbits.RB0; break;};	
+				case 2: {buffer.bit2 = PORTBbits.RB0; break;};
+				case 3: {buffer.bit3 = PORTBbits.RB0; break;};
+				case 4: {buffer.bit4 = PORTBbits.RB0; break;};
+				case 5: {buffer.bit5 = PORTBbits.RB0; break;};
+				case 6: {buffer.bit6 = PORTBbits.RB0; break;};
+				case 7: {buffer.bit7 = PORTBbits.RB0; break;};
+				case 8: {buffer_valid_flag = PORTBbits.RB0; break;};
 			 }
 		
 			if (buffer_count == 8) // If receive completed
@@ -270,7 +269,7 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 void IntersectHandler( void )
 {
 	// If no turn command issued, apply linear scaling to slow car when approaching intersect
-	if( !Turn_L_Flag && !Turn_R_Flag)
+	if( Turn_L_Flag==0 && Turn_R_Flag==0)
 		intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*2))));
 	else 
 	// Else apply a harder exponential scaling down to a min of 20% base duty
@@ -326,7 +325,7 @@ void AlignPath ( void )
 		speed_adjust = 0.0;
 	
 	// If Left wheel is closer to path, slow down left wheel
-	if( voltage1<0.001 && voltage2< 0.001)
+	if( voltage1<0.003 && voltage2< 0.003)
 	{
 		NoSignalPath();
 	}
@@ -358,7 +357,7 @@ void AlignPath ( void )
 void TurnIntersect( void )
 {
 	// If the interesection has not been reached, keep steering normally
-	if( !StartTurnFlag )
+	if( StartTurnFlag == 0)
 	{
 		AlignPath();
 		if( voltage3 > INTERSECT_VOLTAGE)
@@ -367,15 +366,15 @@ void TurnIntersect( void )
 	// Intersection detected, turn off wheel corresponding to turn direction
 	else
 	{
-		if( Turn_L_Flag)
+		if( Turn_L_Flag == 1)
 			duty1 = 0;
 		else
 			duty2 = 0;
 		// When left and right wheels align with path, turn is complete, only second alignment
 		// is valid, (will start the turn aligned)
-		if( fabs(Misalignment) < ALIGN_TOLERANCE*2)
+		if( fabs(Misalignment) < (ALIGN_TOLERANCE*2))
 		{
-			if(!FirstAligned)
+			if(FirstAligned==0)
 			{
 				FirstAligned =1;
 				waitms(500);
@@ -400,7 +399,7 @@ void Turn180 ( void )
 {	
 	// Upon first call, save movement direction prior to execution, reset wheel speed
 	// Make one wheel spin forwards and the other backwards to rotate
-	if(!Turn180FirstCall)
+	if(Turn180FirstCall==0)
 	{
 		DirectionLPrev = DirectionL;
 		DirectionRPrev = DirectionR;
@@ -413,9 +412,9 @@ void Turn180 ( void )
 	
 	// Check if left and right wheels has aligned with path, but only the second time 
 	// will constitute a complete turn (will begin aligned)
-	if( fabs(Misalignment) < ALIGN_TOLERANCE*2)
+	if( fabs(Misalignment) < (ALIGN_TOLERANCE*2))
 	{
-		if(!FirstAligned)
+		if(FirstAligned==0)
 		{
 			FirstAligned =1;
 			waitms(500);
@@ -443,15 +442,15 @@ void MovementController ( void )
 		LCDprint("Stopped",2,1);
 	}
 	// Check Turn Flags to Issue a Turn Command, will not execute if currently in a 180 turn
-	else if( (Turn_R_Flag || Turn_L_Flag) && !Turn180_Flag)
+	else if( (Turn_R_Flag==1 || Turn_L_Flag==1) && Turn180_Flag==0)
 	{
 		TurnIntersect();
-		if(Turn_R_Flag)
+		if(Turn_R_Flag==1)
 			LCDprint("Turn Right CMD",2,1);
 		else
 			LCDprint("Turn Left CMD",2,1);
 	}
-	else if( Turn180_Flag)
+	else if( Turn180_Flag==1)
 	{
 		Turn180();
 		LCDprint("Turning 180 Deg",2,1);
@@ -466,7 +465,7 @@ void MovementController ( void )
 // Takes commands received by the UART and sets flags used by the Movement Controller
 void CommandHandler( void )
 {
-	if( buffer_valid_flag) {
+	if( buffer_valid_flag==1) {
 		Command = buffer.byte;	// Move buffer into char command
 		buffer_valid_flag = 0;
 	}
