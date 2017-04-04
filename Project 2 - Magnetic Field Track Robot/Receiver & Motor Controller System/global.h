@@ -3,6 +3,7 @@
 #define FREQ		1000L	// Frequency of timer 2
 #define VREF 	3.265		// ADC reference voltage
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
+#define BUZZER_FREQ		4000L	// Frequency of timer 2
 
 // Constants 
 #define MAX_MISALIGNMENT 1.6
@@ -17,12 +18,14 @@
 #define H12_PIN LATBbits.LATB14
 #define H21_PIN LATBbits.LATB13
 #define H22_PIN LATBbits.LATB12
-
+#define SOUND_OUT   LATAbits.LATA0//***************************************************************************************
+#define AMBER_R	    LATAbits.LATA0
+#define AMBER_L 	LATAbits.LATA1
 
 // Receive Commands
 #define StopCommand 's'
-#define	TurnLeft 'l'
+#define	TurnLeft 'L'	//Left***************************************************************************************
 #define TurnRight 'r'
 #define Turn180Command 'o'
-#define ReverseCommand 'v'
+#define ReverseCommand 'R'///REveres***************************************************************************************
 #define NullCommand 'n'

@@ -21,6 +21,9 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 volatile unsigned char 	count_ms = 0;
+volatile unsigned char  Light_Counter=0; 
+volatile unsigned char  Light_Status=0;
+volatile unsigned char  Horn_Status=0;
 
 volatile char 			Command=NullCommand;
 volatile int 			an1;
@@ -119,6 +122,18 @@ void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 // Interrupt Service Routine for Timer2 which has Interrupt Vector 8 and initalized with priority level 3
 void __ISR(_TIMER_2_VECTOR, IPL5AUTO) Timer2_ISR(void)
 {	
+	//Handling the turn signals flashing.
+	Light_Counter++;
+	if (Light_Counter == 255) //flashing every 255ms
+	{
+		Light_Status = !Light_Status;
+		Horn_Status = !Horn_Status;
+//		AMBER_R = Turn_R_Flag?(Light_Status) : 1 ;	// AMBER_R
+		AMBER_L = Turn_L_Flag?(Light_Status) : 1 ;	// AMBER_L
+		T3CONbits.ON = (DirectionL==1 && DirectionR==1)?Horn_Status:0;
+		Light_Counter = 0;
+	}
+	
 	pwm_count++;
 	
 	if(pwm_count==100)
@@ -157,6 +172,13 @@ void __ISR(_TIMER_2_VECTOR, IPL5AUTO) Timer2_ISR(void)
 	IFS0bits.T2IF = 0;      // Clear timer2 interrupt status flag
 }
 
+//handling the Buzzer
+void __ISR(_TIMER_3_VECTOR, IPL3AUTO) Timer3_Handler(void)//***************************************************************************************
+{
+	SOUND_OUT = !SOUND_OUT;
+	IFS0CLR=_IFS0_T3IF_MASK; // Clear timer 3 interrupt flag, bit 4 of IFS0
+}
+
 // Configures Timer 1 for use in receiving character bits
 void Timer1Configure (void)
 {
@@ -186,6 +208,26 @@ void Timer2Configure (void)
 	IFS0bits.T2IF = 0;
 	IEC0bits.T2IE = 1;
 }
+
+void Timer3Configure (void) //for BUZZER 4000HZ
+{
+	// Explanation here:
+	// https://www.youtube.com/watch?v=bu6TTZHnMPY
+	//__builtin_disable_interrupts();
+	PR3 =(SYSCLK/(BUZZER_FREQ))-1; // since SYSCLK/FREQ = PS*(PR3+1)
+	TMR3 = 0;
+	T3CONbits.TCKPS = 0; // Pre-scaler: 1:1
+	T3CONbits.TCS = 0; // Clock source
+	T3CONbits.ON = 1;
+	IPC3bits.T3IP = 3;//***************************************************************************************
+	IPC3bits.T3IS = 0;
+	IFS0bits.T3IF = 0;
+	IEC0bits.T3IE = 1;	//TODO, need to turn off
+	
+	//INTCONbits.MVEC = 1; //Int multi-vector
+	//__builtin_enable_interrupts();
+}
+
 
 void __ISR(_ADC_VECTOR, IPL4AUTO) ADC_ISR(void)
 {
@@ -494,8 +536,17 @@ void PinConfigure(void)
   	TRISBbits.TRISB14 = 0;
   	TRISBbits.TRISB15 = 0;
 	TRISBbits.TRISB0 = 1;  // B0 as digital input
-	TRISAbits.TRISA0 = 0;
-	LATAbits.LATA0 = 1;
+	
+	TRISAbits.TRISA0 = 0;	// SOUND_OUT //***************************************************************************************
+//	TRISAbits.TRISA0 = 0;	// AMBER_R
+	TRISAbits.TRISA1 = 0;	// AMBER_L
+	SOUND_OUT = 0;	
+//	AMBER_R = 1;   
+	AMBER_L = 1; 
+	
+	
+	//TRISAbits.TRISA0 = 0;  used for Zach's testing
+	//LATAbits.LATA0 = 1;
 }
 
 // Performs all ISR and non-ISR configurations
@@ -507,12 +558,15 @@ void ConfigureAll( void )
  	
     StartBitTriggerConfig();
 	INTCONbits.MVEC = 1;
-  	__builtin_enable_interrupts();
+	
 	Timer1Configure();
 	Timer2Configure();
+	Timer3Configure();	//For Buzzer
+	
 	LCD_4BIT();
 	adcConfigureAutoScan( 0x0038, 3); // Using pins RB1,RB2,RB3 as ADC inputs
 	AD1CON1SET = 0x8000;              // start ADC
+	__builtin_enable_interrupts();
 }
 
 // Calculates voltages of each inductor and the misalignment of the left and right inductors
