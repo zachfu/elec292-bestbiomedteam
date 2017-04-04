@@ -11,6 +11,7 @@
 #define INTERSECT_VOLTAGE 1.25
 #define ALIGN_TOLERANCE 0.03
 #define INTERSECT_MINVOLTAGE 0.25
+#define ALIGN_MINVOLTAGE 0.20
 #define INTERSECT_SCALING (1.0/2.0)
 
 // Pin assignment defines

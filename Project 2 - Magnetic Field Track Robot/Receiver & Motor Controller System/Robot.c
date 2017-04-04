@@ -414,7 +414,7 @@ void TurnIntersect( void )
 			duty2 = 0;
 		// When left and right wheels align with path, turn is complete, only second alignment
 		// is valid, (will start the turn aligned)
-		if( fabs(Misalignment) < (ALIGN_TOLERANCE*2))
+		if( (fabs(Misalignment) < (ALIGN_TOLERANCE*2)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
 		{
 			if(FirstAligned==0)
 			{
@@ -454,7 +454,7 @@ void Turn180 ( void )
 	
 	// Check if left and right wheels has aligned with path, but only the second time 
 	// will constitute a complete turn (will begin aligned)
-	if( fabs(Misalignment) < (ALIGN_TOLERANCE*2))
+	if( (fabs(Misalignment) < (ALIGN_TOLERANCE*2)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
 	{
 		if(FirstAligned==0)
 		{
