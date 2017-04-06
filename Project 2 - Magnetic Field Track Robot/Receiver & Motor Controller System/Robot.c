@@ -21,7 +21,7 @@ volatile unsigned char 	base_duty = 70;
 volatile unsigned char 	duty1;
 volatile unsigned char 	duty2;
 volatile unsigned char 	count_ms = 0;
-volatile unsigned int  Light_Counter=0; 
+volatile unsigned int  	Light_Counter=0; 
 volatile unsigned char  Light_Status=0;
 volatile unsigned char  Horn_Status=0;
 
@@ -60,38 +60,38 @@ void StartBitTriggerConfig(void)
 { 
 	IEC0bits.INT1IE = 0;	// Disable external interrupt 1
 	INTCONbits.INT1EP = 0;	// Set interrupt condition to falling-edge
-	IPC1bits.INT1IP = 7;
-	IPC1bits.INT1IS = 0;
+	IPC1bits.INT1IP = 7;	// Set priority to 7, highest priority
+	IPC1bits.INT1IS = 0;	// Set subpriority for shadow register to 0, unused
 	IFS0bits.INT1IF = 0;	// Clear interrupt flag
 	IEC0bits.INT1IE = 1;	// Enable external interrupt 1
 	INT1R = 3;				// Use Pin RB10 for interrupt
-	TRISBbits.TRISB10 = 1;
+	TRISBbits.TRISB10 = 1;	// Set Pin RB10 as digital input
 }
 
 void __ISR(_EXTERNAL_1_VECTOR, IPL7AUTO) StartBitTrigger(void)
 {
-	IFS0bits.INT1IF = 0;	// Clear interrupt flag
-	T1CONbits.ON = 1; 		// Enable Timer 1 to Read Transmitted Commands
-	FallingEdgeBufferFlag = 1; // Set a flag to cause a 5ms delay in timer0
-	IEC0bits.INT1IE = 0;	// Disable external interrupt 1
+	IFS0bits.INT1IF = 0;		// Clear interrupt flag
+	T1CONbits.ON = 1; 			// Enable Timer 1 to Read Transmitted Commands
+	FallingEdgeBufferFlag = 1; 	// Set a flag to cause a 5ms delay in timer0
+	IEC0bits.INT1IE = 0;		// Disable external interrupt 1
 }
 
 // Briefly halts function to read command sigal detected in wire
 void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 {
-	count_ms++;
+	count_ms++;							// Increment variable used to control read timing
 	
 	if( FallingEdgeBufferFlag) {
-		if(count_ms==5) {
-			FallingEdgeBufferFlag = 0;
-			count_ms = 0;
+		if(count_ms==5) {				// After 5ms has passed, clear flag and begin taking 
+			FallingEdgeBufferFlag = 0;	// readings at 10ms intervals
+			count_ms = 0;				// Reset counter variable
 		}
 	}
 	else
 	{	
-		if(count_ms==10) {
-			switch(buffer_count) //receive the correct bit of the character based on bit_count
-			{
+		if(count_ms==10) {				// Every 10ms
+			switch(buffer_count) 		// Receive the correct bit of the character based on bit_count
+			{							// Store receive bit in a char in the union buffer
 				case 0: {buffer.bit0 = PORTBbits.RB10; break;};
 				case 1: {buffer.bit1 = PORTBbits.RB10; break;};	
 				case 2: {buffer.bit2 = PORTBbits.RB10; break;};
@@ -100,20 +100,20 @@ void __ISR(_TIMER_1_VECTOR, IPL6AUTO) CommandReceive(void)
 				case 5: {buffer.bit5 = PORTBbits.RB10; break;};
 				case 6: {buffer.bit6 = PORTBbits.RB10; break;};
 				case 7: {buffer.bit7 = PORTBbits.RB10; break;};
-				case 8: {buffer_valid_flag = PORTBbits.RB10; break;};
+				case 8: {buffer_valid_flag = PORTBbits.RB10; break;};	// 
 			 }
 		
-			if (buffer_count == 8) // If receive completed
+			if (buffer_count == 8) 		// If receive completed
 			{
-				buffer_count=0;    				//reset bit counter
-				IFS0bits.INT1IF = 0;			// Clear interrupt flag	for INT1
-				IEC0bits.INT1IE = 1;			// Renable external interrupt 1
-				T1CONbits.ON = 0;				// Disable Timer 1 
+				buffer_count=0;    		// Reset bit counter
+				IFS0bits.INT1IF = 0;	// Clear interrupt flag	for External Interrupt 1
+				IEC0bits.INT1IE = 1;	// Renable External Interrupt 1
+				T1CONbits.ON = 0;		// Disable Timer 1 
 			}
 			else
-				buffer_count++;
+				buffer_count++;			// Increment buffer count to save to next char	
 			
-			count_ms = 0;
+			count_ms = 0;				// Reset count
 		}
 	}
 	
@@ -134,13 +134,13 @@ void __ISR(_TIMER_2_VECTOR, IPL5AUTO) Timer2_ISR(void)
 		Light_Counter = 0;
 	}
 	
-	pwm_count++;
+	pwm_count++;			
 	
 	if(pwm_count==100)
 		pwm_count = 0;
 	
 	if(pwm_count < duty1) {
-		if(!DirectionL) // Direction = 0, Forward
+		if(!DirectionL) 	// Forward = 0, Backwards = 1
 		{ 
 			H11_PIN = 1;
 			H12_PIN = 0;
@@ -184,13 +184,13 @@ void Timer1Configure (void)
 {
 	PR1 = (SYSCLK/(1000))-1;	// Every 1 ms
 	TMR1 = 0;
-	T1CONbits.TCKPS = 0; // Pre-scaler 1:1
-	T1CONbits.TCS = 0;	// Clock source
-	T1CONbits.ON = 0;
-	IPC1bits.T1IP = 6;	// Priority 6
-	IPC1bits.T1IS = 0; 
-	IFS0bits.T1IF = 0;	// Clear timer flag
-	IEC0bits.T1IE = 1;	// No interrupts
+	T1CONbits.TCKPS = 0; 		// Pre-scaler 1:1
+	T1CONbits.TCS = 0;			// Clock source
+	T1CONbits.ON = 0;			// Clock turned off
+	IPC1bits.T1IP = 6;			// Priority 6
+	IPC1bits.T1IS = 0; 			// Subpriority 0, 
+	IFS0bits.T1IF = 0;			// Clear timer flag
+	IEC0bits.T1IE = 1;			// Enable timer1 interrupts
 }
 
 // Enables 16bit Timer2 Interrupts, loads Timer2 Period Register and Starts the Timer
@@ -198,15 +198,15 @@ void Timer1Configure (void)
 void Timer2Configure (void)
 {
 	// Timer2 Interrupt Inialization from Example 16-8 of Family Reference Manual
-	PR2 =(SYSCLK/(FREQ))-1; // since SYSCLK/FREQ = PS*(PR1+1)
+	PR2 =(SYSCLK/(FREQ))-1; 	// since SYSCLK/FREQ = PS*(PR1+1)
 	TMR2 = 0;
-	T2CONbits.TCKPS = 0; // Pre-scaler 1:1
-	T2CONbits.TCS = 0; // Clock source
-	T2CONbits.ON = 1;
-	IPC2bits.T2IP = 5;	// Priority 5
-	IPC2bits.T2IS = 0; 
-	IFS0bits.T2IF = 0;
-	IEC0bits.T2IE = 1;
+	T2CONbits.TCKPS = 0;		// Pre-scaler 1:1
+	T2CONbits.TCS = 0; 			// Clock source
+	T2CONbits.ON = 1;			// Turn On Clock
+	IPC2bits.T2IP = 5;			// Priority 5
+	IPC2bits.T2IS = 0; 			// Subpriority 5
+	IFS0bits.T2IF = 0;			// Clear Timer2 interrupt flag
+	IEC0bits.T2IE = 1;			// Enable Timer2 interrupts
 }
 
 void Timer3Configure (void) //for BUZZER 4000HZ
@@ -228,10 +228,12 @@ void Timer3Configure (void) //for BUZZER 4000HZ
 	//__builtin_enable_interrupts();
 }
 
-
+/* ADC interrupt service routines, moves ADC values from ADC buffer into variables an1-an3
+ * ISR code from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc 
+*/
 void __ISR(_ADC_VECTOR, IPL4AUTO) ADC_ISR(void)
 {
-	AD1CON1bits.ASAM = 0;           // stop automatic sampling (essentially shut down ADC in this mode) while reading from buffers
+	AD1CON1bits.ASAM = 0;           // Stop automatic sampling while reading to buffers
  			
 	if( AD1CON2bits.BUFS == 1)	 	// check which buffers are being written to and read from the other set
 	{    
@@ -254,27 +256,29 @@ void __ISR(_ADC_VECTOR, IPL4AUTO) ADC_ISR(void)
 /* UART2Configure() sets up the UART2 for the most standard and minimal operation
  *  Enable TX and RX lines, 8 data bits, no parity, 1 stop bit, idle when HIGH
  *
- * Input: Desired Baud Rate
- * Output: Actual Baud Rate from baud control register U2BRG after assignment*/
+ * 	Input: Desired Baud Rate
+ * 	Output: Actual Baud Rate from baud control register U2BRG after assignment
+ */
 void UART2Configure(int baud_rate)
 {
     // Peripheral Pin Select
     U2RXRbits.U2RXR = 4;    //SET RX to RB8
     RPB9Rbits.RPB9R = 2;    //SET RB9 to TX
 
-    U2MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
-    U2STA = 0x1400;     // enable TX and RX
+    U2MODE = 0;         	// disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
+    U2STA = 0x1400;     	// enable TX and RX
     U2BRG = Baud2BRG(baud_rate); // U2BRG = (FPb / (16*baud)) - 1
     
     U2MODESET = 0x8000;     // enable UART2
 }
 
-// Configuration for ADC in Auto-Scan Mode
-// Code modiefied from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
+/* Configuration for ADC in Auto-Scan Mode
+ * Code modified from http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
+ */
 void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
 {
-    AD1CON1 = 0x0000; // disable ADC
-	ANSELA = 0; // Don't use AN0, AN1
+    AD1CON1 = 0x0000; 	// disable ADC
+	ANSELA = 0;			// Don't use AN0, AN1
 	ANSELB = 0x000e;	// Use AN3, AN4, AN5
     // AD1CON1<2>, ASAM    : Sampling begins immediately after last conversion completes
     // AD1CON1<7:5>, SSRC  : Internal counter ends sampling and starts conversion (auto convert)
@@ -298,69 +302,52 @@ void adcConfigureAutoScan( unsigned adcPINS, unsigned numPins)
     // select which pins to use for scan mode
     AD1CSSL = adcPINS;
 	IPC5bits.AD1IP = 4; // Set Priority 4
-	IPC5bits.AD1IS = 0; 
+	IPC5bits.AD1IS = 0; // Subpriority 0
 	IFS0bits.AD1IF = 0; // Clear interrupt flag
 	IEC0bits.AD1IE = 1; // Enable ADC interrupt
 }
 
-// Uses the changes in voltage of inductor 3 to detect when a sharp corner is upcoming
-// Then tries to slow the duty cycles of the vehicle to account for the corner
-// Voltage3 approach approximately 1.25V as it reaches the closest point 
-// to the corner
-
+/* Slows down vehicle when entering intersections and some corners, using voltage
+ * readings from inductor 3
+ */
 void IntersectHandler( void )
 {
-	if( voltage3 > INTERSECT_MINVOLTAGE)
+	if( voltage3 > INTERSECT_MINVOLTAGE)	// If passed lower threshold for an intersection
 	{
-		speed_adjust = 1;
-		if(Turn_L_Flag == 1 || Turn_R_Flag ==1)
-			intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*INTERSECT_SCALING))));
+		speed_adjust = 1;					// Force both wheels to have the same duty cycle
+		// Apply a linear scaling do decrement both duty cycles
+		intersect_adjust = (1 - ((voltage3/(INTERSECT_VOLTAGE*INTERSECT_SCALING))));
 	}
-		
+	
+	// Limit intersect adjust to a range of variables (limits duty cycle to 0-100)
+	// in case of a bad voltage reading	
 	if( intersect_adjust > 1)
 		intersect_adjust = 1;
 	if( intersect_adjust < 0)
 		intersect_adjust = 0;
 }
 
-// If there is no signal in the path, then stop the motors
+/*	Stop motors if left and right inductors detect no magnetic field */
 void NoSignalPath( void )
 { 
 	duty1 = 0;
 	duty2 = 0;
-	LCDprint("No Signal",2,1);
+	LCDprint("No Signal",2,1);	// Display message
 }	
-// Adjusts duty cycles to realign vehicle with the path. 
-// Takes the voltage difference in inductors 1 and 2 then scales down the speed of the wheel
-// closest to the wire to steer in that direction. Models the scaling after 1-x^(1/n)
-// where n is the scaling factor.
-/*                  __..-======-------..__
-              . '    ______    ___________`.
-            .' .--. '.-----.`. `.-----.-----`.
-           / .'   | ||      `.` \\     \     \\            _
-         .' /     | ||        \\ \\_____\_____\\__________[_]
-        /   `-----' |'---------`\  .'                       \
-       /============|============\'-------------------.._____|
-    .-`---.         |-==.        |'.__________________  =====|-._
-  .'        `.      |            |      .--------.    _` ====|  _ .
- /     __     \     |            |   .'           `. [_] `.==| [_] \
-[   .`    `.  |     |            | .'     .---.     \      \=|     |
-|  | / .-. '  |_____\___________/_/     .'---. `.    |     | |     |
- `-'| | O |'..`------------------'.....'/ .-. \ |    |       ___.--'
-     \ `-' / /   `._.'                 | | O | |'___...----''___.--'
-      `._.'.'                           \ `-' / [___...----''_.'
-                                         `._.'.' */
-// vroom 
+
+/* Steering algorithm. Adjusts duty cycles of either wheel to steer using voltages
+ * from left and right inductors. Calls NoSignalPath() and IntersectHandler() to 
+ * make adjustments during intersections/corners and when no signal is detected
+ */
 void AlignPath ( void )
 {
 	float speed_adjust;
 	
-	// Apply exponential scaling to wheel closer to path, corresponding to 1 - x^(1/n)
+	// Apply exponential scaling to wheel closer to path
 	speed_adjust = ( 1 - (pow((fabs(Misalignment)/MAX_MISALIGNMENT),SPEED_SCALING)));
 	
-	// Check for intersections or if the signal has disappeared
+	// Check for intersections 
 	IntersectHandler();
-
 	
 	// If speed_adjust overflows bounds, force within bounds
 	if( speed_adjust > 1.0)
@@ -368,17 +355,18 @@ void AlignPath ( void )
 	if( speed_adjust < 0.0)
 		speed_adjust = 0.0;
 	
-	// If Left wheel is closer to path, slow down left wheel
-	if( voltage1<0.001 && voltage2< 0.001)
+	// If there's no signal, stop vehicle
+	if( voltage1<0.003 && voltage2< 0.003)
 	{
 		NoSignalPath();
 	}
+	// Left wheel is closer, reduce duty cycle
 	else if( (Misalignment - ALIGN_TOLERANCE) > 0.0)
 	{
 		duty1 = base_duty*speed_adjust*intersect_adjust;
 		duty2 = base_duty*intersect_adjust;
 	}
-	// If Right wheel is closer to path, slow down right wheel
+	// Right wheel is closer, reduce duty cycle
 	else if( (Misalignment + ALIGN_TOLERANCE) < 0.0)
 	{
 		duty1 = base_duty*intersect_adjust;
@@ -394,45 +382,32 @@ void AlignPath ( void )
 		LCDprint("Reversing",2,1);
 	if( duty1 != 0 && duty2 != 0 && Turn_L_Flag == 0 && Turn_R_Flag ==0)
 		LCDprint("Following Path",2,1);
+	IntersectHandler();
 }
 		
-// Checks for intersections in the track and depending on any commands from the transmitter system
-// either ignores the intersection, turns left or turns right. Priority is higher than generic
-// realignment function. Checks voltage of inductor 3 to see if there is some form of intersection.
-// Check if voltage3>threshold (threshold determined through testing to see what constitutes an arbitrarily
-// large intersection. Then pivots on the wheel corresponding to the turn direction until
-// the wheels align with the new path 
+/* Intersection handler when a turn command has been issued. Triggers turn once a
+ * voltage threshold from the center intersection inductor has been reached.
+ * checks for realignment of the track from the left and righ inductor
+ * to exit the turn
+ */
 void TurnIntersect( void )
 {
 	// If the interesection has not been reached, keep steering normally
 	if( StartTurnFlag == 0)
 	{
 		AlignPath();
-		if( voltage3 > (INTERSECT_VOLTAGE))
-		{
+		if( voltage3 > (INTERSECT_VOLTAGE*0.8))
 			StartTurnFlag = 1;
-			waitms(500);
-			DirectionLPrev = DirectionL;
-			DirectionRPrev = DirectionR;
-		}
 	}
-	// Intersection detected, turn off wheel corresponding to turn direction
+	// Intersection detected, turn off wheel corresponding to turn direction to pivot
 	else
 	{
 		if( Turn_L_Flag == 1)
-		{
-			DirectionL = 1;
-			duty1 = base_duty/2;
-			duty2 = base_duty/2;
-		}
+			duty1 = 0;
 		else
-		{
-			DirectionR = 1;
-			duty2 = base_duty/2;
-			duty1 = base_duty/2;
-		}
+			duty2 = 0;
 		// When left and right wheels align with path, turn is complete, only second alignment
-		// is valid, (will start the turn aligned)
+		// is valid, (will start the turn aligned with the path)
 		if( (fabs(Misalignment) < (ALIGN_TOLERANCE*3)))
 		{
 			if(FirstAligned==0)
@@ -442,17 +417,17 @@ void TurnIntersect( void )
 			}
 			else
 			{
+				// Left and right inductor are aligned with the path, and both over 
+				// a voltage threshold (no signal doesn't satisfy alignment condition)
 				if((fabs(Misalignment) < (ALIGN_TOLERANCE*3)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
 				{
-				// Clear all flags, reset wheels speeds
-					DirectionL = DirectionLPrev;
-					DirectionR = DirectionRPrev;
-					duty1 = base_duty;
-					duty2 = base_duty;
+				// Clear all flags, reset wheel duty cycles
 					FirstAligned = 0;
 					StartTurnFlag = 0;
 					Turn_L_Flag = 0;
 					Turn_R_Flag = 0;
+					duty1 = base_duty;
+					duty2 = base_duty;
 				}
 			}
 		}
@@ -489,26 +464,28 @@ void Turn180 ( void )
 		{
 			if((fabs(Misalignment) < (ALIGN_TOLERANCE*3)) && voltage1 > ALIGN_MINVOLTAGE && voltage2 > ALIGN_MINVOLTAGE)
 			{
-			// Clear all flags and reset directions
+			// Clear all flags and continue to travel in origin direction
 				FirstAligned = 0;
-				DirectionL = DirectionLPrev;
-				DirectionR = DirectionRPrev;
 				Turn180_Flag = 0;
 				Turn180FirstCall = 0;
+				DirectionL = DirectionLPrev;
+				DirectionR = DirectionRPrev;
 			}
 		}
 	}
 }
 
-// Hierarchy to control movement of the vehicle. Checks flags set by the UART receive
-// to call specific movement commands
+/* Hierarchy to control movement of the vehicle. Checks flags set by the command
+ * receiver to execute movement
+ */
 void MovementController ( void )
 {	
+	// Set duty cycles to zero if stop command is issued
 	if (Stop_Flag)
 	{
-		LCDprint("Stopped",2,1);
 		duty1=0;
 		duty2=0;
+		LCDprint("Stopped",2,1);
 	}
 	// Check Turn Flags to Issue a Turn Command, will not execute if currently in a 180 turn
 	else if( (Turn_R_Flag==1 || Turn_L_Flag==1) && Turn180_Flag==0)
@@ -519,55 +496,55 @@ void MovementController ( void )
 		else
 			LCDprint("Turn Left CMD",2,1);
 	}
+	// Turn around if command issued
 	else if( Turn180_Flag==1)
 	{
 		Turn180();
 		LCDprint("Turning 180 Deg",2,1);
 	}
-	else
+	else	// No movement commands received or queued, follow path normally
 		AlignPath();
 }
 
-// Takes commands received by the UART and sets flags used by the Movement Controller
+/*	Parses bits received and read in Timer1 to set flags to control command execution */
 void CommandHandler( void )
 {
+	// If transmitter bits are valid, then parse
 	if( buffer_valid_flag==1) {
 		Command = buffer.byte;	// Move buffer into char command
-		buffer_valid_flag = 0;
+		buffer_valid_flag = 0;	// Reset valid flag
 	}
+	// Not valid, transmission ignored
 	else
 		Command = NullCommand;
 	
-	if( Command == TurnLeft)
+	if( Command == TurnLeft)	// Turn left command received
 		Turn_L_Flag =1;
-	else if( Command == TurnRight)
+	else if( Command == TurnRight)	// Turn right command received
 		Turn_R_Flag =1;
-	else if( Command == StopCommand)
-	{
+	else if( Command == StopCommand) // Stop command received, if already stopped then clear flag
 		Stop_Flag =(Stop_Flag==1)?0:1;
-		Turn_L_Flag = 0;
-		Turn_R_Flag = 0;
-	}
-	else if( Command == ReverseCommand)
+	else if( Command == ReverseCommand)	// Reverse direction command received
 	{
 		DirectionL = (DirectionL==1)?0:1;
 		DirectionR = (DirectionR==1)?0:1;
 	}
-	else if( Command == Turn180Command)
+	else if( Command == Turn180Command)	// Turn 180 command received
 		Turn180_Flag = 1;
-	else if  (Command == Speed_Up)
-		base_duty = ((base_duty==100)?100:(base_duty+10));
-	else if (Command==Speed_Down)
-		base_duty = ((base_duty==0)?0:(base_duty-10));
-	else
+	else if  (Command == Speed_Up)		// Accelerate command received
+		base_duty = ((base_duty==100)?100:(base_duty+10)); // Increment base duty by 10 (max of 100)
+	else if (Command==Speed_Down)		// Deccelerate command received
+		base_duty = ((base_duty==0)?0:(base_duty-10)); // Decrement base duty by 10 (min of 0)
+	else								// Command received was not recognized, ignored
 		Command = NullCommand;
 }
  
 void PinConfigure(void)
 {
-	TRISBbits.TRISB12 = 0; // Outputs to drive H-bridges
+	// Output pins to drive H-bridges
+	TRISBbits.TRISB12 = 0; // Pins RB12,RB13 controls left wheel
   	TRISBbits.TRISB13 = 0;
-  	TRISBbits.TRISB14 = 0;
+  	TRISBbits.TRISB14 = 0; // Pins RB14,RB15 controls right wheel
   	TRISBbits.TRISB15 = 0;
 	
 	TRISBbits.TRISB0 = 0;	// SOUND_OUT 
@@ -581,20 +558,20 @@ void PinConfigure(void)
 // Performs all ISR and non-ISR configurations
 void ConfigureAll( void )
 {
-	CFGCON = 0;
-	PinConfigure();
+	CFGCON = 0;				 // Enables writing to control registers
+	PinConfigure();			 // Configure input and output pins
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
  	
-	StartBitTriggerConfig();
-	INTCONbits.MVEC = 1;
+	StartBitTriggerConfig(); // Configure External Interrupt 1 for command receive detection
+	INTCONbits.MVEC = 1;	 // Enable multi-vector interrupts
 	
-	Timer1Configure();
-	Timer2Configure();
-	Timer3Configure();	//For Buzzer
+	Timer1Configure();		 // Configure Timer 1 to read command transmission
+	Timer2Configure();		 // Configure Timer 2 for PWM and turn signals
+	Timer3Configure();	     // Configure Timer 3 for buzzer
 	
-	LCD_4BIT();
+	LCD_4BIT();				 // Configure LCD
 	adcConfigureAutoScan( 0x0038, 3); // Using pins RB1,RB2,RB3 as ADC inputs
-	AD1CON1SET = 0x8000;              // start ADC
+	AD1CON1SET = 0x8000;              // Start ADC
 	__builtin_enable_interrupts();
 }
 
@@ -610,18 +587,21 @@ void CalculateVolts ( void )
 
 void main(void)
 {
+	// Buffer to hold strings for printing to LCD
 	char LCDstring[17];
 	
-	ConfigureAll();
+	ConfigureAll();	
 	while(1)
 	{	
-		CalculateVolts();
-		CommandHandler();
-		MovementController();
-		printf("Command = %c\r\n", Command);
-		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);
+		CalculateVolts();	// Voltage conversions from ADC readings
+		CommandHandler();	// Parses received transmission bits from transmiter into commands
+		MovementController(); // Execute commands/movement
+		
+		printf("Command = %c\r\n", Command);	// Prints received characters to serial
+		// Prints inductor voltages and duty cycles to serial
 		printf("V1:%.3f V2:%.3f V3:%.3f Duty1:%d Duty2: %d\r\n", voltage1, voltage2, voltage3, duty1,duty2);
-		LCDprint(LCDstring,1,1);
+		sprintf(LCDstring, "V1:%.3f V2:%.3f", voltage1, voltage2);	
+		LCDprint(LCDstring,1,1);	// Prints left and right inductor voltages to LCD
 	}
 }
 
